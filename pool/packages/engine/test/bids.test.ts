@@ -65,7 +65,7 @@ describe('rankBids — requirements are data (terms + modes), published order', 
 });
 
 describe('award (default A: earliest joiners get the best seller; capacity in base units)', () => {
-  const m = (id: string, at: number, base: number, options: string[] = []) => ({ memberId: id, joinedAt: at, qty: qty(UOM.kg, base), options });
+  const m = (id: string, at: number, base: number, options: string[] = []) => ({ memberId: id, joinedAt: at, qty: qty(UOM.kg, base), options, needBy: CLOSE + 96 * HOUR });
   const kgBid = (o: Partial<Bid>) => bid({ uom: 'kg', ...o });
   it('splits kg capacity in join order and records a backup', () => {
     const ranked = [kgBid({ id: 'win', sellerId: 's1', capacityBase: 2000 }), kgBid({ id: 'next', sellerId: 's2', capacityBase: 10_000 })];

@@ -1,4 +1,4 @@
-import { divRoundHalfUp, money, type Money, MoneyError } from './money.ts';
+import { mulDivRoundHalfUp, money, type Money, MoneyError } from './money.ts';
 
 /**
  * Units of measure are DATA, not code. Any product can be pooled: pieces, kg, litres, metres, packs, hours…
@@ -35,9 +35,8 @@ export function qty(uom: UnitOfMeasure, base: number): Quantity {
 /** Price for a quantity: price-per-uom × base / baseScale, rounded half-up once. */
 export function lineTotal(pricePerUom: Money, q: Quantity, uom: UnitOfMeasure): Money {
   if (q.uom !== uom.code) throw new MoneyError(`quantity is in ${q.uom}, price is per ${uom.code}`);
-  const product = pricePerUom.minor * q.base;
-  if (!Number.isSafeInteger(product)) throw new MoneyError('price × quantity overflows');
-  return money(pricePerUom.currency, divRoundHalfUp(product, uom.baseScale));
+  if (!Number.isSafeInteger(q.base) || q.base <= 0) throw new MoneyError('quantity must be a positive integer');
+  return money(pricePerUom.currency, mulDivRoundHalfUp(pricePerUom.minor, q.base, uom.baseScale));
 }
 
 /**
@@ -69,6 +68,7 @@ export function validateQuantityRule(r: QuantityRule): void {
 }
 
 export function checkQuantity(r: QuantityRule, q: Quantity): void {
+  if (!Number.isSafeInteger(q.base) || q.base <= 0) throw new QuantityError('QUANTITY', 'quantity must be a positive integer');
   if (q.uom !== r.uom.code) throw new QuantityError('UOM', `this pool is priced per ${r.uom.code}`);
   if (q.base < r.minBase) throw new QuantityError('MIN', `minimum is ${r.minBase} ${r.uom.baseLabel}`);
   if ((q.base - r.minBase) % r.stepBase !== 0) throw new QuantityError('STEP', `quantity must go up in steps of ${r.stepBase} ${r.uom.baseLabel}`);

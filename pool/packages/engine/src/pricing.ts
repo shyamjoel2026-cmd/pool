@@ -47,6 +47,7 @@ export interface OfferInput {
   readonly qty: Quantity;
   /** Buyer's best verified outside all-in total for the same quantity, if known. */
   readonly outsideBest?: Money;
+  readonly poolId?: string;
 }
 
 export interface Offer {
@@ -77,6 +78,8 @@ export function makeOffers(
   return inputs.map((i) => {
     const d = decisions.get(i.bidId);
     if (!d) throw new PricingError('PRICE_NOT_SET', `the team has not set a buyer price for bid ${i.bidId}`);
+    if (d.bidId !== i.bidId || (i.poolId !== undefined && d.poolId !== i.poolId)) throw new PricingError('DECISION_IDENTITY', 'price decision does not belong to this assignment');
+    if (!d.decidedBy.trim() || !Number.isSafeInteger(d.decidedAt)) throw new PricingError('DECISION_AUDIT', 'price decision needs an actor and UTC timestamp');
     checkPriceDecision(policy, i.sellerPrice, d);
     const sellerTotal = lineTotal(i.sellerPrice, i.qty, uom);
     const buyerTotal = lineTotal(d.buyerPrice, i.qty, uom);

@@ -82,7 +82,7 @@ describe.each(cases)('end-to-end: $name', (c) => {
     const ranked = rankBids([bidA, bidB], { deliverBy: pool.closesAt + 5 * DAY, acceptableModes: c.profile.modes, terms: c.requirements }, new Map([['A', { verified: true }], ['B', { verified: true }]]));
     expect(ranked.map((b) => b.id)).toEqual(['A', 'B']);
     const committed = pool.members.filter((x) => x.status === 'COMMITTED');
-    const { assignments, unserved } = award(ranked, committed.map((x) => ({ memberId: x.memberId, joinedAt: x.joinedAt, qty: x.qty, options: x.options })));
+    const { assignments, unserved } = award(ranked, committed.map((x) => ({ memberId: x.memberId, joinedAt: x.joinedAt, qty: x.qty, options: x.options, needBy: x.needBy })));
     expect(unserved).toEqual([]);
 
     // The TEAM sets the buyer price for each awarded bid (no fixed fee).

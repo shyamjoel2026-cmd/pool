@@ -59,19 +59,30 @@ export function divRoundHalfUp(numerator: number, denominator: number): number {
   assertSafe(numerator, 'numerator');
   assertSafe(denominator, 'denominator');
   if (denominator <= 0) throw new MoneyError('denominator must be positive');
-  const sign = numerator < 0 ? -1 : 1;
-  const abs = Math.abs(numerator);
-  const q = Math.floor(abs / denominator);
-  const r = abs - q * denominator;
-  return sign * (2 * r >= denominator ? q + 1 : q);
+  return divideBigInt(BigInt(numerator), BigInt(denominator));
+}
+
+function divideBigInt(numerator: bigint, denominator: bigint): number {
+  const sign = numerator < 0n ? -1n : 1n;
+  const absolute = numerator * sign;
+  const result = Number(sign * (absolute / denominator + (2n * (absolute % denominator) >= denominator ? 1n : 0n)));
+  assertSafe(result, 'rounded result');
+  return result;
+}
+
+/** Exact integer intermediates even when a valid result's multiplication exceeds Number.MAX_SAFE_INTEGER. */
+export function mulDivRoundHalfUp(value: number, multiplier: number, denominator: number): number {
+  assertSafe(value, 'value');
+  assertSafe(multiplier, 'multiplier');
+  assertSafe(denominator, 'denominator');
+  if (denominator <= 0) throw new MoneyError('denominator must be positive');
+  return divideBigInt(BigInt(value) * BigInt(multiplier), BigInt(denominator));
 }
 
 /** m × bps / 10 000, rounded half-up. 1 bps = 0.01 %. */
 export function percentOf(m: Money, bps: number): Money {
   assertSafe(bps, 'bps');
-  const product = m.minor * bps;
-  assertSafe(product, 'minor × bps');
-  return money(m.currency, divRoundHalfUp(product, 10_000));
+  return money(m.currency, mulDivRoundHalfUp(m.minor, bps, 10_000));
 }
 
 /**
@@ -82,26 +93,25 @@ export function percentOf(m: Money, bps: number): Money {
 export function allocate(total: Money, weights: readonly number[]): Money[] {
   if (weights.length === 0) throw new MoneyError('allocate needs at least one weight');
   if (total.minor < 0) throw new MoneyError('allocate expects a non-negative total');
-  let weightSum = 0;
+  let weightSum = 0n;
   for (const w of weights) {
     assertSafe(w, 'weight');
     if (w < 0) throw new MoneyError('weights must be non-negative');
-    weightSum += w;
+    weightSum += BigInt(w);
   }
-  if (weightSum === 0) throw new MoneyError('weights must not all be zero');
+  if (weightSum === 0n) throw new MoneyError('weights must not all be zero');
   const base: number[] = [];
-  const remainders: { i: number; r: number }[] = [];
+  const remainders: { i: number; r: bigint }[] = [];
   let allocated = 0;
   weights.forEach((w, i) => {
-    const product = total.minor * w;
-    assertSafe(product, 'total × weight');
-    const q = Math.floor(product / weightSum);
+    const product = BigInt(total.minor) * BigInt(w);
+    const q = Number(product / weightSum);
     base.push(q);
     allocated += q;
-    remainders.push({ i, r: product - q * weightSum });
+    remainders.push({ i, r: product % weightSum });
   });
   let left = total.minor - allocated;
-  remainders.sort((a, b) => b.r - a.r || a.i - b.i);
+  remainders.sort((a, b) => a.r === b.r ? a.i - b.i : a.r > b.r ? -1 : 1);
   for (const { i } of remainders) {
     if (left === 0) break;
     base[i] = (base[i] ?? 0) + 1;
