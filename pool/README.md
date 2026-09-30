@@ -24,3 +24,6 @@ pnpm typecheck
 - There is no fixed fee: the POOL team sets each pool's buyer price (`pricing.ts`).
 - Every money event carries an `idempotencyKey` (`<orderId>:<action>`), so a retry never double-pays.
 - Order status only moves when the required proof is attached.
+
+## M1.5 rework
+India pools now require booking and checkout configuration plus HSN/GST data. Awards move through stageAward → publishOffers; the actual acceptance deadline must fit bid validity. Payment receipts must match bookings. All money is integer paise with exact BigInt intermediates. Handover verifies an order-bound code after balance capture. issueCode requires externally generated entropy, keeping the engine deterministic. Reducers replay journal snapshots and audit data; commands return exact money events. India tax caveats are explicitly marked UNVERIFIED in source.

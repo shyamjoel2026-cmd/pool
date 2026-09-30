@@ -8,19 +8,19 @@ const END = NOW + 12 * 3_600_000;
 describe('handover codes follow the fulfilment profile', () => {
   it('length and checklist come from the profile', () => {
     const pickup = PROFILES.store_pickup!;
-    const { plain, stored } = issueCode(SECRET, 'o1', pickup.codeDigits, END, pickup.handoverChecklist);
+    const { plain, stored } = issueCode(SECRET, 'o1', pickup.codeDigits, END, 1234, pickup.handoverChecklist);
     expect(plain).toMatch(/^\d{4}$/);
     expect(JSON.stringify(stored)).not.toContain(plain);
     expect(verifyCode(SECRET, stored, plain, NOW)).toMatchObject({ ok: false, reason: 'CHECKLIST_INCOMPLETE' });
     expect(verifyCode(SECRET, stored, plain, NOW, { right_item: true, right_quantity: true }).ok).toBe(true);
   });
   it('no checklist → code alone is enough', () => {
-    const { plain, stored } = issueCode(SECRET, 'o2', 6, END);
+    const { plain, stored } = issueCode(SECRET, 'o2', 6, END, 123456);
     expect(plain).toMatch(/^\d{6}$/);
     expect(verifyCode(SECRET, stored, plain, NOW).ok).toBe(true);
   });
   it('single use, attempt lock, expiry, per-order binding, secret length', () => {
-    const { plain, stored } = issueCode(SECRET, 'o1', 4, END, [], 3);
+    const { plain, stored } = issueCode(SECRET, 'o1', 4, END, 1234, [], 3);
     const used = verifyCode(SECRET, stored, plain, NOW);
     expect(verifyCode(SECRET, used.code, plain, NOW)).toMatchObject({ reason: 'ALREADY_USED' });
     let s = stored;
@@ -28,9 +28,9 @@ describe('handover codes follow the fulfilment profile', () => {
     for (let i = 0; i < 3; i++) s = verifyCode(SECRET, s, wrong, NOW).code;
     expect(verifyCode(SECRET, s, plain, NOW)).toMatchObject({ reason: 'LOCKED' });
     expect(verifyCode(SECRET, stored, plain, END + 1)).toMatchObject({ reason: 'EXPIRED' });
-    const other = issueCode(SECRET, 'o9', 4, END);
+    const other = issueCode(SECRET, 'o9', 4, END, 1234);
     expect(verifyCode(SECRET, other.stored, plain, NOW).ok).toBe(plain === other.plain);
-    expect(() => issueCode('short', 'o1', 4, END)).toThrow(/32/);
+    expect(() => issueCode('short', 'o1', 4, END, 1234)).toThrow(/32/);
   });
 });
 

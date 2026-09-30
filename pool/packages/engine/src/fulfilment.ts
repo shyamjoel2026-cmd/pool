@@ -65,6 +65,7 @@ export function validateProfile(p: FulfilmentProfile): void {
   const holdKeys = new Set<string>();
   let holdBps = 0;
   for (const h of p.holds) {
+    if (!Number.isSafeInteger(h.releaseAfterDays) || h.releaseAfterDays < 0 || (h.deferredMaxDays !== undefined && (!Number.isSafeInteger(h.deferredMaxDays) || h.deferredMaxDays < h.releaseAfterDays))) throw new FulfilmentError('HOLD', 'invalid hold duration');
     if (holdKeys.has(h.key)) throw new FulfilmentError('HOLD', `duplicate hold ${h.key}`);
     holdKeys.add(h.key);
     if (!Number.isSafeInteger(h.bps) || h.bps < 0) throw new FulfilmentError('HOLD', 'hold bps must be a non-negative integer');

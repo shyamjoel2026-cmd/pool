@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyAward, close, committedCount, confirmBooking, createPool, decide, expireOffers, extendClose, INDIA_POLICY,
+  applyAward, stageAward, publishOffers, money, type Bid, close, committedCount, confirmBooking, createPool, decide, expireOffers, extendClose, INDIA_POLICY,
   join, leave, optInToExtension, type Pool, poolMatchKey, qty, type Quantity, type QuantityRule, UOM,
 } from '../src/index.ts';
 
@@ -12,7 +12,7 @@ const NOW = Date.UTC(2026, 10, 10);
 function openPool(rule: QuantityRule, closesAt = NOW + 2 * DAY, categoryPath = ['food', 'meat']): Pool {
   return createPool(
     INDIA_POLICY,
-    { id: 'p1', categoryPath, productKey: 'k', areaKey: 'kondapur', quantityRule: rule, fulfilmentProfileId: 'store_pickup', waveCountMode: 'per_order', createdBy: 'u0', createdAt: NOW, closesAt },
+    { id: 'p1', bookingRule:{kind:'FIXED',amountMinor:100,minMinor:100,maxMinor:100},checkoutPlan:'PREPAY_FULL',hsnCode:'9999',gstRateBps:1800, categoryPath, productKey: 'k', areaKey: 'kondapur', quantityRule: rule, fulfilmentProfileId: 'store_pickup', waveCountMode: 'per_order', createdBy: 'u0', createdAt: NOW, closesAt },
     NOW,
   ).value;
 }
@@ -40,7 +40,7 @@ describe('joining — rules come from the pool, not the product type', () => {
   it('typical 1 kg buyers join; only confirmed bookings count', () => {
     let p = join(INDIA_POLICY, openPool(meatRule), m('a', qty(UOM.kg, 1000)), NOW).value;
     expect(committedCount(p)).toBe(0);
-    p = confirmBooking(p, 'a', NOW + 1).value;
+    p = confirmBooking(p, 'a', NOW + 1, receipt('a')).value;
     expect(committedCount(p)).toBe(1);
     expect(confirmBooking(p, 'a', NOW + 2).events).toEqual([]); // webhook replay is idempotent
   });
@@ -67,9 +67,9 @@ describe('joining — rules come from the pool, not the product type', () => {
 describe('close time: extend only with every committed member opting in; never shorten', () => {
   it('works', () => {
     let p = openPool(pieceRule);
-    for (const id of ['a', 'b']) p = confirmBooking(join(INDIA_POLICY, p, m(id, qty(UOM.piece, 1)), NOW).value, id, NOW).value;
+    for (const id of ['a', 'b']) p = confirmBooking(join(INDIA_POLICY, p, m(id, qty(UOM.piece, 1)), NOW).value, id, NOW, receipt(id)).value;
     expect(() => extendClose(INDIA_POLICY, p, p.closesAt + DAY, NOW)).toThrow(/have not agreed/);
-    p = optInToExtension(optInToExtension(p, 'a', NOW), 'b', NOW);
+    p = optInToExtension(optInToExtension(p, 'a', NOW, p.closesAt + DAY).value, 'b', NOW, p.closesAt + DAY).value;
     expect(extendClose(INDIA_POLICY, p, p.closesAt + DAY, NOW).value.closesAt).toBe(NOW + 3 * DAY);
     expect(() => extendClose(INDIA_POLICY, p, NOW + DAY, NOW)).toThrow(/never shortened/);
   });
@@ -78,7 +78,7 @@ describe('close time: extend only with every committed member opting in; never s
 describe('close → award → decide', () => {
   const committed = (ids: string[]) => {
     let p = openPool(pieceRule);
-    for (const id of ids) p = confirmBooking(join(INDIA_POLICY, p, m(id, qty(UOM.piece, 1)), NOW).value, id, NOW).value;
+    for (const id of ids) p = confirmBooking(join(INDIA_POLICY, p, m(id, qty(UOM.piece, 1)), NOW).value, id, NOW, receipt(id)).value;
     return p;
   };
   it('closes only at the chosen time; unpaid joiners are dropped', () => {
@@ -92,11 +92,16 @@ describe('close → award → decide', () => {
     expect(r.events[0]).toMatchObject({ type: 'POOL_NO_DEAL', refunds: 2 });
   });
   it('default B: no reply = walk away with refund; walking away is never blocked', () => {
-    let p = applyAward(INDIA_POLICY, close(committed(['a', 'b', 'c']), NOW + 2 * DAY).value, new Set(['a', 'b']), NOW + 2 * DAY).value;
+    let p = close(committed(['a', 'b', 'c']), NOW + 2 * DAY).value;
+    const b:Bid={id:'b',poolId:p.id,sellerId:'s',revision:1,sellerPrice:money('INR',1000),uom:'piece',capacityBase:2,deliverBy:NOW+3*DAY,modes:['pickup'],terms:{},optionsCovered:[],slabs:[],validUntil:NOW+5*DAY,submittedAt:NOW};
+    p=stageAward(p,['a','b'].map(memberId=>({memberId,bidId:b.id,sellerId:b.sellerId,sellerPrice:b.sellerPrice,qty:qty(UOM.piece,1),backupBidId:undefined})),NOW+2*DAY).value;
+    p=publishOffers(INDIA_POLICY,p,new Map([['b',{poolId:p.id,bidId:'b',buyerPrice:money('INR',1100),decidedBy:'ops',decidedAt:NOW+2*DAY}]]),[b],NOW+2*DAY).value;
     expect(p.members.find((x) => x.memberId === 'c')?.status).toBe('UNSERVED');
     expect(decide(p, 'a', 'WALKED_AWAY', NOW + 2 * DAY + 1).events[0]).toMatchObject({ refundBooking: true });
-    p = decide(p, 'a', 'ACCEPTED', NOW + 2 * DAY + HOUR).value;
+    p = decide(p, 'a', 'ACCEPTED', NOW + 2 * DAY + HOUR, 'oa').value;
     const r = expireOffers(p, p.acceptBy! + 1);
-    expect(r.events).toEqual([expect.objectContaining({ memberId: 'b', decision: 'TIMED_OUT', refundBooking: true })]);
+    expect(r.events.filter(e=>e.type==='MEMBER_DECIDED')).toEqual([expect.objectContaining({ memberId: 'b', decision: 'TIMED_OUT', refundBooking: true })]);
   });
 });
+
+function receipt(id:string){return {amount:money('INR',100),paymentRef:'pay-'+id,paidAt:NOW};}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  acceptBid, applyAward, award, type Bid, close, closeWave, completeStep, confirmBooking, createPool, decide,
+  acceptBid, stageAward, publishOffers, award, type Bid, close, closeWave, completeStep, confirmBooking, createPool, decide,
   type FulfilmentProfile, handOver, holdPerUnit, INDIA_POLICY, issueCode, join, makeOffers, markPaid, money,
   type Order, type OrderEvent, type Policy, type PriceDecision, PROFILES, qty, type QuantityRule, rankBids,
   releaseDueHolds, settle, splitOrder, type TermRequirement, type Terms, UOM, type UnitOfMeasure, US_POLICY,
@@ -65,11 +65,11 @@ describe.each(cases)('end-to-end: $name', (c) => {
     const P = c.policy;
     const cur = P.currency;
     // Pool: a buyer starts it and chooses to close it in 3 days.
-    let pool = createPool(P, { id: 'pool', categoryPath: c.categoryPath, productKey: 'prod-1', areaKey: 'area-1', quantityRule: c.rule, fulfilmentProfileId: c.profile.id, waveCountMode: c.waveCountMode, createdBy: 'u0', createdAt: T0, closesAt: T0 + 3 * DAY }, T0).value;
+    let pool = createPool(P, { id: 'pool', bookingRule: {kind:'FIXED',amountMinor:100,minMinor:100,maxMinor:100}, checkoutPlan:'PREPAY_FULL', hsnCode:'9999', gstRateBps:c.goodsTaxBps, categoryPath: c.categoryPath, productKey: 'prod-1', areaKey: 'area-1', quantityRule: c.rule, fulfilmentProfileId: c.profile.id, waveCountMode: c.waveCountMode, createdBy: 'u0', createdAt: T0, closesAt: T0 + 3 * DAY }, T0).value;
     const ids = Array.from({ length: 30 }, (_, i) => `m${i + 1}`);
     ids.forEach((id, i) => {
       pool = join(P, pool, { memberId: id, userId: `u-${id}`, householdKey: `h-${id}`, payerKey: `p-${id}`, qty: qty(c.uom, c.buyerQtyBase), options: [], needBy: T0 + 14 * DAY }, T0 + i * HOUR).value;
-      pool = confirmBooking(pool, id, T0 + i * HOUR + 1).value;
+      pool = confirmBooking(pool, id, T0 + i * HOUR + 1, {amount:money(cur,100),paymentRef:'booking-'+id,paidAt:T0+i*HOUR}).value;
     });
 
     // Two verified sellers bid their OWN prices (sealed). Seller A's capacity forces a split (default A).
@@ -91,11 +91,12 @@ describe.each(cases)('end-to-end: $name', (c) => {
       ['B', { poolId: pool.id, bidId: 'B', buyerPrice: money(cur, c.teamPrices[1]), decidedBy: 'team', decidedAt: pool.closesAt }],
     ]);
     const offers = makeOffers(P, c.uom, assignments.map((a) => ({ memberId: a.memberId, bidId: a.bidId, sellerId: a.sellerId, sellerPrice: a.sellerPrice, qty: a.qty })), decisions);
-    pool = applyAward(P, pool, new Set(offers.map((o) => o.memberId)), pool.closesAt).value;
+    pool = stageAward(pool, assignments, pool.closesAt).value;
+    pool = publishOffers(P, pool, decisions, ranked, pool.closesAt).value;
 
     // 26 accept, 4 walk away (their bookings are refunded; they never become orders).
     const accepted = offers.slice(0, 26);
-    for (const o of accepted) pool = decide(pool, o.memberId, 'ACCEPTED', pool.closesAt + HOUR).value;
+    for (const o of accepted) pool = decide(pool, o.memberId, 'ACCEPTED', pool.closesAt + HOUR, 'o-'+o.memberId).value;
     for (const o of offers.slice(26)) pool = decide(pool, o.memberId, 'WALKED_AWAY', pool.closesAt + HOUR).value;
 
     // Orders run through whatever the fulfilment profile says.
@@ -104,16 +105,16 @@ describe.each(cases)('end-to-end: $name', (c) => {
     const settled: Order[] = [];
     const bidById = new Map(ranked.map((b) => [b.id, b]));
     accepted.forEach((off, i) => {
-      const split = splitOrder(P, { buyerTotal: off.buyerTotal, sellerTotal: off.sellerTotal, goodsTaxBps: c.goodsTaxBps, profile: c.profile, waveHoldMinor: holdPerUnit(bidById.get(off.bidId)!.slabs) * waveCount(off.qty, c.uom, c.waveCountMode) });
+      const split = splitOrder(P, { buyerTotal: off.buyerTotal, sellerTotal: off.sellerTotal, ...(P.region==='IN'?{indiaTax:{hsnCode:'9999',gstRateBps:c.goodsTaxBps,sellerStateCode:'36',deliveryStateCode:'36',poolStateCode:'36',supplyKind:'MOVEMENT_OF_GOODS' as const}}:{goodsTaxBps:0}), profile: c.profile, waveHoldMinor: holdPerUnit(bidById.get(off.bidId)!.slabs) * waveCount(off.qty, c.uom, c.waveCountMode) });
       let o: Order = { id: `o-${off.memberId}`, poolId: pool.id, buyerId: off.memberId, sellerId: off.sellerId, profile: c.profile, split, promisedBy: bidById.get(off.bidId)!.deliverBy, returnCost: money(cur, 100_00), status: 'AWAITING_PAYMENT', steps: [], holdDeferrals: {}, holdsReleased: [], openIssue: false };
       const at = pool.closesAt + 2 * HOUR;
       o = markPaid(o, at).order;
       collected += split.buyerTotal.minor;
       for (const s of c.profile.steps.filter((x) => !x.afterHandover)) o = completeStep(o, s.key, `${s.proof}-${i}`, o.sellerId, at).order;
-      const code = issueCode(SECRET, o.id, c.profile.codeDigits, at + DAY, c.profile.handoverChecklist);
+      const code = issueCode(SECRET, o.id, c.profile.codeDigits, at + DAY, 1234, c.profile.handoverChecklist);
       const v = verifyCode(SECRET, code.stored, code.plain, at + HOUR, Object.fromEntries(c.profile.handoverChecklist.map((k) => [k, true])));
       expect(v.ok).toBe(true);
-      const h = handOver(o, `verified-${o.id}`, at + HOUR);
+      const h = handOver(o, {secret:SECRET,stored:code.stored,attempt:code.plain,checklist:Object.fromEntries(c.profile.handoverChecklist.map(k=>[k,true]))}, at + HOUR);
       events.push(...h.events);
       o = h.order;
       // Half the orders complete after-handover steps; the rest release holds by timeout.

@@ -8,6 +8,14 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+
+### 2026-09-30 19:20 · Codex · M1.5 rework checkpoint (M2 still pending)
+- Did: independently reviewed inherited M1 after the founder requested deep rework. Found stale extension consent, unchecked deadlines, incomplete booking/refund amounts, code proof bypass, missing replay data, and hold releases after returns. Implemented deadline-aware awards, BigInt intermediates, booking rules/receipt validation, PRICING/published offers, exact booking application/refunds, India tax context/helpers, checkout balance gating, seller default planning, abuse signals, and snapshot-backed replay. Changed old fixtures only to supply mandatory founder-required payment, pricing, tax and real-code inputs. Exempt goods TCS expectation corrected; US fixture still runs.
+- Verified baseline: `pnpm install` → “Lockfile passes supply-chain policies (85 entries in 7s)”, “Done in 7.4s using pnpm v12.8.1”; `pnpm test` → “Test Files 8 passed (8)”, “Tests 75 passed (75)”; `pnpm typecheck` → tsc exit 0. First rework commit 2dcffa7: 9 files / 78 tests, tsc exit 0. Subsequent check: 10 files / 91 tests, tsc exit 0; newer checks recorded at next checkpoint.
+- Sources: npm view returned fast-check 4.10.2, vitest 5.0.3, typescript 7.0.2, @types/node 26.6.3 (existing pins unchanged). New dependency queries returned drizzle-orm 0.45.3, pg 8.23.0, @types/pg 8.23.1, @dbos-inc/dbos-sdk 5.2.11 (not yet installed). Tax/source URLs are in india-tax.ts; state master https://docs.ewaybillgst.gov.in/apidocs/state-code.html; Intl https://nodejs.org/api/intl.html; crypto https://nodejs.org/api/crypto.html; cash restriction https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12896 section 17(b); Competition Act explanation https://cci.gov.in/antitrust.
+- Next: finish edge-case review and verification, then M2 Docker/database/ledger/workflows and real integration/crash tests; stop before M3.
+- Open issues / blockers: UNVERIFIED GSTIN checksum specification (advisory check only), CA confirmation of TDS base/exemptions and current commission classification, non-movement/services POS needs explicit tax treatment, historical GUESS policy defaults remain unconfirmed. Delegated workers stopped on usage limits; root continued alone. No secrets printed. No M3 work.
+
 ### 2026-09-30 · Claude Code · handoff to Codex
 - **Did:**
   - Founder decision: **India first**, US parked (recorded in §4 and AGENTS.md).

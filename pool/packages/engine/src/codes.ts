@@ -1,4 +1,5 @@
-import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+// Crypto API: https://nodejs.org/api/crypto.html; random entropy belongs in the I/O layer.
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
  * Handover codes (delivery or pickup) for ANY product.
@@ -33,11 +34,14 @@ export function issueCode(
   orderId: string,
   digits: 4 | 6,
   expiresAt: number,
+  entropy: number,
   requiredChecklist: readonly string[] = [],
   maxAttempts = 5,
 ): { plain: string; stored: StoredCode } {
   if (secret.length < 32) throw new Error('code secret must be at least 32 characters');
-  const plain = String(randomInt(0, 10 ** digits)).padStart(digits, '0');
+  if (![4,6].includes(digits) || !Number.isSafeInteger(expiresAt) || !Number.isSafeInteger(maxAttempts) || maxAttempts < 1) throw new Error('invalid code policy');
+  if (!Number.isSafeInteger(entropy) || entropy < 0 || entropy >= 10 ** digits) throw new Error('caller must supply cryptographically generated integer entropy');
+  const plain = String(entropy).padStart(digits, '0');
   return { plain, stored: { orderId, digits, hash: hmac(secret, orderId, plain), expiresAt, attempts: 0, maxAttempts, requiredChecklist } };
 }
 
