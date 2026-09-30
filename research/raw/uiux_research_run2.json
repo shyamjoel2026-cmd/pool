@@ -1,0 +1,721 @@
+{
+  "summary": "Research and verify the UI/UX stack, patterns, accessibility, Indic i18n and quality gates for a world-class, very easy POOL prototype",
+  "agentCount": 6,
+  "logs": [
+    "[research:quality-a11y-i18n] failed: You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+    "[verify:ux-patterns] failed: You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+    "[verify:design-stack] failed: You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+    "[design:spec] failed: You've hit your session limit · resets 9:50am (Asia/Kolkata)"
+  ],
+  "result": {
+    "lenses": [
+      {
+        "key": "design-stack",
+        "r": {
+          "lens": "design-stack",
+          "findings": [
+            {
+              "topic": "Recommended stack in one view (5-dev prototype)",
+              "recommendation": "Web (buyer web, seller web, ops console): Next.js 16.3 + React 19.2, Tailwind CSS 4.3, shadcn/ui CLI v4 on the Base UI base, lucide-react, Motion (m + LazyMotion), Sonner, cmdk (ops console only), Recharts v3 through the shadcn Chart component, TanStack Query 5 and Table, React Hook Form 7 with Zod 4. Mobile (buyer and seller apps): Expo SDK 57 now and SDK 58 once stable, Expo Router, Uniwind (free tier) with React Native Reusables, Reanimated 4, sonner-native, @gorhom/bottom-sheet, lucide-react-native, lottie-react-native/dotLottie, react-native-gifted-charts. Shared: one DTCG token source (Figma Variables native export) built by Style Dictionary 5 into a single Tailwind v4 @theme CSS file that both Next.js and Uniwind read. Fonts: Google Sans (Latin, Devanagari and Telugu in one family), with Noto Sans Telugu/Devanagari plus Inter as the fallback pairing. Storybook 10 for component review.",
+              "why": "Every choice below was checked on npm, GitHub or the official site on 2026-09-30 (MIT, ISC, Apache-2.0 or OFL-1.1, and active in 2026). The main idea is that Tailwind v4 CSS-first config works on both web and mobile when mobile uses Uniwind, or NativeWind v5 once it is stable. That lets one token file and one component vocabulary (shadcn on web, React Native Reusables on mobile) serve all surfaces, so a 5-person team does not maintain two design systems.",
+              "url": "https://ui.shadcn.com/docs/changelog/2026-07-base-ui-default",
+              "confidence": "high",
+              "tool_or_source": "npm registry + GitHub API (gh) + official docs, fetched 2026-09-30",
+              "license": "mixed permissive (see individual findings)"
+            },
+            {
+              "topic": "Tailwind CSS v4 (web)",
+              "recommendation": "Adopt tailwindcss 4.3.3 (released 2026-07-16). Use CSS-first @theme with CSS variables generated from tokens. Before launch, QA the buyer web flow on the in-app browsers and older Android WebViews your Hyderabad users actually have.",
+              "why": "MIT licence and actively maintained (repo pushed 2026-09-25). There is no styling runtime, which suits low-end Android. The same @theme file can feed Uniwind on mobile. Trade-off: the official compatibility page says v4 is designed for Chrome 111+, Safari 16.4+ and Firefox 128+. The v4.1 post says older browsers now render and stay usable (oklab colours, @property fallbacks, inlined opacity fallbacks), but 'the odd shadow color' may differ. Tailwind 3.4 is the only fully 'old-browser' option.",
+              "url": "https://tailwindcss.com/docs/compatibility",
+              "confidence": "high",
+              "tool_or_source": "tailwindcss.com docs + blog/tailwindcss-v4-1; npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "shadcn/ui (web component source)",
+              "recommendation": "Use the shadcn CLI (shadcn 4.21.0, 2026-09-04) with the default Base UI base (`npx shadcn init`). Own the copied components in packages/ui-web. Adopt the new `cn` package (Sept 2026).",
+              "why": "MIT licence, repo pushed 2026-09-29, about 125k stars. The July 2026 changelog says 'New projects now use Base UI by default. Radix is still fully supported', and React Aria became a first-class base in July 2026 (`init --base aria`). The copy-in model lets you tune every pixel for the founder's 'wow' bar with no vendor lock-in. Trade-off: you own upgrades (the CLI diff/apply commands help).",
+              "url": "https://ui.shadcn.com/docs/changelog/2026-07-react-aria",
+              "confidence": "high",
+              "tool_or_source": "ui.shadcn.com changelog; npm shadcn",
+              "license": "MIT"
+            },
+            {
+              "topic": "Primitive layer: Base UI vs Radix vs React Aria",
+              "recommendation": "Choose Base UI (@base-ui/react 1.8.0, 2026-09-04). Keep React Aria (react-aria-components 1.21.1, Apache-2.0) as a targeted add-on for complex date/number fields in the ops console if needed. Do not start new work on the Radix base.",
+              "why": "Base UI is MIT and went v1.0 stable on 2025-12-11 with 35+ components, including Drawer (stable since v1.3), Toast, Combobox/Autocomplete and OTPField (stable since v1.6). OTPField defaults to autocomplete='one-time-code' with numeric validation, which fits POOL's delivery and pickup codes and seller confirmation codes directly. Radix (radix-ui 1.6.7, July 2026) is still maintained, but shadcn's Radix-base Drawer still depends on the unmaintained Vaul. React Aria has the strongest accessibility and i18n story, but its built-in translated strings cover about 37 locales and do not include Hindi or Telugu, so you would translate those strings yourself either way.",
+              "url": "https://base-ui.com/react/overview/releases",
+              "confidence": "high",
+              "tool_or_source": "base-ui.com releases + OTP field docs; react-aria.adobe.com/quality; npm",
+              "license": "Base UI MIT; React Aria Apache-2.0; Radix MIT"
+            },
+            {
+              "topic": "Vaul (drawers)",
+              "recommendation": "Do not adopt. Use Base UI Drawer through shadcn on web, and @gorhom/bottom-sheet on mobile.",
+              "why": "The Vaul README says: 'This repo is unmaintained.' Its last release was v1.1.2 on 2024-12-14. shadcn's Drawer on the Base UI and React Aria bases now 'uses Base UI instead of Vaul' and has a migration guide. Only the Radix base still installs vaul.",
+              "url": "https://github.com/emilkowalski/vaul",
+              "confidence": "high",
+              "tool_or_source": "GitHub README; ui.shadcn.com/docs/components/{base,radix}/drawer",
+              "license": "MIT"
+            },
+            {
+              "topic": "Toasts: Sonner (web) and sonner-native (mobile)",
+              "recommendation": "Use sonner 2.0.8 on web and sonner-native 0.27.0 on mobile, behind one `notify()` wrapper so pool, bid and refund events look and behave the same everywhere. Using shadcn's new Base UI Toast on web is also fine if you do not need API parity with mobile.",
+              "why": "Both are MIT and active: Sonner released 2026-08-09, sonner-native 2026-08-15. sonner-native supports swipe-dismiss, promise toasts, dark mode and NativeWind styling. Its peer dependencies need Reanimated ^4.1.1, gesture-handler, safe-area, screens, svg and worklets, all of which Expo SDK 57 provides. Note: on the Base UI base, shadcn's /components/sonner page now redirects to the Base UI Toast; Sonner is still offered on the Radix and Aria bases.",
+              "url": "https://github.com/gunnartorfis/sonner-native-toasts",
+              "confidence": "high",
+              "tool_or_source": "npm; GitHub; ui.shadcn.com/docs/changelog/2026-07-toast",
+              "license": "MIT"
+            },
+            {
+              "topic": "cmdk (command palette)",
+              "recommendation": "Use it only in the ops console (Ctrl+K to jump to an order, pool, seller or refund). Keep it out of buyer apps.",
+              "why": "MIT licence. shadcn's Command component is still built on cmdk for all three bases. Release cadence is slow (last release v1.1.1 on 2025-03-14, repo pushed 2025-10-29), which is acceptable for an internal tool but not for a core buyer surface.",
+              "url": "https://ui.shadcn.com/docs/components/command",
+              "confidence": "high",
+              "tool_or_source": "GitHub API; shadcn docs",
+              "license": "MIT"
+            },
+            {
+              "topic": "Motion (framer-motion) on web",
+              "recommendation": "Use motion 13.4.6 with `m` + LazyMotion and domAnimation, and load domMax only on the pages that need layout animations. Respect prefers-reduced-motion. Use React 19.2 View Transitions (via Next.js 16) for route transitions where they are enough.",
+              "why": "MIT licence, published 2026-09-29. The official bundle guide says the full `motion` component is 34kb, while `m` + LazyMotion is 'just under 4.6kb' at first render, plus 15kb for domAnimation. That matters for patchy data and low-end phones. Motion does not target React Native, so mobile uses Reanimated.",
+              "url": "https://motion.dev/docs/react-reduce-bundle-size",
+              "confidence": "high",
+              "tool_or_source": "motion.dev docs; npm; nextjs.org/blog (Next 16 = React 19.2 View Transitions)",
+              "license": "MIT"
+            },
+            {
+              "topic": "Icons: Lucide vs Phosphor",
+              "recommendation": "Use Lucide (lucide-react and lucide-react-native 1.49.0, 2026-09-29) as the only icon set. Always pair icons with a text label in buyer flows.",
+              "why": "Lucide is ISC-licensed, with an MIT notice for the Feather-derived icons (which is why GitHub shows NOASSERTION). The same icon names work on web and React Native, and it releases almost weekly. Phosphor (MIT) has attractive fill and duotone weights, but @phosphor-icons/react last released on 2025-05-22 and the React Native port is community-maintained (phosphor-react-native 3.0.6, Apr 2026).",
+              "url": "https://github.com/lucide-icons/lucide/blob/main/LICENSE",
+              "confidence": "high",
+              "tool_or_source": "GitHub LICENSE; npm",
+              "license": "ISC (+MIT for Feather-derived icons)"
+            },
+            {
+              "topic": "Charts on web (seller and ops dashboards): Recharts vs Tremor",
+              "recommendation": "Use Recharts 3.10.1 through shadcn's Chart component, which now uses Recharts v3. Do not add @tremor/react as a dependency; use Tremor only as visual inspiration.",
+              "why": "Recharts is MIT and active (repo pushed 2026-09-29, a 3.11 canary exists). Tremor 'is joining Vercel'. @tremor/react last released 3.18.7 on 2025-01-13, and the copy-paste tremorlabs/tremor repo was last pushed 2025-10-10 (Apache-2.0). That is low activity for a 2026 build.",
+              "url": "https://ui.shadcn.com/docs/components/chart",
+              "confidence": "high",
+              "tool_or_source": "shadcn docs; tremor.so; npm; GitHub API",
+              "license": "Recharts MIT; Tremor Apache-2.0"
+            },
+            {
+              "topic": "Charts in the mobile seller app",
+              "recommendation": "Default to react-native-gifted-charts 1.4.78 (SVG-based, no Skia). Use Victory Native XL (victory-native 42.0.1) only if you need gesture-rich, high-FPS charts.",
+              "why": "Both are MIT and active in Aug 2026. Victory Native XL describes itself as 'Active' (Nearform), but it requires @shopify/react-native-skia. Skia's own docs say it adds about 4 MB to Android download size (about 6 MB on iOS). Low-end phones and patchy data argue for the lighter SVG option.",
+              "url": "https://shopify.github.io/react-native-skia/docs/getting-started/bundle-size",
+              "confidence": "high",
+              "tool_or_source": "Skia docs; GitHub victory-native-xl README; npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "TanStack Query and TanStack Table",
+              "recommendation": "Use @tanstack/react-query 5.104.0 on web and mobile, with networkMode 'online' (the default) for bids and checkout and 'offlineFirst' for cached catalogues. For ops tables, pin @tanstack/react-table 8.21.3 for the prototype unless the team confirms that the shadcn data-table patterns work on v9.",
+              "why": "Both are MIT. The Query docs say paused queries 'continue to run once you re-gain network connection', which is the behaviour you want on patchy Hyderabad data. Table v9.0.0 only shipped on 2026-08-04 (latest 9.2.4). The last v8 was 8.21.3 (2025-04-14), so v9 is about two months old.",
+              "url": "https://tanstack.com/query/latest/docs/framework/react/guides/network-mode",
+              "confidence": "medium",
+              "tool_or_source": "tanstack.com docs; npm time data",
+              "license": "MIT"
+            },
+            {
+              "topic": "Forms: React Hook Form + Zod",
+              "recommendation": "Use react-hook-form 7.89.0 with zod 4.6.5 and @hookform/resolvers 5.9.1. Put Zod schemas (address, pickup slot, bid, KYC-lite) in a shared package used by Next.js server code, the web forms and the Expo forms. Stay off RHF 8 (beta) for now.",
+              "why": "All three are MIT and released in Aug–Sep 2026. RHF works in React Native. One schema gives the same validation messages in English, Hindi and Telugu on every surface. TanStack Form 1.33.5 (MIT) is a viable alternative but adds a second paradigm.",
+              "url": "https://github.com/react-hook-form/react-hook-form",
+              "confidence": "high",
+              "tool_or_source": "npm; GitHub API",
+              "license": "MIT"
+            },
+            {
+              "topic": "Expo SDK status (Sept 2026)",
+              "recommendation": "Start on Expo SDK 57 (expo 57.0.26) with development builds via EAS, not Expo Go. Plan to move to SDK 58 once it is stable.",
+              "why": "SDK 57 was released 2026-06-30 on React Native 0.86 and React 19.2. The SDK 58 beta started 2026-09-15 on RN 0.88 RC, with stable expected shortly after RN 0.88 ships. The Expo docs say SDK 55 and later 'run entirely on the New Architecture' and it 'cannot be disabled'. SDK 56/57 support Android 7+ and iOS 16.4+, which covers older low-end phones. The SDK 57 post says an Expo Go build for SDK 57 was still awaiting approval and that Expo Go is not recommended for production apps. Expo is MIT.",
+              "url": "https://expo.dev/changelog/sdk-57",
+              "confidence": "high",
+              "tool_or_source": "expo.dev changelog; docs.expo.dev/versions + guides/new-architecture; npm dist-tags (latest=57.0.26, next=58.0.0)",
+              "license": "MIT"
+            },
+            {
+              "topic": "Expo Router",
+              "recommendation": "Use expo-router (57.0.24, which ships with the SDK) for file-based navigation in both apps, mirroring the Next.js App Router folder structure so developers can move between web and mobile.",
+              "why": "MIT. It now lives in the expo/expo monorepo; the old expo/router repo is archived. The SDK 58 beta post marks native tabs, toolbars, data loaders, SSR and middleware as stable, so the upgrade adds capability rather than churn.",
+              "url": "https://expo.dev/changelog/sdk-58-beta",
+              "confidence": "medium",
+              "tool_or_source": "expo.dev changelog; GitHub API (expo/router archived); npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "Mobile styling: Uniwind vs NativeWind",
+              "recommendation": "Use Uniwind 1.12.0 (free, MIT) so mobile reads the same Tailwind v4 @theme CSS as web. Fallback: NativeWind 4.2.7 stable, which uses a Tailwind 3.4 JS config and would need a second token output. Do not ship NativeWind v5 yet.",
+              "why": "Uniwind hit v1.0 on 2025-11-04. Its peer dependencies are tailwindcss >=4 and react-native >=0.81. It supports CSS-first themes with no ThemeProvider, custom themes, ScopedTheme, useCSSVariable, and it works in Expo Go. NativeWind 4.2.7 added Expo SDK 57 support but requires tailwindcss ^3.4.17. NativeWind v5 (5.0.0-rc.0, 2026-09-13, Tailwind v4 + react-native-css) is described in its docs as a release candidate 'not intended for production'. Trade-offs: Uniwind is younger (about 1.7k stars, made by CodeMask, the Unistyles team). Its '2x faster' claims are the vendor's own. Reanimated animations via className and the C++ engine are Pro (paid) features.",
+              "url": "https://docs.uniwind.dev/llms.txt",
+              "confidence": "medium",
+              "tool_or_source": "uniwind.dev + docs index; nativewind.dev (v5 + installation); npm peerDependencies",
+              "license": "MIT (Uniwind free tier; Pro is commercial); NativeWind MIT"
+            },
+            {
+              "topic": "Mobile component kit: React Native Reusables",
+              "recommendation": "Use React Native Reusables (shadcn/ui for React Native) with the Uniwind variant (`init -t minimal-uniwind`). Copy components into packages/ui-native. Add sonner-native for toasts and @gorhom/bottom-sheet 5.2.14 for sheets.",
+              "why": "MIT, about 8.7k stars, pushed 2026-09-27, part of the Vercel OSS Program. Its changelog confirms full Uniwind support since Dec 2025, and the CLI auto-detects Uniwind. The Uniwind registry includes accordion, alert-dialog, dialog, dropdown-menu, select, tabs, switch, tooltip, toggle-group, skeleton and progress, all with the same names and API as web shadcn, so design and code reviews use one vocabulary. It has no toast or bottom sheet, hence the two add-ons. @gorhom/bottom-sheet's peer range accepts Reanimated >=4.",
+              "url": "https://github.com/founded-labs/react-native-reusables",
+              "confidence": "high",
+              "tool_or_source": "GitHub README + registry tree + changelog.mdx; npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "Tamagui and Gluestack UI (evaluated, not recommended)",
+              "recommendation": "Do not use either as the primary system for POOL.",
+              "why": "Tamagui (@tamagui/core MIT, 2.7.7 released 2026-08-15) has a strong compiler and cross-platform theming. However, v2.0.0 only shipped on 2026-05-23 and a v3 beta was already out by 2026-09-27, which is major-version churn. It also has its own styling language that diverges from Tailwind and shadcn on web, and its Bento and Takeout extras are paid. Gluestack UI v5 (5.0.0, June 2026) is a universal Next.js + Expo copy-paste kit on NativeWind. Its npm package and packages/gluestack-ui/LICENSE are MIT, though the root LICENSE link in the README returns 404. Adopting it would pull the web apps off shadcn/Base UI, and recent commits (Aug–Sep 2026) are mostly website fixes.",
+              "url": "https://tamagui.dev/",
+              "confidence": "medium",
+              "tool_or_source": "tamagui.dev; gluestack.io; GitHub API; npm",
+              "license": "MIT (both)"
+            },
+            {
+              "topic": "Animation engine on mobile: Reanimated 4 (and skip Moti)",
+              "recommendation": "Use react-native-reanimated 4.7.0 with react-native-worklets 0.13.0. Use its CSS transitions and animations for micro-interactions: pool-fill bar, live bid counter, 'POOL this' press, step ticks on the proof timeline. Do not add Moti.",
+              "why": "MIT. The official docs say it 'works only with the React Native New Architecture', which Expo SDK 55+ always uses. CSS transitions (transitionProperty and related) run on Android, iOS and web. Moti's last release was 0.30.0 on 2025-01-29, and its Reanimated 4 upgrade PR (#389) is still open.",
+              "url": "https://docs.swmansion.com/react-native-reanimated/docs/guides/compatibility/",
+              "confidence": "high",
+              "tool_or_source": "Reanimated docs; GitHub issues (moti); npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "Delight animations: Lottie / dotLottie",
+              "recommendation": "Use lottie-react-native 7.5.0 on mobile and @lottiefiles/dotlottie-react 0.19.16 on web for 2–3 lazy-loaded hero moments: the Wave Drop refund celebration, 'Pool locked, price guaranteed', and friendly empty states.",
+              "why": "lottie-react-native is Apache-2.0 (released 2026-08-22; peer React Native >=0.84 and React >=19.2, which SDK 57 meets). dotLottie web is MIT and active (Sept 2026). airbnb/lottie-web was last pushed 2025-09-01, so prefer the dotLottie player on web. Keep the files small and honour reduced-motion.",
+              "url": "https://github.com/lottie-react-native/lottie-react-native",
+              "confidence": "high",
+              "tool_or_source": "GitHub API; npm peerDependencies",
+              "license": "Apache-2.0 (lottie-react-native); MIT (dotLottie)"
+            },
+            {
+              "topic": "Rive (interactive state-machine animation)",
+              "recommendation": "Optional. Use Rive only for one interactive element, such as a pool meter that reacts to joins and bids, and only if a designer on the team knows Rive. Otherwise use Lottie.",
+              "why": "The runtimes are MIT: @rive-app/react-canvas 4.35.0 (2026-09-24), and the new @rive-app/react-native 0.5.0 (2026-09-29), built on Nitro, which Rive recommends over the still-supported legacy rive-react-native 9.8.5. Trade-offs: the new React Native runtime is 0.x and depends on react-native-nitro-modules. The Rive pricing page shows the Free plan cannot export .riv files; Cadet ($9 per seat per month, max 3 seats) or higher is required.",
+              "url": "https://rive.app/pricing",
+              "confidence": "medium",
+              "tool_or_source": "rive.app pricing + React Native runtime docs; npm",
+              "license": "Runtimes MIT; editor commercial SaaS"
+            },
+            {
+              "topic": "Design tokens pipeline: Style Dictionary + Figma native DTCG",
+              "recommendation": "Keep a single DTCG tokens source in packages/tokens: colour, radius, spacing, type scale, script-aware line-heights, motion durations, and light/dark modes. Export it from Figma Variables using Figma's native DTCG JSON export. Build it with style-dictionary 5.5.5 into (a) tokens.css, a Tailwind v4 @theme block plus light/dark CSS variables consumed by both Next.js and Uniwind, and (b) tokens.ts for JavaScript consumers such as Reanimated, chart colours and Lottie colour overrides.",
+              "why": "Style Dictionary is Apache-2.0, released 2026-09-20, and has had first-class DTCG support since v4. Its docs say full support for the stable DTCG 2025.10 spec (released 2025-10-28) is 'a work in progress in v5', so stick to simple token types. Figma's Schema 2025 post announced native variables import/export aligned to the DTCG 1.0 spec, 'available in November' 2025, and raised the mode limits to 10 on Professional and 20 on Organization.",
+              "url": "https://styledictionary.com/info/dtcg/",
+              "confidence": "high",
+              "tool_or_source": "styledictionary.com; designtokens.org; figma.com/blog/schema-2025-design-systems-recap",
+              "license": "Apache-2.0"
+            },
+            {
+              "topic": "Tokens Studio",
+              "recommendation": "Skip it for the prototype. Revisit only if you need Git-synced token branching beyond what native Figma Variables export gives you.",
+              "why": "The plugin repo is MIT and active (2.12.1, 2026-09-23), but the useful workflows are paid: Starter Plus €17/month, Essential €169/month, Organization €499/month (billed annually). @tokens-studio/sd-transforms was last released 2025-12-10. Native Figma DTCG export plus Style Dictionary covers the prototype's needs at no extra cost.",
+              "url": "https://tokens.studio/pricing",
+              "confidence": "medium",
+              "tool_or_source": "tokens.studio pricing; GitHub API; npm",
+              "license": "MIT (plugin code); commercial plans"
+            },
+            {
+              "topic": "Figma plan, Dev Mode and Code Connect",
+              "recommendation": "Start on Figma Professional: Full seats for designers, Dev seats at $12/month for the developers, which include Dev Mode and the MCP server. Defer Code Connect until the component library stops changing, because it requires the Organization plan.",
+              "why": "Figma's pricing page lists Professional at Full $16, Dev $12 and Collab $3 per seat per month, with 'Advanced Dev Mode inspection and MCP Server'. Code Connect docs say it is 'Available on a Dev or Full seat on the Organization, and Enterprise plans'. Organization costs Full $55 and Dev $25 per seat per month, billed annually. Code Connect (MIT CLI, v2.0.1, 2026-09-10) supports React and React Native, and its UI can map one Figma component to both code implementations.",
+              "url": "https://developers.figma.com/docs/code-connect/",
+              "confidence": "high",
+              "tool_or_source": "figma.com/pricing; developers.figma.com; npm @figma/code-connect",
+              "license": "Code Connect CLI MIT; Figma commercial"
+            },
+            {
+              "topic": "Storybook",
+              "recommendation": "Use storybook 10.6.1 with @storybook/nextjs-vite as the review surface for the founder's UI sign-off: every component in light and dark mode, in EN, HI and TE, and at 360px width. Add @storybook/react-native 10.6.0 on mobile only once the core components settle.",
+              "why": "MIT and active (released 2026-09-29). Storybook 10 (2025-10-28) is ESM-only, and Vitest-based component testing is part of the ecosystem. Caveat: @storybook/react-native 10.6.0 declares exact peer versions react-native-reanimated 4.5.1 and safe-area-context 5.8.0, so expect peer warnings alongside Reanimated 4.7 and test it before relying on it.",
+              "url": "https://storybook.js.org/blog/",
+              "confidence": "high",
+              "tool_or_source": "storybook.js.org blog; npm peerDependencies",
+              "license": "MIT"
+            },
+            {
+              "topic": "Primary font: Google Sans (one family for English, Hindi and Telugu)",
+              "recommendation": "Prototype with Google Sans: next/font/google on web with subsets ['latin','devanagari','telugu'], and @expo-google-fonts/google-sans embedded with the expo-font config plugin on mobile. Run a readability test with Telugu- and Hindi-first users before locking it in.",
+              "why": "Google Sans was added to Google Fonts on 2025-12-09 under OFL-1.1 (trademark note: you may not use 'Google' in your own brand or imply affiliation). It covers Latin, Devanagari and Telugu, with variable wght 400–700 plus GRAD and opsz axes. The Next.js 16.3.7 font-data includes the telugu and devanagari subsets. Measured woff2 sizes from the Google Fonts CSS2 API with an Android Chrome user agent on 2026-09-30: Telugu 66,380 B, Devanagari 50,000 B, Latin 35,852 B. Noto Sans Telugu is 123,764 B and Anek Telugu 139,724 B, so Google Sans is about half the weight, which matters on patchy data. Trade-offs: it is Google's brand typeface, so the UI may feel 'Android-ish'; the weights stop at 400–700; and Google Sans Flex, the more expressive version, is Latin-only.",
+              "url": "https://fonts.google.com/specimen/Google+Sans",
+              "confidence": "medium",
+              "tool_or_source": "fonts.google.com/metadata/fonts; google/fonts ofl/googlesans (OFL.txt, TRADEMARKS.md); next font-data.json; measured woff2 downloads",
+              "license": "OFL-1.1 (+ trademark restrictions)"
+            },
+            {
+              "topic": "Fallback and alternative Indic fonts",
+              "recommendation": "Fallback stack: Noto Sans Telugu (variable wdth 62.5–100, wght 100–900) plus Noto Sans Devanagari (same axes) plus Inter (Latin only, OFL, opsz 14–32, wght 100–900). If branding wants more personality in headings, consider Anek Telugu / Anek Devanagari (Ek Type, variable wdth 75–125, wght 100–800). Do not use Mukta or Hind as a system font.",
+              "why": "All are OFL-1.1 on Google Fonts and available via @fontsource-variable and @expo-google-fonts packages. Google Fonts metadata shows Mukta and Hind are Devanagari plus Latin only, with no variable axes. Hind Guntur is the separate, static Telugu sibling. So none of them covers the Telugu-Hindi-English trio as one variable family. Inter has no Indic glyphs, so it must be paired. Measured variable woff2 sizes: Inter Latin 48 KB, Noto Sans Devanagari 121 KB, Noto Sans Telugu 124 KB.",
+              "url": "https://fonts.google.com/noto/specimen/Noto+Sans+Telugu",
+              "confidence": "high",
+              "tool_or_source": "Google Fonts metadata API; Google Fonts CSS2 API size measurement; npm",
+              "license": "OFL-1.1"
+            },
+            {
+              "topic": "Fonts on Expo (variable vs static)",
+              "recommendation": "On SDK 57, ship static TTF weights (for example 400, 500 and 700) embedded with the expo-font config plugin. Switch to variable files after upgrading to SDK 58.",
+              "why": "Expo's font guide says: 'Android and iOS support variable fonts in SDK 58 and later. On earlier versions, use static font files.' The config plugin makes fonts 'available immediately when the app starts', so there is no flash of fallback text on slow phones. It needs a development build, which you want anyway.",
+              "url": "https://docs.expo.dev/develop/user-interface/fonts/",
+              "confidence": "high",
+              "tool_or_source": "docs.expo.dev",
+              "license": "expo-font MIT"
+            },
+            {
+              "topic": "Indic typography and accessibility rules to bake into tokens",
+              "recommendation": "Add script-aware tokens: line-height +0.1em for :lang(te) and :lang(hi), no fixed-height text containers, and a minimum body size one step larger for Telugu. Enforce 48dp minimum touch targets on mobile, and at least 24×24 CSS px everywhere (WCAG 2.2 AA). Primary buttons get icon plus text, never icon-only.",
+              "why": "Material Design's typography guidance lists Hindi and Telugu as 'tall' languages and states 'line height is 0.1em larger than the English-like languages'. Android accessibility guidance recommends touch targets of 'at least 48dpx48dp'. WCAG 2.2 SC 2.5.8 (AA) requires 'at least 24 by 24 CSS pixels'. User context: the IAMAI-Kantar 'Internet in India Report 2024' (Jan 2025) found 886M active users, 55% of them rural (488M), and 'one in five internet users using voice' (Medianama). IBEF's write-up reports 98% accessing content in Tamil, Telugu and Malayalam and '57% of urban internet users also prefer regional language content'. StatCounter shows Android at 92.79% of India's mobile OS share in Aug 2026, so design and QA Android-first.",
+              "url": "https://m1.material.io/style/typography.html",
+              "confidence": "high",
+              "tool_or_source": "Material Design; developer.android.com; w3.org WCAG 2.2; medianama.com + ibef.org (IAMAI-Kantar); gs.statcounter.com",
+              "license": "n/a (guidelines/research)"
+            },
+            {
+              "topic": "Theming and dark mode",
+              "recommendation": "Tokens define semantic colour roles (surface, text, brand, success for refunds, warning for pool closing soon, danger), each with light and dark values. Web: Tailwind v4 dark custom variant plus next-themes 0.4.6. Mobile: Uniwind CSS-first themes (no ThemeProvider; ScopedTheme for a promotional 'Sunday mutton' themed section). Default to the system setting and check AA contrast in both modes as a CI step.",
+              "why": "next-themes is MIT, with its last release on 2025-03-11 and repo pushed 2026-02-25, so it is stable but slow-moving and its small scope makes that acceptable. Uniwind's docs list Theming Basics ('CSS-first theming with @theme, dark mode ... no ThemeProvider needed'), Custom Themes, Scoped Themes and useCSSVariable. The same CSS variables drive both platforms, so a colour change is a single token edit.",
+              "url": "https://docs.uniwind.dev/theming/basics.md",
+              "confidence": "medium",
+              "tool_or_source": "Uniwind docs index; GitHub API; npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "Localisation formatting (₹ lakh grouping, Telugu and Hindi dates)",
+              "recommendation": "Format all money, dates and relative times with Intl (en-IN, hi-IN, te-IN, en-US) through one shared formatting package. Keep UI strings in i18next 26.4.2 / react-i18next 17.0.15 (MIT, Sept 2026). Test the same outputs on Hermes on a real low-end Android phone.",
+              "why": "Verified in Node 24 on 2026-09-30: new Intl.NumberFormat('te-IN',{style:'currency',currency:'INR'}).format(1234567.5) gives ₹12,34,567.50 (lakh grouping). te-IN and hi-IN dates and relative times ('నిన్న', 'कल') render correctly. No component library ships Telugu or Hindi built-in strings (React Aria omits both), so plan your own translation keys for every component label.",
+              "url": "https://react-aria.adobe.com/quality",
+              "confidence": "medium",
+              "tool_or_source": "local Node 24.12 Intl test; React Aria quality page; npm",
+              "license": "MIT"
+            },
+            {
+              "topic": "Next.js baseline for the web apps",
+              "recommendation": "Use next 16.3.7 with React 19.2 or later. Turbopack is the default bundler, and the React Compiler is stable. Use next/font for self-hosted subset fonts.",
+              "why": "MIT. Next.js 16 (2025-10-21) made Turbopack the default and React Compiler support stable, and ships React 19.2 View Transitions. 16.3 (2026-08-03) added 'Instant Navigations', which makes pages feel app-like for buyers on slow networks.",
+              "url": "https://nextjs.org/blog",
+              "confidence": "high",
+              "tool_or_source": "nextjs.org blog; npm",
+              "license": "MIT"
+            }
+          ],
+          "unverified": [
+            "Uniwind performance claims ('2-5x faster'; 81ms vs NativeWind 4 at 197ms and NativeWind 5 at 258ms) are the vendor's own benchmarks, not independently checked.",
+            "Whether Figma's native DTCG variables import/export is available on the Professional plan, and how complete its export is. The official Schema 2025 post gives only timing (Nov 2025); forum users reported missing description fields.",
+            "Readability and glyph quality of Google Sans Telugu and Devanagari for first-time and low-literacy smartphone users. This needs hands-on testing with native readers in Hyderabad.",
+            "How Tailwind v4 output renders in the Android WebView and in-app browsers (WhatsApp, Instagram, etc.) actually used on low-end phones in Hyderabad. No usage data by browser version was found.",
+            "Whether Hermes (React Native's JS engine) on low-end Android gives the same te-IN and hi-IN Intl output as Node 24. Only Node was tested.",
+            "Whether shadcn's data-table examples target the TanStack Table v8 or v9 API. A check of the docs page timed out.",
+            "Compatibility of @storybook/react-native 10.6.0, which pins react-native-reanimated 4.5.1 as an exact peer, with Reanimated 4.7.0.",
+            "The exact Expo SDK 58 stable date. The beta post says only 'shortly after' React Native 0.88 ships. The SDK 58 beta details (e.g. Router data loaders and native tabs being stable) came via a page summariser and should be re-read on the post itself.",
+            "The Counterpoint claim that sub-₹10k smartphone shipments fell 65% YoY in H1 2026 (seen only in a secondary news snippet; the primary article body was not readable).",
+            "LottieFiles' marketing claims about dotLottie file-size savings were not checked.",
+            "Rive plan limits and prices come from the live pricing page on 2026-09-30 and may change. Re-check before buying.",
+            "Whether Figma Variables' 10-mode limit on Professional is enough if you model language-specific typography as modes as well as light/dark (a design decision, not checked)."
+          ]
+        },
+        "v": null
+      },
+      {
+        "key": "ux-patterns",
+        "r": {
+          "lens": "ux-patterns",
+          "findings": [
+            {
+              "topic": "Guardrail 1: India CCPA dark-pattern guidelines as a release checklist",
+              "recommendation": "Turn the 13 banned patterns in the CCPA 2023 guidelines into a pre-release checklist that must pass on every screen: false urgency, basket sneaking, confirm shaming, forced action, subscription trap, interface interference, bait and switch, drip pricing, disguised advertisement, nagging, trick question, SaaS billing, rogue malware. How each maps to POOL: (a) pool member counts and closing times must be real and logged (false urgency); (b) no pre-ticked installation, extended warranty or donation (basket sneaking); (c) walk-away copy stays neutral (confirm shaming); (d) the Walk-away button is never greyed out or hidden (interface interference); (e) the guaranteed pooled price never changes at checkout, and POOL never swaps in a different model without fresh consent (bait and switch); (f) the all-in price is shown from the first card (drip pricing); (g) no repeated 'install the app' prompts (nagging).",
+              "why": "The guidelines were notified on 30 Nov 2023. They apply to platforms, sellers and advertisers, including foreign platforms. Trilegal's analysis says that if an urgency prompt is challenged, the business may have to prove it was a correct representation. POOL's whole model runs on countdowns and member counts, so that burden of proof falls squarely on it. On 5 Jun 2025 CCPA also told all platforms to self-audit for dark patterns within 3 months (PIB: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2191948).",
+              "url": "https://trilegal.com/wp-content/uploads/2023/12/Guidelines-for-Prevention-and-Regulation-of-Dark-Patterns-2023.pdf",
+              "confidence": "high",
+              "tool_or_source": "CCPA Guidelines for Prevention and Regulation of Dark Patterns 2023 (Trilegal analysis)"
+            },
+            {
+              "topic": "Guardrail 2: tactics CCPA fined in 2026 that POOL must not copy",
+              "recommendation": "Treat these as named anti-patterns in design reviews: (1) Zepto was fined Rs 7 lakh because handling charges and a membership fee appeared during checkout after the first price was shown (drip pricing and basket sneaking). POOL's pooled price and comparison price must already include delivery, installation and platform fee. (2) SpiceJet was fined Rs 1 lakh for misleading countdown timers. POOL's countdown must be the real close time and must never reset. (3) Physics Wallah was fined Rs 5 lakh for a pre-selected Rs 10 donation with emotional wording, and BookMyShow had a pre-ticked Re 1 donation. All POOL add-ons are opt-in. (4) IndiGo's 'No I will take risk' opt-out was made neutral. POOL's walk-away copy must be neutral. Keep a screenshot archive of every live version of the checkout and pool screens.",
+              "why": "Press reports of the Ministry's Rajya Sabha reply (5 Aug 2026) list 9 penalised platforms and about Rs 20 lakh in penalties collected since June 2025. This is active 2026 enforcement against exactly the checkout and urgency tactics a group-buying app is tempted to use.",
+              "url": "https://www.freepressjournal.in/business/ccpa-penalises-zepto-indigo-physics-wallah-and-6-other-platforms-over-dark-patterns",
+              "confidence": "high",
+              "tool_or_source": "CCPA enforcement, Aug 2026"
+            },
+            {
+              "topic": "Guardrail 3: US rules (FTC, California all-in pricing, Amazon Prime order)",
+              "recommendation": "For the US, show the all-in price: every mandatory fee included, with only government taxes and shipping allowed outside it. Never use a timer on an offer that isn't really time-limited. If POOL ever adds a paid membership, it needs a clear 'No thanks' button, costs and renewal terms shown before any billing details are collected, and cancellation as easy as signing up.",
+              "why": "California SB 478 (in force since 1 Jul 2024) makes it illegal to advertise a price that leaves out mandatory fees, apart from government taxes and shipping. The FTC's 2022 dark-patterns staff report calls out countdown timers on offers that aren't actually time-limited, and hidden fees revealed later in checkout (https://www.ftc.gov/news-events/news/press-releases/2022/09/ftc-report-shows-rise-sophisticated-dark-patterns-designed-trick-trap-consumers). The FTC's federal junk-fee rule (effective 12 May 2025) covers only live-event tickets and short-term lodging, so it does not directly govern POOL. Amazon's $2.5B FTC settlement (Sept 2025) followed collecting billing information before disclosing Prime's cost and auto-renewal. The order requires a clear decline button and easy cancellation (https://www.ftc.gov/news-events/news/press-releases/2025/09/ftc-secures-historic-25-billion-settlement-against-amazon).",
+              "url": "https://oag.ca.gov/hiddenfees",
+              "confidence": "high",
+              "tool_or_source": "California AG SB 478 FAQ; FTC"
+            },
+            {
+              "topic": "Guardrail 4: fake timers and fake social proof are common, so show proof instead",
+              "recommendation": "Pool countdown: the server stores the close time the buyer chose. It never resets, and it is never extended without every member's opt-in, which is logged. Member counter: count only committed bookings (paid and refundable), never views. Label it '7 buyers committed', not 'people interested'. Show 'seller bids received: 3' only after the bids exist. No spin wheels, no 'X people viewing', no auto-ticking savings animations.",
+              "why": "A crawl of about 11K shopping sites found 393 countdown timers, 157 of them deceptive (they reset, or the offer outlived the timer), plus 632 low-stock messages and 313 activity notifications (Mathur et al., CSCW 2019). On 8 Nov 2024 the EU CPC network told Temu that fake discounts, pressure selling with false limited supply or false deadlines, forced 'spin the wheel' gamification and suspect reviews breach EU consumer law (https://ec.europa.eu/commission/presscorner/api/files/document/print/el/ip_24_5707/IP_24_5707_EN.pdf). A group-buying UI that looks like Temu's will be read through that lens.",
+              "url": "https://webtransparency.cs.princeton.edu/dark-patterns/",
+              "confidence": "high",
+              "tool_or_source": "Mathur et al. 2019; European Commission CPC action on Temu"
+            },
+            {
+              "topic": "Screen: link paste and product confirmation",
+              "recommendation": "Home screen is one large paste field ('Paste any product link'), with a mic button and a 'Search by name' fallback. On Android, register as a share target so a link shared from WhatsApp or Chrome opens POOL directly (expo-share-intent in the app, MIT; the PWA share_target manifest option is experimental and not Baseline). Resolve the link into an 'Is this the one?' card: photo, brand plus exact model code, chips for capacity/size/colour/storage, the store and price we read, and a timestamp. Variant confirmation is required before any payment step. Never ask again for anything already confirmed. If parsing fails, say so plainly and show the closest matches; never guess silently.",
+              "why": "Apple's Apple Pay HIG says to collect options like colour and size before the person reaches the pay button. WCAG 2.2 SC 3.3.7 Redundant Entry says not to ask for the same information twice in a session. A wrong variant is also a bait-and-switch risk at offer time.",
+              "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/apple-pay.json",
+              "confidence": "high",
+              "tool_or_source": "Apple HIG (Apple Pay); W3C WCAG 2.2; expo-share-intent (github.com/achorein/expo-share-intent, MIT, last push 2026-07-10)",
+              "license": "expo-share-intent: MIT"
+            },
+            {
+              "topic": "Screen: honest comparison card, including 'Amazon is cheaper for you'",
+              "recommendation": "Each option (POOL estimate, Amazon, Flipkart, Croma, local dealer) is one row or card with the same attributes: all-in 'You pay' (price, minus only the card offers the user has said they hold, plus delivery, installation and fees), delivery date, installation included (yes/no/cost), warranty (brand vs seller, in months), seller name, and 'Price checked 10:42 am' with a link. Offer a toggle between 'With your cards' and 'Without card offers'. Put a verdict line on top that is allowed to say 'Amazon is cheaper for you today by Rs 1,240', with a working outbound button. Add a Google-style price context badge (low/typical/high against a real price history), with no prediction. On mobile, use stacked cards with at most 2 compared side by side and sticky labels. Label any affiliate or commission link.",
+              "why": "Baymard's latest quantitative study (US shoppers, 'just browsing' excluded): 40% abandoned over extra costs (shipping, tax, fees), 19% didn't trust the site with card details, and 12% couldn't see the total cost upfront (https://baymard.com/lists/cart-abandonment-rate). NN/g advises comparing at most 5 items (2 on mobile), keeping attributes consistent, using sticky headers and highlighting differences (https://www.nngroup.com/articles/comparison-tables/). Google Price insights labels a price low, typical or high from sellers across the web, flags 30-day lows, and says it doesn't predict future prices. Unlabelled affiliate placement risks the CCPA 'disguised advertisement' pattern.",
+              "url": "https://support.google.com/faqs/answer/10675605?hl=en",
+              "confidence": "high",
+              "tool_or_source": "Google Shopping price insights; NN/g; Baymard"
+            },
+            {
+              "topic": "Screen: join or start a pool, with a buyer-chosen close time and a real countdown",
+              "recommendation": "Offer two equal choices. 'Join open pool': shows its close time, committed buyers and the current best guaranteed price, if any. 'Start a pool': close-time presets (6 h / 24 h / 3 days / custom), with the earliest and latest allowed times explained. Always show a consequence line: 'If no seller beats Rs X by Sun 9:00 am, your Rs 99 is refunded automatically to the same UPI/card.' Countdown display: absolute time first ('Closes Sun 9:00 am IST'), relative second ('in 14 h 20 m'), updated once a minute (every second only in the last 10 minutes). Screen readers hear updates through a polite live region only at milestones. Include a pause/hide control for auto-updating panels. Never make sharing or inviting friends a condition of getting the price.",
+              "why": "Pinduoduo's IPO filing describes 'team purchase': buyers team up with friends, family and social contacts for a lower price than buying alone. It is the direct precedent for 'join vs start'. Groupon's original tipping point worked like an assurance contract: no deal, no charge. WCAG 2.2 SC 2.2.1 exempts time limits that are a required part of a real-time event such as an auction, which covers the pool close. It does not cover the payment session, so give 'extend' there. SC 2.2.2 requires pause/stop/hide or frequency control for auto-updating content shown alongside other content (https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html). Requiring invites or contact sharing to get the price risks the CCPA 'forced action' pattern.",
+              "url": "https://www.sec.gov/Archives/edgar/data/0001737806/000104746918004833/a2235994zf-1.htm",
+              "confidence": "medium",
+              "tool_or_source": "Pinduoduo F-1 (2018); W3C WCAG 2.2 2.2.1/2.2.2"
+            },
+            {
+              "topic": "Screen: booking payment in India (UPI intent first)",
+              "recommendation": "Android app and mobile web: show UPI app tiles (GPay, PhonePe, Paytm, BHIM) using the intent flow. Desktop: show a QR code automatically. Cards and netbanking come second. Never use collect requests. After the user returns from the UPI app, show a calm 'Confirming with your bank…' state and poll for status. Never offer 'Pay again' while a payment is pending. Show the refund promise right next to the button, with a date: 'Fully refundable. Refunded automatically at pool close (Sun 9 am) if you walk away or no seller wins.' Ask the payment aggregator whether the booking can be a UPI block (NPCI Single-Block-Multi-Debit / one-time mandate) instead of a debit. 'Money blocked, not taken' is a strong trust signal for first-time payers.",
+              "why": "Razorpay's docs: UPI intent works on mobile web (Android and iOS) and in apps via WebView, while desktop falls back to QR, and intent is credited with higher conversion. NPCI stopped P2P collect requests from 1 Oct 2025 (merchant collect still allowed) to curb fraud (https://www.medianama.com/2025/08/223-npci-p2p-collect-payments-oct-1-what-it-means/). On-device biometric UPI launched 8 Oct 2025, capped at Rs 5,000 per transaction, which fits a small booking amount (https://www.businesstoday.in/personal-finance/news/story/no-more-pins-upi-to-get-face-and-fingerprint-authentication-for-faster-safer-online-payments-497815-2025-10-11). IAMAI 2024 counts 105M COD-only shoppers among 332M online shoppers, so a prepaid booking needs very explicit refund wording. RBI's 2019 TAT circular (T+1 for transfers, T+5 for merchant payments, Rs 100/day compensation) covers only failed transactions. It does not cover refunds for walk-aways, so POOL must publish its own refund SLA.",
+              "url": "https://razorpay.com/docs/payments/payment-methods/upi/upi-intent/?preferred-country=IN",
+              "confidence": "high",
+              "tool_or_source": "Razorpay UPI Intent docs; NPCI circulars; IAMAI-Kantar 2024"
+            },
+            {
+              "topic": "Screen: booking payment in the US (Apple Pay and Stripe)",
+              "recommendation": "Put the Stripe Express Checkout Element (Apple Pay / Google Pay / Link) at the top and the card form below. Use Apple Pay's 'Book' button type. Make it no smaller than other buttons and the primary option when the user has Apple Pay set up. If the pool closes within about 5 days, take the refundable booking as a card authorization hold (manual capture) rather than a charge-then-refund. Otherwise charge and refund, and say which in plain words. In the payment sheet, show anything that is not yet final as a separate 'Amount pending' line.",
+              "why": "Apple's HIG says: make Apple Pay the primary option when credentials are available, never smaller than other payment buttons, and disclose possible later costs with a subtotal marked 'Amount Pending'. It lists a 'Book with Apple Pay' button type. Stripe's docs say online card authorisations usually hold for 7 days (the exact window is 4 days 18 hours for some brands, by Stripe's note), and that some issuers show authorisations like charges, which can confuse customers (https://docs.stripe.com/payments/place-a-hold-on-a-payment-method). Stripe Link is not available in India, so it is a US-only feature (https://docs.stripe.com/payments/link).",
+              "url": "https://docs.stripe.com/elements/express-checkout-element",
+              "confidence": "high",
+              "tool_or_source": "Stripe Express Checkout Element; Apple HIG"
+            },
+            {
+              "topic": "Screen: offer reveal (the guaranteed pooled price)",
+              "recommendation": "One hero number: 'Your guaranteed price: Rs 41,990, all-in', with the same comparison rows underneath, re-checked at reveal time. Show 'Why this price': number of sealed bids received and the rule used to pick the winner (lowest all-in price meeting delivery date and warranty terms), plus seller name, city, dealer since, and ratings from verified POOL orders only. Savings are measured against the cheapest real alternative the user can actually get, never against MRP. For the US, show the high-volume seller's name, address and contact, plus a 'Report this listing' option by phone and online.",
+              "why": "Buell and Norton (Management Science 2011) found that showing the work being done ('operational transparency') raises perceived value. POOL's sealed-bid process is invisible unless the reveal shows it. Temu drew EU and US-state action over fake discounts and made-up reference prices. The FTC's first INFORM Consumers Act case fined Temu $2M (Sept 2025) for missing or hard-to-find reporting options (https://www.ftc.gov/news-events/news/press-releases/2025/09/online-marketplace-temu-pay-2-million-penalty-alleged-inform-act-violations). Sellers with $20,000+ a year must have their name, address and contact disclosed (https://www.ftc.gov/business-guidance/resources/informing-businesses-about-inform-consumers-act).",
+              "url": "https://www.hbs.edu/faculty/Pages/item.aspx?num=40158",
+              "confidence": "high",
+              "tool_or_source": "Buell and Norton 2011; FTC INFORM Act"
+            },
+            {
+              "topic": "Screen: accept or walk away",
+              "recommendation": "Two buttons of equal size and equal clarity: 'Accept Rs 41,990' and 'Walk away, refund my Rs 99'. No shaming copy ('No, I'll pay more' is banned). The walk-away button must not be low-contrast or text-only. Under each button, one line on exactly what happens next and when the money moves. Add-ons (extended warranty, stand, installation upgrade) are unticked and appear only after Accept. If a seller fails after acceptance, offer a refund or the next-best bid as an explicit choice; never switch the product automatically.",
+              "why": "The CCPA guidelines give 'I will stay unsecured' as a confirm-shaming example and a light-shaded 'NO' next to a bold 'YES' as interface interference. Their bait-and-switch definition covers showing a cheap item and then switching to a similar, costlier one at payment. The FTC's Amazon order requires a clear, conspicuous decline button.",
+              "url": "https://trilegal.com/wp-content/uploads/2023/12/Guidelines-for-Prevention-and-Regulation-of-Dark-Patterns-2023.pdf",
+              "confidence": "high",
+              "tool_or_source": "CCPA 2023 Annexure I"
+            },
+            {
+              "topic": "Screen: order tracking with proof steps",
+              "recommendation": "A vertical timeline with fixed steps, each carrying a timestamp and a proof thumbnail: Seller confirmed; Packed (dispatch photo with order-ID slip); Out for delivery (agent first name and photo, masked call, ETA window); Delivered/picked up (code verified); Serial verified (serial-plate photo matched to invoice); Installed (installer check-in and photo, buyer confirms). ETA is a window per leg, not one number, and moves once per state change, not every ping. A live map appears only on the last leg, as an optional 'Show map' so low-data users aren't charged for tiles. Every step also goes out as one WhatsApp/SMS update.",
+              "why": "The labor-illusion research says visible effort builds value and trust. NN/g's first heuristic: keep users informed through timely feedback, and missing information feels like lost control (https://www.nngroup.com/articles/visibility-system-status/). A Swiggy engineering post (per a search snippet; the page did not load) describes separate ETA models for four order legs. Flipkart's Open Box Delivery (the executive opens the package in front of the buyer for high-value items) shows proof at the doorstep is an established Indian trust pattern (https://stories.flipkart.com/open-box-delivery-flipkart-customer-trust).",
+              "url": "https://www.nngroup.com/articles/visibility-system-status/",
+              "confidence": "medium",
+              "tool_or_source": "NN/g; Flipkart Open Box Delivery; Swiggy Bytes"
+            },
+            {
+              "topic": "Screen: delivery or pickup code (appliances, laptops, Sunday mutton)",
+              "recommendation": "A full-screen code (4 digits for pickup, 6 for high-value delivery) in very large type, grouped as 3+3, with a 'Read aloud' button in the user's language and a QR alternative. The code is cached on the device so it works offline, and also sent by SMS/WhatsApp. It stays valid for the whole delivery or pickup day, never a few minutes. Show the rule prominently: 'Say this code only in person, only after you have checked the item. POOL will never ask for it on a call.' For open-box orders, the code unlocks only after the buyer ticks a 3-item checklist (right model, no damage, serial matches). For mutton pickup, show shop name, cut, weight and a pickup window. Let the buyer deliberately share the code with a family member. Retailer-side limit: 5 wrong attempts.",
+              "why": "Amazon's help page (per search snippet; fetch returned 503) describes a 6-digit OTP valid until the end of the delivery day, to be read to the driver in person, never by phone, and shareable with someone you choose. Uber's Verify My Ride uses a 4-digit PIN, and drivers get 5 attempts (https://help.uber.com/riders/article/whats-verify-my-ride/?nodeId=2ddbb5e8-0dd3-4048-b9ee-f6b5e5311e25). Flipkart open-box guides say to share the OTP only after inspection. In Pragya Prasun / Amar Jain (30 Apr 2025), India's Supreme Court held digital access part of Article 21 and named very short OTP durations among barriers for persons with disabilities (https://www.livelaw.in/supreme-court/right-to-digital-access-part-of-article-21-supreme-court-directs-to-make-ekyc-process-accessible-to-persons-with-disabilities-290778). WCAG 2.2 SC 3.3.8 bans cognitive tests in authentication, so allow paste and autofill.",
+              "url": "https://www.amazon.in/gp/help/customer/display.html?nodeId=GXHYX22CS752PLE3",
+              "confidence": "medium",
+              "tool_or_source": "Amazon OTP delivery; Uber Verify My Ride; Flipkart Open Box"
+            },
+            {
+              "topic": "Screen: Wave Drop pot (real numbers only)",
+              "recommendation": "Show the pot as a ledger, not a hype meter. 'Pot now: Rs 3,420 (from 3 extra buyers who joined after you)'. 'Your share if the pool closed now: Rs 380'. 'Paid to your original UPI/card on close: Sun 9:00 am'. Any projection must be labelled as an estimate with its formula shown ('if 2 more join: +Rs 250 each'). No animated rolling numbers, confetti or 'could reach Rs 2,000!'. After close, show the exact credited amount with the refund reference (UTR or Stripe refund ID) and date. Log every pot value shown to users so it can be audited.",
+              "why": "The CCPA's false-urgency definition covers false popularity and scarcity. The EU CPC action against Temu targeted fake discounts. Apple's HIG pattern of labelling uncertain money as 'Amount Pending' is the honest precedent for amounts that may still change. A pot that shows unrealised money as if it were guaranteed looks like bait and switch.",
+              "url": "https://ec.europa.eu/commission/presscorner/api/files/document/print/el/ip_24_5707/IP_24_5707_EN.pdf",
+              "confidence": "medium",
+              "tool_or_source": "Principle derived from CCPA, EU CPC and Apple HIG"
+            },
+            {
+              "topic": "Screen: Warranty Locker",
+              "recommendation": "Filed automatically for each order: GST invoice PDF, serial-plate photo, warranty start and end per component (for example panel vs compressor), brand service number, and seller and installer contacts. One-tap 'Raise service request' pre-fills model and serial. Available offline, downloadable, and exportable to WhatsApp. Reminders go out once, 30 days before expiry, and can be switched off (no nagging). Show warranty terms on the comparison card before purchase, not only after.",
+              "why": "The Consumer Protection (E-Commerce) Rules 2020 require marketplaces to show return, refund, exchange, warranty/guarantee, delivery, payment and grievance information clearly and accessibly, with seller details. Rule 5(19) requires the seller's name on the invoice in the same font size as the platform's name. The CCPA gives repeated notifications as its nagging example.",
+              "url": "https://www.consumerprotection.in/rule-5-liabilities-of-marketplace-e-commerce-entities/",
+              "confidence": "medium",
+              "tool_or_source": "Consumer Protection (E-Commerce) Rules 2020"
+            },
+            {
+              "topic": "Screen: seller bid (fast, WhatsApp-like, voice-note friendly)",
+              "recommendation": "Seller home is a chat-style list of open pools: product, qty, pincode cluster, close time. No buyer personal data. The bid composer has a large numeric keypad, chips for delivery date and installation (included/extra), a warranty toggle and 'Same as my last bid'. Hold-to-record voice notes (expo-audio) are sent with an automatic Telugu/Hindi transcript for ops, and the seller confirms the price by tapping a number, never by voice alone. Show 'Sealed: buyers and other sellers never see your bid unless you win.' Send alerts as WhatsApp utility templates, with WhatsApp Flows for a structured bid form inside WhatsApp. Don't make sellers depend on WhatsApp Web for POOL work; give them the POOL seller PWA/app with phone-OTP login.",
+              "why": "Meta says WhatsApp has more than 500M users in India. In Nov 2025, 67% of WhatsApp Business users there opened the app daily (https://techcrunch.com/2025/12/14/whatsapps-biggest-market-is-becoming-its-toughest-test/). WhatsApp reported 7B voice messages a day in 2022 (https://about.fb.com/news/2022/03/new-voice-message-features-on-whatsapp/), but its own transcripts don't officially cover Telugu, so POOL needs its own transcription. Meta's pricing page: per-message pricing since 1 Jul 2025, and utility templates inside an open customer-service window are free (https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing). DoT's SIM-binding directive (deadline reported as 27 Feb 2026) requires web sessions to log out at least every 6 hours, which makes WhatsApp Web unreliable for dealers.",
+              "url": "https://developers.facebook.com/documentation/business-messaging/whatsapp/flows",
+              "confidence": "medium",
+              "tool_or_source": "WhatsApp Flows and Business Platform pricing (Meta); expo-audio (part of expo/expo, MIT)",
+              "license": "expo-audio: MIT (expo/expo, last push 2026-09-29)"
+            },
+            {
+              "topic": "Screen: ops console",
+              "recommendation": "Build on refine (MIT) or react-admin (MIT) with TanStack Table (MIT). Must-have views: (1) Pool audit log: an immutable, append-only record of every close time, member count, bid and price shown to buyers, with render snapshots, so any urgency or pricing claim can be proved. (2) Exception queue: UPI pending for more than 10 min, refunds past POOL's SLA, code mismatches, missing proof photos, sellers missing delivery windows. (3) Dark-pattern QA: the checklist status of each released screen. (4) Seller KYC and disclosure fields (GSTIN; for the US, INFORM Act identity and contact). (5) Keyboard shortcuts and bulk actions for the 5-person team.",
+              "why": "Under CCPA the business may have to prove its urgency prompts weren't false (Trilegal analysis), and the FTC INFORM Act requires seller identity disclosure and a reporting channel. Both need data captured at the moment a screen was shown. Library licences and activity were checked on GitHub on 2026-09-30: refinedev/refine MIT (pushed 2026-09-10), marmelab/react-admin MIT (2026-09-29), TanStack/table MIT (2026-09-16).",
+              "url": "https://github.com/refinedev/refine",
+              "confidence": "medium",
+              "tool_or_source": "refine / react-admin / TanStack Table",
+              "license": "MIT"
+            },
+            {
+              "topic": "India: vernacular-first UI (Telugu, Hindi, English)",
+              "recommendation": "The first screen is a language choice in native script ('తెలుగు · हिन्दी · English'), switchable from every screen header. Write everyday spoken wording instead of literal translation, reviewed by native speakers from Hyderabad. Keep prices in Western digits with Indian grouping (Rs 45,99,900 via Intl en-IN). Use Noto Sans Telugu (OFL-1.1). Size layouts for strings about 30–40% longer, and test every screen in Telugu first. Tooling: i18next/react-i18next or Lingui (all MIT, active 2026). React Native's Hermes engine supports Intl.NumberFormat and DateTimeFormat (with limits) but lists no RelativeTimeFormat, so add @formatjs/intl-relativetimeformat (MIT) for 'closes in 2 hours' in Telugu.",
+              "why": "IAMAI-Kantar 2024: 870M users (98%) accessed the internet in Indic languages, and 57% of urban users prefer Indic content. Telugu is one of the languages with a high 'conversion ratio' (users of a language who mainly use it online). The 2025 report counts 958M active users, 548M of them rural, and 18% using someone else's device (https://bestmediainfo.com/insights/indias-internet-users-near-one-billion-in-2025-rural-india-leads-growth-iamai-11056899). Meesho reported about 50% of its users new to e-commerce and 20% adoption of its Hindi option when it added Telugu and 7 other languages in Aug 2022 (https://www.devdiscourse.com/article/business/2141540-meesho-adds-8-new-vernacular-languages-to-tap-377-mn-potential-user-base). The Hermes Intl support list is from the Hermes repo doc IntlAPIs.md.",
+              "url": "https://www.iamai.in/sites/default/files/research/Kantar_%20IAMAI%20report_2024_.pdf",
+              "confidence": "high",
+              "tool_or_source": "IAMAI-Kantar Internet in India 2024/2025; i18next; Lingui; FormatJS; Noto Sans Telugu",
+              "license": "i18next MIT; Lingui MIT; @formatjs/intl-relativetimeformat MIT; Noto Sans Telugu OFL-1.1"
+            },
+            {
+              "topic": "India: voice input and shared, low-end devices",
+              "recommendation": "Put a mic button on the product search, the link fallback and the seller bid note. First version: rely on the phone keyboard's dictation (no ML to build). Later: server-side speech recognition (Bhashini or a commercial Indic ASR) for voice search in Telugu and Hindi. Read key numbers back (price, close time, code) with text-to-speech in the chosen language. Never let voice alone confirm a payment or accept an offer. For shared devices: no sensitive data on screen without a tap, an obvious 'Log out' button, and codes shared only on purpose.",
+              "why": "IAMAI-Kantar 2024 counts 140M voice users out of 886M internet users (about 16%, although the report's headline says '1 in 5'), and 55% of voice users are rural. The 2025 report says 18% of users access the internet through someone else's device, 80% of them rural.",
+              "url": "https://www.iamai.in/sites/default/files/research/Kantar_%20IAMAI%20report_2024_.pdf",
+              "confidence": "medium",
+              "tool_or_source": "IAMAI-Kantar 2024; Bhashini (bhashini.gov.in)"
+            },
+            {
+              "topic": "India: WhatsApp-first entry",
+              "recommendation": "Publish a POOL WhatsApp number. The user pastes a link or voice-notes a product name. The bot replies with the 'Is this the one?' card (image, model, all-in best price) and one button that opens POOL on the web with the product pre-loaded (no install needed). Pool status, offer reveal, code and refund updates go out as opt-in utility templates. Marketing messages only with separate, explicit consent. Cap proactive messages per pool (for example: joined, offer ready, 1 hour to close, closed).",
+              "why": "WhatsApp has more than 500M users in India (Meta, via TechCrunch). Pinduoduo's F-1 credits sharing inside WeChat, where friends can order without installing anything, with low-cost organic growth. The CCPA lists repeated notifications as nagging. Meta's own pricing page (not third-party blogs) is the authority for costs.",
+              "url": "https://techcrunch.com/2025/12/14/whatsapps-biggest-market-is-becoming-its-toughest-test/",
+              "confidence": "medium",
+              "tool_or_source": "Meta WhatsApp Business Platform"
+            },
+            {
+              "topic": "India: low bandwidth and low-end Android",
+              "recommendation": "Design budgets the team enforces in CI (targets we chose, not published standards): first view usable on throttled slow 3G; order status, the pickup/delivery code and the Warranty Locker cached for offline use; images lazy-loaded at small sizes with a text-first layout; no autoplay video; maps opt-in; show file sizes before large downloads such as invoice PDFs. Honour the Save-Data header where the browser sends it (experimental, limited support). SMS fallback for codes and refunds. Test on a real 2–4 GB RAM Android phone every sprint, not only on emulators.",
+              "why": "Google's Next Billion Users design guidance (older, undated article) stresses slow and intermittent connections, costly prepaid data, low-end devices, cash-on-delivery and mobile money, and field testing. MDN marks Save-Data as experimental and not Baseline.",
+              "url": "https://design.google/library/connectivity-culture-and-credit",
+              "confidence": "medium",
+              "tool_or_source": "Google NBU design guidance; MDN Save-Data"
+            },
+            {
+              "topic": "US: ADA / WCAG 2.2 AA and a clean, minimal look",
+              "recommendation": "Target WCAG 2.2 AA on web and apps: (1) touch targets at least 24x24 CSS px (SC 2.5.8); aim for 44–48 px on key buttons. (2) Accessible authentication (3.3.8): allow OTP autofill and paste, no puzzles. (3) Redundant entry (3.3.7). (4) Consistent help placement (3.2.6), meaning a Help/Chat button in the same spot on every screen. (5) Focus not obscured (2.4.11), so sticky Accept/Pay bars must not cover the focused field. (6) Drag alternatives (2.5.7) for any slider used to pick a close time. Use React Aria (Apache-2.0) primitives or shadcn/ui on Radix (MIT) for web. Run axe-core (MPL-2.0) in CI. Do manual TalkBack and VoiceOver passes on the React Native app.",
+              "why": "DOJ guidance (18 Mar 2022) says ADA requirements apply to goods and services businesses offer on the web and points to WCAG, although it has no detailed regulation for businesses. The WCAG 2.2 additions listed come from W3C's 'What's new in 2.2' (https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/). React Aria advertises ARIA-APG-conformant behaviour, translations in 30+ languages and localized number and date formatting (https://react-aria.adobe.com/).",
+              "url": "https://www.ada.gov/resources/web-guidance/",
+              "confidence": "high",
+              "tool_or_source": "DOJ ADA web guidance; W3C WCAG 2.2; React Aria; axe-core",
+              "license": "React Aria Apache-2.0 (adobe/react-spectrum, pushed 2026-09-29); axe-core MPL-2.0 (pushed 2026-09-29); shadcn/ui MIT (pushed 2026-09-29); Radix Primitives MIT (pushed 2026-08-08)"
+            },
+            {
+              "topic": "Checkout trust signals and account friction",
+              "recommendation": "Book as a guest with phone OTP only; no passwords and no forced account creation before booking. Next to the pay button: the payment provider (Razorpay/Stripe), the refund rule in one sentence, the GST invoice promise, and the grievance contact. Keep the same Help button location on every screen. Show the seller's legal name before payment.",
+              "why": "Baymard's latest study: 18% abandoned because the site required an account, 19% didn't trust it with card details, and 17% found checkout too long or complicated. India's E-Commerce Rules 2020 require grievance-redressal and payment-method information to be displayed. WCAG 2.2 SC 3.2.6 requires consistent help placement.",
+              "url": "https://baymard.com/lists/cart-abandonment-rate",
+              "confidence": "high",
+              "tool_or_source": "Baymard Institute"
+            },
+            {
+              "topic": "Group-buying mechanics to learn from, and what to drop",
+              "recommendation": "Keep: (1) Pinduoduo's two clear prices (buy alone vs pool) and 'join an existing team or start one'. (2) Groupon's assurance-contract promise that nothing is charged or kept if the deal doesn't happen, which POOL delivers with the refundable booking. Drop: invite-to-unlock, spin wheels, 'price going up soon' banners, invented reference prices, and pools that look full but aren't. POOL's differentiator is that the pooled price is compared honestly against the market, and the buyer can walk away.",
+              "why": "Pinduoduo's F-1 describes team purchase and WeChat sharing. Groupon had stopped using the tipping point by 2012 (Wikipedia and case literature). Research on whether tipping points drive referrals is mixed (see unverified). The EU CPC action against Temu and the CCPA guidelines rule out gamified pressure and fake discounts.",
+              "url": "https://www.sec.gov/Archives/edgar/data/0001737806/000104746918004833/a2235994zf-1.htm",
+              "confidence": "medium",
+              "tool_or_source": "Pinduoduo F-1; Groupon; EU CPC"
+            },
+            {
+              "topic": "Component and motion stack (verified licences and 2026 activity)",
+              "recommendation": "Web (Next.js): shadcn/ui (copy-in components on Radix or Base UI), React Aria for complex accessible widgets, Sonner for toasts. Mobile (Expo): react-native-reanimated for the countdown, reveal and step-timeline motion (respect the OS reduce-motion setting), @gorhom/bottom-sheet for the seller bid composer and code sheet, expo-audio for voice notes. Maps only on the last leg: MapLibre GL JS / maplibre-react-native, or react-native-maps. Treat CRED's NeoPOP as visual inspiration only; do not add it as a dependency.",
+              "why": "GitHub API check on 2026-09-30: shadcn-ui/ui MIT (pushed 2026-09-29); emilkowalski/sonner MIT (2026-08-10); expo/expo MIT (2026-09-29); software-mansion/react-native-reanimated MIT (2026-09-29); gorhom/react-native-bottom-sheet MIT (2026-05-09); maplibre/maplibre-gl-js BSD-3-Clause (LICENSE text; GitHub reports NOASSERTION; 2026-09-29); maplibre/maplibre-react-native MIT (2026-09-29); react-native-maps MIT (2026-09-29). CRED-CLUB/neopop-web is Apache-2.0 but was last pushed 2023-10-18, which fails the 2026-activity test.",
+              "url": "https://github.com/CRED-CLUB/neopop-web",
+              "confidence": "high",
+              "tool_or_source": "GitHub repos (gh api)",
+              "license": "MIT / BSD-3-Clause / Apache-2.0 as listed"
+            },
+            {
+              "topic": "Indic ML models: stale repos, avoid as prototype dependencies",
+              "recommendation": "Don't build the prototype on self-hosted AI4Bharat models. Use keyboard dictation first, then a hosted ASR or translation API with a clear commercial SLA (Bhashini or a commercial provider), and re-check its terms before launch.",
+              "why": "GitHub check on 2026-09-30: AI4Bharat/IndicTrans2 is MIT but was last pushed 2025-10-03, and AI4Bharat/IndicConformerASR is MIT but was last pushed 2025-06-20. Neither shows 2026 activity. A secondary source says Bhashini APIs are free at low volume and discounted for commercial use; the official terms were not verified.",
+              "url": "https://github.com/AI4Bharat/IndicTrans2",
+              "confidence": "medium",
+              "tool_or_source": "AI4Bharat GitHub; Bhashini",
+              "license": "MIT (IndicTrans2, IndicConformerASR)"
+            }
+          ],
+          "unverified": [
+            "Pinduoduo's 24-hour team-formation window and refund-on-failure: from secondary sources only (ti-insight, theflip); the SEC F-1 text I fetched did not state the 24h window",
+            "Groupon tipping-point research (Hu and Winer, IJRM 2016) finding that tipping points do not boost referrals: the abstract could not be accessed; only a search snippet",
+            "Swiggy's four-leg ETA model (O2A, first mile, wait time, last mile): from a search snippet of the Swiggy Bytes post; the page failed to load",
+            "Amazon OTP delivery details (6 digits, valid to end of delivery day, read in person, shareable): from search snippets of the amazon.in/amazon.com help page; direct fetch returned 503",
+            "Flipkart 'share OTP only after inspection' order and reports of delivery agents pressuring buyers: third-party guides and forums, not a Flipkart help-centre page",
+            "Quick-commerce OTP handoff and insured delivery for iPhones in 2026: single source (retailintel.in)",
+            "Whether the DoT SIM-binding and 6-hour WhatsApp Web logout directive is actually enforced after the Feb 2026 deadline (MediaNama in Feb 2026 said WhatsApp was still developing it)",
+            "A third-party blog claim that WhatsApp service messages and utility templates inside the service window become chargeable from 1 Oct 2026 conflicts with Meta's own pricing page, which still says utility templates in an open window are free; re-check Meta's page at launch",
+            "Gboard voice typing in Telugu: secondary sources only; the official Google support page was not reached",
+            "Bhashini commercial pricing, rate limits and SLA for Telugu ASR/TTS",
+            "Whether UPI Single-Block-Multi-Debit / one-time mandate or Razorpay 'UPI Reserve Pay' is available for POOL's merchant category and a refundable booking, and its limits",
+            "Whether the Rs 5,000 cap on biometric UPI has changed since the Oct 2025 launch",
+            "Stripe Link conversion claims (for example +7% conversion, 9x faster) are Stripe marketing figures, not independent research",
+            "Meesho's 'zaroori vs anivarya' colloquial-copy example: only from a design-agency blog (procreator.design)",
+            "Low-end Android RAM and price-band market shares for India (IMARC figures): market-research estimates, not verified",
+            "IAMAI 2024's headline '1 in 5 users use voice' does not match its own figure of 140M of 886M (about 16%)",
+            "Hermes Intl on iOS: the Hermes doc lists NumberFormat/DateTimeFormat as supported on both platforms (with limits), but a third-party post says iOS needs polyfills; test on devices",
+            "Progressive Insurance showing competitor rates even when cheaper: its page says it shows other insurers' rates but does not say they can be lower",
+            "expo-share-intent compatibility with the team's exact Expo SDK version (small project, 607 stars)",
+            "US state AG suits against Temu: the Nebraska complaint summary I verified alleges false reference pricing; claims about countdown timers in US suits come from a search snippet only",
+            "No official 2026 source for the Zomato ETA blog content (the fetch timed out); not relied on",
+            "The Google NBU design article is undated and older; data-cost and device figures in it (for example 250MB/month, 512MB RAM) are likely outdated"
+          ]
+        },
+        "v": null
+      }
+    ],
+    "spec": null
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Research"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Verify"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 3,
+      "title": "Design spec"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "research:design-stack",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "afa81dad2aefc178f",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790724330265,
+      "queuedAt": 1790724330233,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "design-stack",
+      "promptPreview": "PRODUCT: POOL (India + USA; today 2026-09-29). \"Before you buy it, POOL it.\" Buyer pastes any product link -> sees honest options (price incl. own card offers, delivery, installation, warranty) -> taps \"POOL this\", pays a small refundable booking -> joins an open pool or starts one and picks its closing time -> sellers bid privately -> buyer sees the guaranteed pooled price next to Amazon/Flipkart…",
+      "promptFramed": true,
+      "lastProgressAt": 1790725862281,
+      "tokens": 145050,
+      "toolCalls": 100,
+      "durationMs": 1532014,
+      "resultPreview": "{\"lens\":\"design-stack\",\"findings\":[{\"topic\":\"Recommended stack in one view (5-dev prototype)\",\"recommendation\":\"Web (buyer web, seller web, ops console): Next.js 16.3 + React 19.2, Tailwind CSS 4.3, shadcn/ui CLI v4 on the Base UI base, lucide-react, Motion (m + LazyMotion), Sonner, cmdk (ops console only), Recharts v3 through the shadcn Chart component, TanStack Query 5 and Table, React Hook Form…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "research:ux-patterns",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a0256e2bb4f256cdb",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790724330267,
+      "queuedAt": 1790724330233,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "ux-patterns",
+      "promptPreview": "PRODUCT: POOL (India + USA; today 2026-09-29). \"Before you buy it, POOL it.\" Buyer pastes any product link -> sees honest options (price incl. own card offers, delivery, installation, warranty) -> taps \"POOL this\", pays a small refundable booking -> joins an open pool or starts one and picks its closing time -> sellers bid privately -> buyer sees the guaranteed pooled price next to Amazon/Flipkart…",
+      "promptFramed": true,
+      "lastProgressAt": 1790725627495,
+      "tokens": 213780,
+      "toolCalls": 132,
+      "durationMs": 1296138,
+      "resultPreview": "{\"lens\":\"ux-patterns\",\"findings\":[{\"topic\":\"Guardrail 1: India CCPA dark-pattern guidelines as a release checklist\",\"recommendation\":\"Turn the 13 banned patterns in the CCPA 2023 guidelines into a pre-release checklist that must pass on every screen: false urgency, basket sneaking, confirm shaming, forced action, subscription trap, interface interference, bait and switch, drip pricing, disguised a…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "research:quality-a11y-i18n",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a3a2bdb7c55931746",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1790725629701,
+      "queuedAt": 1790724330236,
+      "attempt": 1,
+      "lastToolName": "WebFetch",
+      "lastToolSummary": "Quote exactly: notification date, the phased 18-month compl…",
+      "promptPreview": "PRODUCT: POOL (India + USA; today 2026-09-29). \"Before you buy it, POOL it.\" Buyer pastes any product link -> sees honest options (price incl. own card offers, delivery, installation, warranty) -> taps \"POOL this\", pays a small refundable booking -> joins an open pool or starts one and picks its closing time -> sellers bid privately -> buyer sees the guaranteed pooled price next to Amazon/Flipkart…",
+      "promptFramed": true,
+      "lastProgressAt": 1790726002811,
+      "error": "You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+      "tokens": 95606,
+      "toolCalls": 48,
+      "durationMs": 373108
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "verify:ux-patterns",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a84efc487a1dc9552",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1790725864450,
+      "queuedAt": 1790725629806,
+      "attempt": 1,
+      "lastToolName": "WebFetch",
+      "lastToolSummary": "Give the article date, and for each platform named the pena…",
+      "promptPreview": "PRODUCT: POOL (India + USA; today 2026-09-29). \"Before you buy it, POOL it.\" Buyer pastes any product link -> sees honest options (price incl. own card offers, delivery, installation, warranty) -> taps \"POOL this\", pays a small refundable booking -> joins an open pool or starts one and picks its closing time -> sellers bid privately -> buyer sees the guaranteed pooled price next to Amazon/Flipkart…",
+      "promptFramed": true,
+      "lastProgressAt": 1790726003172,
+      "error": "You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+      "tokens": 78017,
+      "toolCalls": 12,
+      "durationMs": 138722
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "verify:design-stack",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "aab8cf8174a6cb4b8",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1790726002838,
+      "queuedAt": 1790725864480,
+      "attempt": 1,
+      "promptPreview": "PRODUCT: POOL (India + USA; today 2026-09-29). \"Before you buy it, POOL it.\" Buyer pastes any product link -> sees honest options (price incl. own card offers, delivery, installation, warranty) -> taps \"POOL this\", pays a small refundable booking -> joins an open pool or starts one and picks its closing time -> sellers bid privately -> buyer sees the guaranteed pooled price next to Amazon/Flipkart…",
+      "promptFramed": true,
+      "lastProgressAt": 1790726003701,
+      "error": "You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+      "tokens": 0,
+      "toolCalls": 0,
+      "durationMs": 858
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "design:spec",
+      "phaseIndex": 3,
+      "phaseTitle": "Design spec",
+      "agentId": "ac7a0454b35616220",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1790726003857,
+      "queuedAt": 1790726003718,
+      "attempt": 1,
+      "promptPreview": "PRODUCT: POOL (India + USA; today 2026-09-29). \"Before you buy it, POOL it.\" Buyer pastes any product link -> sees honest options (price incl. own card offers, delivery, installation, warranty) -> taps \"POOL this\", pays a small refundable booking -> joins an open pool or starts one and picks its closing time -> sellers bid privately -> buyer sees the guaranteed pooled price next to Amazon/Flipkart…",
+      "promptFramed": true,
+      "lastProgressAt": 1790726004489,
+      "error": "You've hit your session limit · resets 9:50am (Asia/Kolkata)",
+      "tokens": 0,
+      "toolCalls": 0,
+      "durationMs": 631
+    }
+  ],
+  "totalTokens": 532453,
+  "totalToolCalls": 292
+}

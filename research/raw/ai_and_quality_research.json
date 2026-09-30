@@ -1,0 +1,866 @@
+{
+  "summary": "Finish the two missing research areas (AI/agent stack, UI quality/a11y/i18n) for the POOL prototype",
+  "agentCount": 2,
+  "logs": [],
+  "result": [
+    {
+      "lens": "ai-models-agent-stack",
+      "summary": "What we should do, all checked on 2026-09-30 against official sites, npm, GitHub and Hugging Face:\n\n(1) Telugu and Hindi WhatsApp voice notes: use Sarvam saaras speech-to-text through its plain REST API.\n- Cost is ₹30 per hour of audio. A 30-second note costs ₹0.25, and 1,000 such notes cost ₹250.\n- Telugu (te-IN) is supported, OGG/Opus audio is accepted as-is, and there is a code-mixed mode. Real-time calls take up to 30 seconds of audio; the Batch API takes up to 1 hour.\n- Claude then turns the transcript into structured JSON, and we read it back to the buyer for confirmation.\n- Do not use the sarvamai npm SDK: it declares no licence and its GitHub repo returns 404.\n- Keep IndicConformer (MIT) as a self-hosted fallback. In an IISc benchmark (Aug 2026, averaged over datasets) its Telugu word error rate was 26.4% vs 28.7% for Saaras v3.\n- Avoid Whisper and faster-whisper for Telugu.\n- Bhashini's free APIs are for proof-of-concept only; commercial use needs a paid plan agreed with them.\n\n(2) OCR: Claude vision with structured outputs for invoices, serial labels and box photos, always checked by deterministic code (barcode decode, GTIN check digit). Claude never invents a SKU.\n- Avoid AWS Textract: it reads only EN/ES/DE/IT/FR/PT.\n- Google Document AI Enterprise OCR supports Telugu and Hindi; keep it as a fallback (about $1.50 per 1,000 pages).\n- PaddleOCR (Apache-2.0, now has an official JS SDK) is a later self-host option.\n\n(3) Barcodes on the web: use the native BarcodeDetector where it exists (Chrome Android 83+). Everywhere else, including US investors on iPhones, use the MIT barcode-detector / zxing-wasm polyfill with the .wasm file self-hosted.\n- Avoid html5-qrcode and @zxing/library: both are in maintenance mode.\n- Use expo-camera when the mobile app starts.\n\n(4) Embeddings: Voyage voyage-4-lite into pgvector.\n- $0.02 per 1M tokens, with 200M free tokens per model. Embedding 100,000 product titles of about 50 tokens each costs about $0.10.\n- multilingual-e5-small (MIT, 118M parameters, ONNX via transformers.js) is the offline fallback.\n- We have not verified Voyage quality on Telugu/Hindi titles; test it first.\n\n(5) Observability: Langfuse. The core is MIT; the ee/ folders have a separate licence.\n- Cloud regions are US, EU, Japan and HIPAA only. There is no India region, so either redact personal data or self-host in Mumbai.\n- Langfuse accepts OTLP over HTTP and maps gen_ai.* attributes. The OpenTelemetry GenAI conventions are still at status \"Development\".\n- Langfuse's own Anthropic guide points to a Python package or an OpenAI-compatible shim. The shim is banned for us, so we instrument Claude calls with @langfuse/tracing ourselves.\n\n(6) MCP: build a POOL MCP server now with the v2 split SDK and mount it in Next.js at /api/mcp using mcp-handler 2.2.0.\n- SDK: @modelcontextprotocol/server 2.2.0, the stable line for the 2026-07-28 spec. The v1 @modelcontextprotocol/sdk package gets fixes for at least 6 more months.\n- Auth must follow the 2026-07-28 spec: OAuth 2.1, PKCE, and our server MUST publish RFC 9728 protected resource metadata. Client ID Metadata Documents is SHOULD; Dynamic Client Registration is MAY and deprecated.\n- The Better Auth MCP plugin plus @better-auth/cimd covers this. Turn on DCR explicitly, because Claude's automatic registration uses it.\n- It will work today in Claude custom connectors (all plans; the Free plan allows 1 connector), in ChatGPT developer mode, and in Gemini CLI.\n\n(7) Agentic commerce (ACP, AP2, UCP): all three are open Apache-2.0 specs that any startup may implement. But being listed in ChatGPT or Google needs partner approval, and the live checkouts are US (Google UCP checkout: US, Canada, Australia). We found no India availability. Treat them as a roadmap slide; the MCP server is the real demo.\n\n(8) Bots and fraud: Cloudflare Turnstile now. It is free with unlimited challenges and does not need the Cloudflare proxy.\n- FingerprintJS v5 (MIT) is only a weak signal. Pin v5 or later, because v4.x was BUSL-1.1.\n- Fingerprint Pro later: Mumbai region available, $99/month for 20K calls.\n\nConflict to fix: the earlier stack research (research/raw/stack_research_run2.json) marked Vercel AI SDK as use_now for LLM calls. That breaks our rule that Claude is called only through @anthropic-ai/sdk, so POOL_PROJECT_STATE.md should say so.",
+      "items": [
+        {
+          "name": "@anthropic-ai/sdk (official Anthropic TypeScript SDK)",
+          "what_for": "Every Claude call: identifying the product from a pasted link, turning voice-note transcripts into structured JSON, invoice and label vision, Batches for nightly re-matching",
+          "url": "https://www.npmjs.com/package/@anthropic-ai/sdk",
+          "recommendation": "use_now",
+          "reason": "Our decided rule is that Claude is called only through the official SDK. Model facts were verified before this run. Use the structured outputs feature (output_config.format) so fields are schema-bound, and keep deterministic checks after it.",
+          "confidence": "high",
+          "license_or_pricing": "MIT; Claude prices as already verified",
+          "status_2026": "npm 0.129.0, published 2026-09-28"
+        },
+        {
+          "name": "Vercel AI SDK (@ai-sdk/anthropic) for Claude calls",
+          "what_for": "Was proposed in earlier stack research as the LLM call layer",
+          "url": "https://github.com/vercel/ai",
+          "recommendation": "avoid",
+          "reason": "It conflicts with our rule that Claude is called through the official Anthropic SDK: @ai-sdk/anthropic is Vercel's provider, not Anthropic's SDK. research/raw/stack_research_run2.json lists it as use_now; that entry should be changed.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "Active (prior run: last push 2026-09-29)"
+        },
+        {
+          "name": "Sarvam Speech-to-Text (saaras:v3 / saaras:v4)",
+          "what_for": "Transcribe Telugu, Hindi and English WhatsApp voice notes (buyers joining pools, sellers answering)",
+          "url": "https://docs.sarvam.ai/api-reference-docs/speech-to-text/transcribe",
+          "recommendation": "use_now",
+          "reason": "Supports te-IN plus 22 Indic languages and English. Accepts OGG/Opus (the WhatsApp format) directly. Has transcribe, translate and codemix modes. Real-time REST takes up to 30 s of audio; the Batch API takes up to 1 h. Cost is ₹30/h, so a 30 s note costs ₹0.25. On IISc's Aug-2026 benchmark, averaged over datasets, Saaras v3 Telugu word error rate was 28.7%, level with Gemini 3 Flash (28.9%). Call REST with fetch; do not use the SDK.",
+          "confidence": "high",
+          "license_or_pricing": "Proprietary API. ₹30/h real-time, streaming or batch; ₹45/h batch with diarization. ₹100 free credits on signup that never expire. Starter plan: 60 requests/min.",
+          "status_2026": "saaras:v4 is the default, saaras:v3 also available (docs, Sep 2026)"
+        },
+        {
+          "name": "Sarvam Text-to-Speech (bulbul:v3)",
+          "what_for": "Read confirmations back aloud in Telugu or Hindi ('You joined the Sunday mutton pool, closes 9 pm') for first-time smartphone users",
+          "url": "https://docs.sarvam.ai/api-reference-docs/text-to-speech/convert",
+          "recommendation": "use_now",
+          "reason": "Supports te-IN with 30+ voices and opus/mp3 output, up to 2,500 characters per call. A 300-character reply costs about ₹0.90. Make it optional and cache common phrases.",
+          "confidence": "high",
+          "license_or_pricing": "₹3 per 1,000 characters (real-time or streaming)",
+          "status_2026": "bulbul:v3 current, v2 legacy"
+        },
+        {
+          "name": "Sarvam Translate (mayura:v1 / sarvam-translate:v1)",
+          "what_for": "Translate dynamic content only: product titles, seller notes, voice-note summaries. Fixed UI strings stay human-written in next-intl.",
+          "url": "https://docs.sarvam.ai/api-reference-docs/text/translate-text",
+          "recommendation": "use_now",
+          "reason": "Both models support Telugu. mayura:v1 has formal, colloquial and code-mixed modes and can output romanised or native script (max 1,000 characters). sarvam-translate:v1 covers 22 languages, formal mode only (max 2,000 characters). Always show a 'translated' label and keep the original text.",
+          "confidence": "medium",
+          "license_or_pricing": "₹0.005 per character pay-as-you-go (₹1.50 per 300 characters); ₹0.004 per character on the Business plan",
+          "status_2026": "Live"
+        },
+        {
+          "name": "sarvamai npm SDK",
+          "what_for": "Would wrap the Sarvam APIs",
+          "url": "https://www.npmjs.com/package/sarvamai",
+          "recommendation": "avoid",
+          "reason": "The package declares no licence and ships no LICENSE file in the tarball, and its GitHub repo returns 404. Call the REST endpoints with fetch; it is only a few lines of code.",
+          "confidence": "high",
+          "license_or_pricing": "No SPDX licence declared",
+          "status_2026": "npm 1.1.10 (2026-09-09), alpha builds 2026-09-17"
+        },
+        {
+          "name": "Bhashini APIs (ULCA / pipeline config + compute)",
+          "what_for": "Government-run Indic speech recognition, translation and TTS as a free alternative",
+          "url": "https://dibd-bhashini.gitbook.io/bhashini-apis",
+          "recommendation": "later",
+          "reason": "Bhashini's docs say the free APIs are for proof-of-concept only; if we charge end users we must contact Bhashini for a paid plan. Access steps: register and verify email, generate userID and ulcaApiKey under 'My Profile', call pipeline config, then call compute. Keep as a backup vendor, not the demo path.",
+          "confidence": "medium",
+          "license_or_pricing": "Free for PoC; commercial pricing only on request",
+          "status_2026": "Live; the three-step pipeline flow is documented"
+        },
+        {
+          "name": "AI4Bharat IndicConformer-600M-multilingual",
+          "what_for": "Self-hosted Telugu speech-to-text fallback, or to cut cost at scale",
+          "url": "https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual",
+          "recommendation": "later",
+          "reason": "MIT licence, 22 Indian languages including Telugu, CTC/RNNT decoding, ONNX available. Best Telugu word error rate among the models IISc tested (26.4%, Aug 2026). But it needs a Python service (trust_remote_code), ideally on a GPU, and our team is TypeScript-only.",
+          "confidence": "high",
+          "license_or_pricing": "MIT (Hugging Face gated: auto-approve)",
+          "status_2026": "Model updated 2026-02-07; about 594k downloads"
+        },
+        {
+          "name": "AI4Bharat IndicTrans2",
+          "what_for": "Self-hosted translation between English and Indic languages",
+          "url": "https://github.com/AI4Bharat/IndicTrans2",
+          "recommendation": "later",
+          "reason": "Code and weights are MIT, with 1B and distilled 200M variants. It is a Python-only stack and the repo has not been pushed since 2025-10-03, so there has been no 2026 activity. Sarvam's paid API is simpler for the prototype.",
+          "confidence": "high",
+          "license_or_pricing": "MIT (weights gated: auto-approve)",
+          "status_2026": "No 2026 commits; weights last modified 2025-05"
+        },
+        {
+          "name": "OpenAI Whisper / faster-whisper",
+          "what_for": "Open speech-to-text",
+          "url": "https://github.com/openai/whisper",
+          "recommendation": "avoid",
+          "reason": "Third-party reports say Whisper zero-shot is very poor on Telugu, including output in the wrong script (Kannada or Devanagari). faster-whisper has not been pushed since 2025-11-19. Keep only for English, if at all.",
+          "confidence": "medium",
+          "license_or_pricing": "Whisper code MIT; large-v3 weights Apache-2.0; large-v3-turbo MIT; faster-whisper MIT",
+          "status_2026": "whisper repo pushed 2026-08-31; faster-whisper no 2026 push"
+        },
+        {
+          "name": "Claude vision + structured outputs for invoices, serial labels, box photos",
+          "what_for": "Pull model number, serial, GTIN, invoice number, GSTIN and amount from photos during seller verification and at delivery",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/vision",
+          "recommendation": "use_now",
+          "reason": "Already verified and in our stack, and it handles messy photos and Indian invoices. Use Haiku 4.5 first and escalate to Sonnet 5.5 when fields are missing. Every extracted field must be checked in code (barcode decode matches, GTIN mod-10 check digit, serial pattern per brand); anything that fails goes to an ops queue, never guessed.",
+          "confidence": "high",
+          "license_or_pricing": "Haiku 4.5 $1/$5 per MTok; Sonnet 5.5 $2/$10",
+          "status_2026": "GA"
+        },
+        {
+          "name": "Google Document AI Enterprise Document OCR",
+          "what_for": "Fallback OCR for dense Telugu or Hindi printed text when Claude marks a field low-confidence",
+          "url": "https://cloud.google.com/document-ai/pricing",
+          "recommendation": "later",
+          "reason": "The official language table includes Telugu (te) and Hindi (hi). The Invoice Parser supports only European languages, so for Indian GST invoices we would use OCR plus Claude, not the Invoice Parser. Adds a GCP dependency, so keep it until Claude fails in real tests.",
+          "confidence": "medium",
+          "license_or_pricing": "Enterprise OCR about $1.50 per 1,000 pages (up to 5M pages/month); Form Parser and Custom Extractor $30 per 1,000 pages",
+          "status_2026": "GA"
+        },
+        {
+          "name": "AWS Textract",
+          "what_for": "OCR and expense extraction",
+          "url": "https://aws.amazon.com/textract/pricing/",
+          "recommendation": "avoid",
+          "reason": "Reads only English, Spanish, German, Italian, French and Portuguese, so it cannot read Telugu or Hindi. Claude already covers the US English invoice case.",
+          "confidence": "high",
+          "license_or_pricing": "DetectDocumentText $1.50 per 1,000 pages; AnalyzeExpense $10 per 1,000; Forms+Tables+Queries $70 per 1,000",
+          "status_2026": "GA"
+        },
+        {
+          "name": "PaddleOCR 3.7 (PP-OCRv5/v6, PaddleOCR-VL-1.6) + @paddleocr/paddleocr-js",
+          "what_for": "Self-hosted or on-device OCR if volume or cost grows, or to pre-read photos offline",
+          "url": "https://github.com/PaddlePaddle/PaddleOCR",
+          "recommendation": "later",
+          "reason": "Apache-2.0. The README lists Telugu and Devanagari among supported scripts, it runs on ONNX Runtime, and there is an official browser SDK. Not needed while Claude vision handles our volume.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0 (the JS SDK too)",
+          "status_2026": "v3.7.0 released 2026-06-11; paddleocr-js 0.4.2 (2026-06-11); about 90k stars"
+        },
+        {
+          "name": "Sarvam Document Intelligence (Vision)",
+          "what_for": "Indic-language document digitisation",
+          "url": "https://www.sarvam.ai/api-pricing",
+          "recommendation": "later",
+          "reason": "Rate limit is 10 requests/min on every plan, which is too low for delivery-time photo checks. We did not confirm Telugu accuracy.",
+          "confidence": "medium",
+          "license_or_pricing": "₹0.50 per page digitisation; ₹1.00 per page extraction",
+          "status_2026": "Live"
+        },
+        {
+          "name": "BarcodeDetector Web API (native)",
+          "what_for": "Scan EAN/UPC on boxes and QR delivery or pickup codes in the buyer and seller web app",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector",
+          "recommendation": "use_now",
+          "reason": "MDN compatibility data: Chrome Android 83+ and Android WebView. Desktop Chrome and Edge only on macOS/ChromeOS, Safari only behind a flag, Firefox not at all. Experimental and HTTPS-only. Feature-detect it and fall back to the polyfill.",
+          "confidence": "high",
+          "license_or_pricing": "Free (browser API)",
+          "status_2026": "Experimental, not Baseline"
+        },
+        {
+          "name": "barcode-detector (Sec-ant) polyfill",
+          "what_for": "Same BarcodeDetector API on iPhone Safari, desktop and Firefox; decode uploaded box photos",
+          "url": "https://github.com/Sec-ant/barcode-detector",
+          "recommendation": "use_now",
+          "reason": "MIT. Uses ZXing-C++ compiled to WASM. Reads EAN-8/13, UPC-A/E, Code128, QR, DataMatrix and PDF417. Loads the .wasm from jsDelivr by default; serve it ourselves with prepareZXingModule so scans work on patchy data.",
+          "confidence": "high",
+          "license_or_pricing": "MIT",
+          "status_2026": "npm 3.2.2 (2026-08-16); repo pushed 2026-09-29"
+        },
+        {
+          "name": "zxing-wasm",
+          "what_for": "Low-level decoder behind the polyfill; decode barcodes from stored images on the server",
+          "url": "https://github.com/Sec-ant/zxing-wasm",
+          "recommendation": "use_now",
+          "reason": "MIT and actively maintained. Same engine as the polyfill, so web and server read barcodes the same way.",
+          "confidence": "high",
+          "license_or_pricing": "MIT",
+          "status_2026": "npm 3.1.4 (2026-09-10); pushed 2026-09-29"
+        },
+        {
+          "name": "@zxing/library + @zxing/browser",
+          "what_for": "Pure-JS barcode decoding",
+          "url": "https://github.com/zxing-js/library",
+          "recommendation": "avoid",
+          "reason": "The README says the project is in maintenance mode, only bug fixes are considered, and it is looking for new maintainers. The WASM-based options above are maintained.",
+          "confidence": "high",
+          "license_or_pricing": "library Apache-2.0; browser MIT",
+          "status_2026": "library 0.23.0 (2026-04-29); browser 0.2.1 (2026-07-06)"
+        },
+        {
+          "name": "html5-qrcode",
+          "what_for": "Drop-in QR/barcode scanner UI",
+          "url": "https://github.com/mebjas/html5-qrcode",
+          "recommendation": "avoid",
+          "reason": "The README says it is in maintenance mode, pull requests are not merged, and it is looking for new owners. The last npm release was 2.3.8 on 2023-04-15.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "No 2026 release"
+        },
+        {
+          "name": "expo-camera (CameraView barcode scanning + launchScanner)",
+          "what_for": "Barcode and QR scanning in the later Expo mobile app",
+          "url": "https://docs.expo.dev/versions/latest/sdk/camera/",
+          "recommendation": "later",
+          "reason": "MIT. Supports 13 formats (EAN13, UPC_A, Code128, QR, DataMatrix and others), works in Expo Go and on web. launchScanner uses Google's code scanner on Android and DataScannerViewController on iOS 16+. Use it when the mobile phase starts.",
+          "confidence": "high",
+          "license_or_pricing": "MIT",
+          "status_2026": "npm 57.0.6 (2026-09-29)"
+        },
+        {
+          "name": "Voyage AI embeddings (voyage-4-lite / voyage-4) into pgvector",
+          "what_for": "Match a pasted link's title and specs to an existing product so buyers join the same pool. AI suggests candidates; an exact model-number check decides.",
+          "url": "https://docs.voyageai.com/docs/pricing",
+          "recommendation": "use_now",
+          "reason": "Anthropic's embeddings doc names Voyage (Anthropic has no embedding model of its own). 32K context; output sizes 256/512/1024/2048; int8 or binary output to save pgvector space; 200M free tokens per model; Batch API 33% cheaper. 100k titles at about 50 tokens each is 5M tokens, about $0.10 on voyage-4-lite. Test Telugu/Hindi titles before committing.",
+          "confidence": "high",
+          "license_or_pricing": "voyage-4-large $0.12, voyage-4 $0.06, voyage-4-lite $0.02 per 1M tokens; 200M free tokens each. TS SDK 'voyageai' is MIT (0.4.0).",
+          "status_2026": "Voyage 4 family launched 2026-01-15; voyage-context-4 2026-06-29"
+        },
+        {
+          "name": "voyage-4-nano (open weights)",
+          "what_for": "Self-hosted embeddings if the API cost or data residency becomes an issue",
+          "url": "https://huggingface.co/voyageai/voyage-4-nano",
+          "recommendation": "later",
+          "reason": "Apache-2.0, 346M parameters, community ONNX exports exist. Too heavy for serverless functions; needs a small VM.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "Updated 2026-03-02; about 326k downloads"
+        },
+        {
+          "name": "multilingual-e5-small via transformers.js (ONNX)",
+          "what_for": "Zero-cost offline or backup embeddings in Node",
+          "url": "https://huggingface.co/intfloat/multilingual-e5-small",
+          "recommendation": "later",
+          "reason": "MIT, 118M parameters, int8/q4 ONNX builds (Xenova). transformers.js v4 (Apache-2.0) runs in Node. Use as fallback if Voyage is unavailable.",
+          "confidence": "high",
+          "license_or_pricing": "MIT (model); Apache-2.0 (@huggingface/transformers 4.3.0)",
+          "status_2026": "Model updated 2026-04-02; transformers.js 4.3.0 on npm 2026-09-16"
+        },
+        {
+          "name": "BGE-M3",
+          "what_for": "Open multilingual embeddings: dense, sparse and multi-vector",
+          "url": "https://huggingface.co/BAAI/bge-m3",
+          "recommendation": "later",
+          "reason": "MIT, 100+ languages, 8,192-token context, 1024 dimensions. Based on XLM-RoBERTa, so heavy for serverless. Only worth it if we self-host retrieval.",
+          "confidence": "high",
+          "license_or_pricing": "MIT",
+          "status_2026": "Main model unchanged since 2024-07; Xenova ONNX port updated 2026-02"
+        },
+        {
+          "name": "Langfuse (cloud or self-hosted)",
+          "what_for": "Trace every Claude, Sarvam and Voyage call; prompt versions; eval datasets for product identification and voice-note parsing",
+          "url": "https://langfuse.com/pricing",
+          "recommendation": "use_now",
+          "reason": "Core is MIT; ee/ folders have a separate licence. Accepts OTLP over HTTP (/api/public/otel; no gRPC) and maps gen_ai.* attributes. No India cloud region, so for the prototype use the US or EU Hobby plan with phone numbers and names redacted, or self-host in ap-south-1. Self-hosting needs Postgres, ClickHouse, Redis/Valkey and S3.",
+          "confidence": "high",
+          "license_or_pricing": "Hobby free 50k units/month; Core $29/month; Pro $199/month; overage $8 per 100k units; self-host free",
+          "status_2026": "Repo pushed 2026-09-30; about 35k stars; JS SDK v5.11.1"
+        },
+        {
+          "name": "@langfuse/tracing + @langfuse/otel (JS SDK v5)",
+          "what_for": "Wrap each Claude call in a generation span with model, token usage and cost",
+          "url": "https://www.npmjs.com/package/@langfuse/tracing",
+          "recommendation": "use_now",
+          "reason": "Langfuse's Anthropic guide points to a Python package or an OpenAI-compatible shim, and the shim is banned for us. So instrument @anthropic-ai/sdk calls ourselves: usage comes from response.usage.",
+          "confidence": "medium",
+          "license_or_pricing": "MIT",
+          "status_2026": "5.11.1 (2026-09-09)"
+        },
+        {
+          "name": "OpenTelemetry GenAI semantic conventions",
+          "what_for": "Standard attribute names (gen_ai.*, mcp.*) so traces are portable across backends",
+          "url": "https://github.com/open-telemetry/semantic-conventions-genai",
+          "recommendation": "use_now",
+          "reason": "Split into its own repo (created 2026-05-05). Has Anthropic-specific and MCP pages. Status is still 'Development', so attribute names can change; keep them in one helper file.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "Pushed 2026-09-29; status Development"
+        },
+        {
+          "name": "Auto-instrumentation for Anthropic JS (@traceloop/instrumentation-anthropic, @arizeai/openinference-instrumentation-anthropic)",
+          "what_for": "Automatic spans for Claude calls",
+          "url": "https://www.npmjs.com/package/@traceloop/instrumentation-anthropic",
+          "recommendation": "later",
+          "reason": "Both Apache-2.0 and third-party. Arize emits OpenInference attributes, not gen_ai.*. Traceloop's last release was 2026-06-01. Manual spans are more reliable for 5 developers.",
+          "confidence": "medium",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "traceloop 0.27.0 (2026-06-01); arize 0.2.8 (2026-09-18)"
+        },
+        {
+          "name": "MCP TypeScript SDK v2 (@modelcontextprotocol/server)",
+          "what_for": "POOL MCP server with tools such as identify_product, list_open_pools, start_pool, join_pool (returns a payment link; the user pays in our checkout) and pool_status",
+          "url": "https://github.com/modelcontextprotocol/typescript-sdk",
+          "recommendation": "use_now",
+          "reason": "The README says v2 is the stable release line, released alongside the 2026-07-28 spec. Split packages (server/client) with Streamable HTTP and auth helpers. The old @modelcontextprotocol/sdk 1.31.0 (v1) gets fixes for at least 6 months after v2.",
+          "confidence": "high",
+          "license_or_pricing": "npm MIT; repo says new contributions Apache-2.0, existing code MIT",
+          "status_2026": "@modelcontextprotocol/server 2.2.0 (2026-09-28); repo pushed 2026-09-30; about 13.5k stars"
+        },
+        {
+          "name": "mcp-handler (Vercel)",
+          "what_for": "Mount the MCP server as a Next.js 16 route (/api/mcp)",
+          "url": "https://github.com/vercel/mcp-handler",
+          "recommendation": "use_now",
+          "reason": "Its peer dependencies are next >=13 and @modelcontextprotocol/server ^2, so it is built for the v2 SDK. Saves writing transport code.",
+          "confidence": "medium",
+          "license_or_pricing": "Apache-2.0 per npm (GitHub shows no licence)",
+          "status_2026": "2.2.0 (2026-09-18)"
+        },
+        {
+          "name": "MCP Authorization spec (2026-07-28)",
+          "what_for": "Requirements our remote MCP server's OAuth must meet",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization",
+          "recommendation": "use_now",
+          "reason": "OAuth 2.1. The MCP server MUST publish RFC 9728 protected resource metadata. The authorization server MUST offer RFC 8414 or OIDC discovery. Client ID Metadata Documents is SHOULD; Dynamic Client Registration is MAY and deprecated. PKCE is required. Clients MUST send the RFC 8707 resource parameter, and the server MUST check the token's audience. Return 401 with WWW-Authenticate resource_metadata.",
+          "confidence": "high",
+          "license_or_pricing": "Open spec",
+          "status_2026": "2026-07-28 is the current version"
+        },
+        {
+          "name": "Better Auth MCP plugin + @better-auth/cimd",
+          "what_for": "Make POOL's own login the OAuth authorization server for AI assistants",
+          "url": "https://www.better-auth.com/docs/plugins/mcp",
+          "recommendation": "use_now",
+          "reason": "Provides protected resource metadata, PKCE, token issue and refresh, and resource binding. CIMD comes from the @better-auth/cimd package. DCR is off unless enabled; enable it for Claude's 'Register automatically' option. Do not also register oauthProvider().",
+          "confidence": "high",
+          "license_or_pricing": "MIT",
+          "status_2026": "better-auth and @better-auth/cimd 1.7.6 (2026-09-24)"
+        },
+        {
+          "name": "Claude custom connectors (remote MCP)",
+          "what_for": "US investor demo: 'Claude, find a laptop pool for my college and join it'",
+          "url": "https://www.claude.com/docs/connectors/custom/remote-mcp",
+          "recommendation": "use_now",
+          "reason": "Available on Free (1 connector), Pro, Max, Team and Enterprise. Auth options: Claude's published identity (CIMD, recommended), automatic registration (DCR), our own OAuth client, or request headers. Auth settings cannot be changed after the connector is added.",
+          "confidence": "high",
+          "license_or_pricing": "Included in Claude plans",
+          "status_2026": "GA"
+        },
+        {
+          "name": "ChatGPT developer mode / apps (remote MCP)",
+          "what_for": "The same POOL MCP server shown inside ChatGPT",
+          "url": "https://developers.openai.com/apps-sdk/build/auth",
+          "recommendation": "use_now",
+          "reason": "Turn on Settings > Security and login > Developer mode, then add the public HTTPS Streamable HTTP /mcp URL or use a Secure MCP Tunnel. OAuth 2.1 with PKCE S256, protected resource metadata and the resource parameter; CIMD, DCR or a predefined client. Publishing to the directory needs individual or business verification, a review (5 positive and 3 negative test cases plus a video), optional country targeting, and a commerce declaration.",
+          "confidence": "high",
+          "license_or_pricing": "Free to build; publishing needs verification",
+          "status_2026": "Live"
+        },
+        {
+          "name": "Gemini (Gemini CLI / Gemini API) as an MCP client",
+          "what_for": "Third assistant surface for the demo",
+          "url": "https://geminicli.com/docs/tools/mcp-server",
+          "recommendation": "later",
+          "reason": "Gemini CLI supports stdio, SSE and Streamable HTTP, with OAuth discovery and DCR. We found no official confirmation that the consumer Gemini app accepts custom MCP servers. It is a developer surface, not an investor-friendly one.",
+          "confidence": "medium",
+          "license_or_pricing": "Gemini CLI needs a paid Gemini API key or a Code Assist licence (per third-party report)",
+          "status_2026": "Gemini CLI MCP support documented"
+        },
+        {
+          "name": "MCP Apps (@modelcontextprotocol/ext-apps)",
+          "what_for": "Show an interactive pool card (price, countdown, Join button) inside Claude or ChatGPT",
+          "url": "https://github.com/modelcontextprotocol/ext-apps",
+          "recommendation": "later",
+          "reason": "Official extension, active. Add it after the text-only tools work.",
+          "confidence": "medium",
+          "license_or_pricing": "npm MIT (GitHub shows NOASSERTION)",
+          "status_2026": "2.0.3 (2026-09-28)"
+        },
+        {
+          "name": "Agentic Commerce Protocol (ACP), OpenAI + Stripe",
+          "what_for": "Future: agent checkout of a POOL deal from ChatGPT",
+          "url": "https://github.com/agentic-commerce-protocol/agentic-commerce-protocol",
+          "recommendation": "later",
+          "reason": "Open spec (Apache-2.0) that any merchant may implement, but it is in beta. ChatGPT product-feed onboarding is 'currently available to approved partners' through a form, and Instant Checkout launched for US transactions. No India path found. It also assumes fixed-price checkout, which does not match sealed-bid pools.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "Beta; latest spec 2026-04-17; pushed 2026-07-18"
+        },
+        {
+          "name": "Google Agent Payments Protocol (AP2)",
+          "what_for": "Future: a signed Intent mandate for 'join this pool if the final price is ≤ X'",
+          "url": "https://github.com/google-agentic-commerce/AP2",
+          "recommendation": "later",
+          "reason": "Apache-2.0 and conceptually the best fit for pools. But it is early (v0.2.0), samples are Python, Go and Android only, with no TypeScript, and we found no card-network acceptance a startup can plug into.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "v0.2.0 released 2026-04-28; last push 2026-06-17"
+        },
+        {
+          "name": "Universal Commerce Protocol (UCP)",
+          "what_for": "Future: expose POOL deals to Google AI Mode / Gemini and other agents",
+          "url": "https://github.com/Universal-Commerce-Protocol/ucp",
+          "recommendation": "later",
+          "reason": "Apache-2.0 and very active. Has a JS SDK (@ucp-js/sdk 0.5.1, Apache-2.0) and a conformance suite; transports are REST, JSON-RPC, MCP, A2A and AP2. Google's UCP checkout is for 'select merchants', for products eligible in the US, Canada and Australia, via an interest form. No India.",
+          "confidence": "high",
+          "license_or_pricing": "Apache-2.0",
+          "status_2026": "Release v2026-08-25; pushed 2026-09-29; about 3.4k stars"
+        },
+        {
+          "name": "Cloudflare Turnstile",
+          "what_for": "Bot protection on start pool, join pool, OTP send and seller bid submit",
+          "url": "https://developers.cloudflare.com/turnstile/plans/",
+          "recommendation": "use_now",
+          "reason": "Free plan: unlimited challenges, 20 widgets, 10 hostnames per widget, WCAG 2.2 AAA. Works without the Cloudflare proxy or DNS. Always verify the token on our server with siteverify. Mobile apps need a WebView, as there is no native SDK. React wrapper: @marsidev/react-turnstile (MIT, 1.6.1).",
+          "confidence": "high",
+          "license_or_pricing": "Free; Enterprise adds any-hostname and ephemeral IDs",
+          "status_2026": "GA"
+        },
+        {
+          "name": "FingerprintJS open source (v5)",
+          "what_for": "Weak device signal to spot one person creating many buyer accounts to inflate a pool",
+          "url": "https://github.com/fingerprintjs/fingerprintjs",
+          "recommendation": "use_now",
+          "reason": "v5 is MIT; v4.x was BUSL-1.1, so pin v5 or later. The README says it runs in the browser only, has 'significantly lower' accuracy, and can be spoofed. Use it only as one risk score input next to phone OTP and payment-instrument checks, never to block alone.",
+          "confidence": "high",
+          "license_or_pricing": "MIT (v5.x); v4.x BUSL-1.1",
+          "status_2026": "npm 5.2.0 (2026-04-07); repo pushed 2026-09-24; about 28.5k stars"
+        },
+        {
+          "name": "Fingerprint Pro (Identification + Smart Signals)",
+          "what_for": "Server-verified device ID plus emulator, VPN, tampering and bot signals for abuse at scale",
+          "url": "https://fingerprint.com/pricing/",
+          "recommendation": "later",
+          "reason": "Has a Mumbai data region (ap.api.fpjs.io), Android emulator and jailbreak detection, and bot detection. Worth it once real money and fraud show up; not needed for the test-mode demo.",
+          "confidence": "high",
+          "license_or_pricing": "Free 1,000 API calls/month plus 14-day trial; Pro Plus $99/month for 20K calls, $4 per 1,000 extra; Enterprise custom",
+          "status_2026": "Live; regions US (Virginia), EU (Frankfurt), Asia (Mumbai)"
+        }
+      ],
+      "unverified": [
+        "Sarvam free credits: ₹100 is confirmed on the official rate-limits page. That it was cut from ₹1,000 in May 2026 comes only from a search snippet of the changelog.",
+        "Sarvam translate price of ₹0.005 per character (₹5 per 1,000 characters) is higher than TTS at ₹3 per 1,000 characters. That is odd, so re-check in the Sarvam dashboard before budgeting.",
+        "Sarvam Telugu accuracy on real WhatsApp voice notes (noisy, code-mixed Telugu-English, low-end microphones) has not been measured. IISc's 28.7% word error rate is an average over public datasets. Run our own 50-note test.",
+        "Telugu word error rates from the agriculture paper (arXiv 2602.03868: Google STT 33.2%, Gemini 2.5 Pro 37.9%, Sarvam 46.5%) come from a search snippet; the PDF could not be read.",
+        "Whisper Telugu failure: the script-collapse report (arXiv 2605.03073) and the 82.65% character error rate on FLEURS Telugu come from third-party sources, not an OpenAI benchmark.",
+        "Google Document AI prices ($1.50 per 1,000 pages for Enterprise OCR; $30 per 1,000 for Form Parser and Custom Extractor) are from search snippets of the official pricing page; the direct fetch was truncated.",
+        "Claude image cost estimate (about 1,600 input tokens for a 1092x1092 photo, roughly $0.003 per photo on Haiku 4.5 including output) uses the width x height / 750 formula from memory. Re-check on the vision docs.",
+        "Whether BarcodeDetector works on low-end Android phones without Google Play services was not checked. Always feature-detect.",
+        "ChatGPT developer mode plan eligibility (paid plans only) comes only from third-party blogs; the official page does not state it.",
+        "Claude Connectors Directory review criteria (readOnlyHint/destructiveHint annotations, read/write separation) come from a third-party blog, not Anthropic's page.",
+        "The Gemini API SDKs' MCP support being 'experimental' and the consumer Gemini app lacking custom MCP connectors were not confirmed on official Google pages. That Gemini CLI now needs a paid API key is a third-party claim.",
+        "The claim that in March 2026 OpenAI shifted from Instant Checkout to product discovery with Target, Walmart and others is from one search snippet only.",
+        "No official statement was found on ACP, Instant Checkout or UCP availability in India, and no timeline for expansion outside the US.",
+        "Voyage 4 quality on Telugu and Hindi product titles is not benchmarked. Also unverified: whether voyage-4-nano vectors are compatible with API voyage-4 vectors.",
+        "Bhashini registration steps (register, verify email, generate userID and ulcaApiKey under My Profile) come from third-party guides. Bhashini's paid-plan pricing is not published.",
+        "Sarvam Document Intelligence support for Telugu was not checked.",
+        "mcp-handler's licence: npm says Apache-2.0 but the GitHub repo shows no licence file."
+      ]
+    },
+    {
+      "lens": "quality-a11y-i18n",
+      "summary": "I checked every tool on npm, GitHub or its official site on 2026-09-30. The web setup that works: WCAG 2.2 AA as the standard. For accessibility checks, axe-core via @axe-core/playwright and the Storybook 10 a11y addon, plus jsx-a11y lint. Playwright 1.63 covers E2E and screenshot testing, run inside the pinned Docker image. Performance uses Lighthouse 13 and Lighthouse CI for lab numbers, and PostHog for real-user Core Web Vitals and masked session replay. Bundles are checked with `next experimental-analyze`. The i18n stack is next-intl 4.14.8 with ICU messages and Intl formatting. Tolgee Cloud Free is the workspace for Telugu and Hindi reviewers. UX writing starts from the GOV.UK error-message rules, and usability is tested in person with 5 users per round.\n\nAvoid Lost Pixel (repo archived 2026-04-22), Microsoft Clarity on India buyer pages (Microsoft is the data controller), switching to Lingui, and Maze for first-time Telugu users.\n\nSix traps I confirmed:\n(1) axe's WCAG 2.2 target-size rule is off by default. It runs only if you add the `wcag22aa` tag, and Playwright's docs example leaves that tag out.\n(2) ESLint 9 reached end of life on 2026-08-06, but Next 16.3's scaffolder still installs `eslint ^9`. eslint-plugin-jsx-a11y (last release Oct 2024) does not list ESLint 10 in its peer range.\n(3) Next 16 dropped `size` and `First Load JS` from `next build` output, so you need a separate JS budget.\n(4) Lighthouse CI 0.15.1 still bundles Lighthouse 12.6.1.\n(5) `Intl` compact notation in `te` gives \"1.2మి\" (million), not lakh.\n(6) Hindi plural rules put 0 in the 'one' category, so every plural message needs an explicit `=0` case.\n\nINVESTOR-DEMO GATE. All checks must pass on the 3 golden flows in te, hi, en-IN and en-US. The golden flows are:\n- buyer: paste link → join pool → pay in test mode → pickup code\n- seller: private bid\n- ops: pool close with Wave Drop refund\n\nA) Accessibility:\n- axe (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`): 0 violations on every route × locale. 'Incomplete' items are checked by hand.\n- Storybook with `a11y.test` set to `'error'`: 0 failures.\n- jsx-a11y: 0 errors.\n- Contrast at least 4.5:1 for body text and 3:1 for large text and UI parts.\n- Tap targets at least 24×24 CSS px (WCAG 2.5.8). Our own rule is at least 48×48 for primary buttons, following Android's guidance.\n- Keyboard-only run and a TalkBack run on a real Android phone both pass.\n- OTP fields allow paste and autofill (`autocomplete=\"one-time-code\"`).\n- The closing-time picker works without dragging.\n- A sticky pay bar never hides focus.\n- `<html lang>` is set per locale.\n\nB) Lab performance: Lighthouse mobile default settings (Slow 4G at 150 ms RTT and 1.6 Mbps, 4x CPU, moto g power 412×823), median of 5 runs, buyer routes:\n- performance score at least 90\n- LCP at most 2.5 s, TBT at most 200 ms, CLS at most 0.1\n- initial client JS at most 150 KB compressed per buyer route (our budget)\n- fonts at most 110 KB per locale (our budget)\n\nC) Field performance at p75 on Android, measured by PostHog: LCP at most 2.5 s, INP at most 200 ms, CLS at most 0.1.\n\nD) Visual: 0 unapproved screenshot diffs. Coverage is about 15 key screens × 4 locales × 2 sizes (360×640 Moto G4 and 1280×800), with timers and live prices masked.\n\nE) E2E: the golden flows pass 10 out of 10 runs in a row in CI (Chromium on the Moto G4 profile plus WebKit), with a CDP 4x CPU throttle run.\n\nF) i18n:\n- 0 missing keys and 0 hardcoded JSX strings\n- a native speaker signs off Telugu and Hindi in context (screenshots)\n- INR uses the en-IN format ₹12,34,567.50; USD is formatted only with en-US\n- no compact notation in Telugu\n\nG) Usability: at least 4 of 5 first-time Telugu-speaking smartphone users finish \"paste link → join → pay (test)\" without help in 3 minutes or less, and there are 0 open critical issues.\n\nH) Replay privacy (India): all text and inputs masked; phone, OTP, address, UPI and pickup code wrapped in `ph-no-capture`; network body capture off; only internal UUIDs are identified.\n\nEvery number in B, C, D and G that is not a WCAG or web.dev threshold is a POOL target I chose, not an industry standard.",
+      "items": [
+        {
+          "name": "WCAG 2.2 Level AA (W3C standard)",
+          "what_for": "The accessibility bar for buyer, seller and ops web. It sets the pass/fail criteria for the demo gate.",
+          "url": "https://www.w3.org/TR/WCAG22/",
+          "license_or_pricing": "Free W3C standard",
+          "status_2026": "W3C Recommendation, latest version dated 12 Dec 2024. W3C says WCAG 3 is still a draft and is 'not expected to be a completed W3C standard for a few more years', so use 2.2 now.",
+          "recommendation": "use_now",
+          "reason": "The criteria new in 2.2 hit POOL screens directly. 2.5.8 Target Size (Minimum, AA) needs at least 24×24 CSS px; Android guidance says 48dp, so use 48 for primary buttons. 2.5.7 Dragging (AA): the pool closing-time slider needs a tap or button alternative. 2.4.11 Focus Not Obscured (AA): sticky 'Pay/Join' bars must not cover focused fields. 3.3.8 Accessible Authentication (AA): OTP entry must allow paste and autofill. 3.3.7 Redundant Entry (A): do not ask again for phone or address already given. 3.2.6 Consistent Help (A): help appears in the same place on every screen. 4.1.1 Parsing is obsolete in 2.2. Contrast stays at 4.5:1 for text and 3:1 for large text and non-text UI.",
+          "confidence": "high"
+        },
+        {
+          "name": "axe-core (dequelabs/axe-core)",
+          "what_for": "Automated accessibility rules engine used by the Playwright scans and the Storybook a11y addon.",
+          "url": "https://github.com/dequelabs/axe-core",
+          "license_or_pricing": "MPL-2.0 (file-level copyleft; fine as a dev/test dependency)",
+          "status_2026": "v4.13.0 published 2026-08-05; repo pushed 2026-09-29; about 7.6k stars",
+          "recommendation": "use_now",
+          "reason": "Industry-standard engine; it says it finds 'on average 57% of WCAG issues automatically' and marks uncertain cases 'incomplete' for manual review. Supports WCAG 2.0/2.1/2.2 A/AA/AAA tags. Trap confirmed in the rule docs and the audit.js source: the WCAG 2.2 'target-size' rule is 'disabled by default'. It runs only when runOnly/withTags includes 'wcag22aa' (or you enable the rule explicitly). Rules 'html-has-lang' and 'valid-lang' will also catch a missing or wrong lang='te'/'hi'.",
+          "confidence": "high"
+        },
+        {
+          "name": "@axe-core/playwright",
+          "what_for": "Page-level accessibility scan inside Playwright E2E for every key route in all 4 locales on the mobile viewport.",
+          "url": "https://github.com/dequelabs/axe-core-npm",
+          "license_or_pricing": "MPL-2.0, free",
+          "status_2026": "v4.13.0 published 2026-08-11 (pins axe-core ~4.13.0; peer playwright-core >=1.0.0); repo pushed 2026-09-19",
+          "recommendation": "use_now",
+          "reason": "Playwright's docs show a shared makeAxeBuilder fixture. Use withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']); the docs example omits 'wcag22aa', so target-size would never run without it. Fail the test on any violation and print 'incomplete' items for manual checks. Avoid broad .exclude(), which skips all rules for that subtree.",
+          "confidence": "high"
+        },
+        {
+          "name": "eslint-plugin-jsx-a11y via eslint-config-next (ESLint 9)",
+          "what_for": "Accessibility lint in the editor and CI (alt text, labels, ARIA misuse) before code reaches the browser.",
+          "url": "https://github.com/jsx-eslint/eslint-plugin-jsx-a11y",
+          "license_or_pricing": "MIT, free",
+          "status_2026": "Last npm release 6.10.2 on 2024-10-26; repo last push 2026-01-06; peer range 'eslint ^3…^9' (no v10). ESLint 10 PRs #1079/#1081 have been open since Feb 2026. eslint-config-next 16.3.7 depends on jsx-a11y ^6.10.0. create-next-app 16.3.7 installs eslint '^9'. eslint.org: 'ESLint v9.x reached end-of-life on 2026-08-06'.",
+          "recommendation": "use_now",
+          "reason": "For the prototype, stay on ESLint 9, which is what Next scaffolds. ESLint is dev-only, so the EOL risk is low for 6 months. Explicitly add jsx-a11y's recommended config: Next's docs only list react, react-hooks and next recommended sets. Next 16 removed `next lint` and no longer lints in `next build`, so CI must run `eslint .` with 0 errors. Move to ESLint 10 when jsx-a11y or eslint-config-next officially supports it.",
+          "confidence": "high"
+        },
+        {
+          "name": "eslint-plugin-jsx-a11y-x (es-tooling fork)",
+          "what_for": "Drop-in style replacement for jsx-a11y once we move to ESLint 10.",
+          "url": "https://github.com/es-tooling/eslint-plugin-jsx-a11y-x",
+          "license_or_pricing": "MIT, free",
+          "status_2026": "npm 0.2.0; peer eslint ^9.0.0 || ^10.0.0; repo pushed 2026-09-29; only 53 stars",
+          "recommendation": "later",
+          "reason": "Maintained fork with ESLint 10 support, but it is young (0.x). Rule names change from jsx-a11y/ to jsx-a11y-x/. Adopt only when leaving ESLint 9.",
+          "confidence": "medium"
+        },
+        {
+          "name": "Storybook 10 a11y addon (@storybook/addon-a11y) + @storybook/addon-vitest",
+          "what_for": "Component-level accessibility tests for the shadcn/Base UI kit (buttons, dialogs, price cards, countdown) in every state and locale.",
+          "url": "https://storybook.js.org/docs/writing-tests/accessibility-testing",
+          "license_or_pricing": "MIT, free",
+          "status_2026": "addon-a11y and storybook 10.6.1 published 2026-09-29; addon-vitest peer vitest ^3–^5 (vitest 5.0.2 is current)",
+          "recommendation": "use_now",
+          "reason": "The design-stack lens already chose Storybook 10. The addon runs axe-core. Set parameters.a11y.test = 'error' at project level, because Storybook docs say a11y tests only fail CI when set to 'error' ('todo' only warns). Run it through the Vitest addon in CI. It disables the 'region' rule for stories by default, which is correct for isolated components.",
+          "confidence": "high"
+        },
+        {
+          "name": "Playwright (E2E) + toMatchAriaSnapshot + CDP throttling",
+          "what_for": "Real end-to-end tests of the golden flows (paste link, pool, bid, pay in Razorpay/Stripe test mode, pickup code, Wave Drop refund) in 4 locales, on low-end Android emulation and WebKit.",
+          "url": "https://playwright.dev/",
+          "license_or_pricing": "Apache-2.0, free",
+          "status_2026": "@playwright/test 1.63.0 published 2026-09-04; very active (about 96.9k stars); Docker image mcr.microsoft.com/playwright:v1.63.0-noble",
+          "recommendation": "use_now",
+          "reason": "Built-in device presets include 'Moto G4' (360×640, DPR 3, Android UA) and 'Galaxy A55' (480×1040), which cover small screens. Device presets do not slow the CPU or network. For that, open a Chromium CDPSession (page.context().newCDPSession(page)) and send Emulation.setCPUThrottlingRate / Network.emulateNetworkConditions. toMatchAriaSnapshot catches accidental changes to the accessibility tree (headings, button names). Add a WebKit project for US investors on iPhone. Pin the Docker image to the exact package version, as the Playwright docs advise.",
+          "confidence": "high"
+        },
+        {
+          "name": "Playwright toHaveScreenshot (visual regression, built-in)",
+          "what_for": "Pixel diffs of about 15 key screens × 4 locales × 2 viewports; catches broken Telugu/Hindi layouts, clipped text and theme regressions.",
+          "url": "https://playwright.dev/docs/test-snapshots",
+          "license_or_pricing": "Free (part of Playwright, Apache-2.0)",
+          "status_2026": "Stable in 1.63.0",
+          "recommendation": "use_now",
+          "reason": "Costs nothing and keeps baselines in the repo, with no new vendor. Playwright warns rendering 'can vary based on the host OS, version, settings, hardware…headless mode'. So generate and compare baselines only inside the pinned Docker image (v1.63.0-noble) in CI and locally. Use stylePath or the mask option for countdown timers and live prices, disable animations, and use maxDiffPixels for tolerance. Baselines are updated only by `--update-snapshots` in a reviewed PR.",
+          "confidence": "high"
+        },
+        {
+          "name": "Chromatic",
+          "what_for": "Hosted review UI for Storybook visual snapshots, plus Playwright archives via @chromatic-com/playwright.",
+          "url": "https://www.chromatic.com/pricing",
+          "license_or_pricing": "Free: 5,000 snapshots/mo, Chrome only, unlimited projects and users. Starter $179/mo (35,000 snapshots, Chrome/Safari/Firefox/Edge, $0.008 extra). Pro $399/mo (85,000). Free and Starter have no accessibility reports.",
+          "status_2026": "chromatic CLI 18.10.1 (MIT) published 2026-09-28; @chromatic-com/playwright 1.0.0 published 2026-09-25",
+          "recommendation": "later",
+          "reason": "Unlike Argos Hobby, the free tier is fine for a company repo. It only adds value once a designer reviews component changes. Playwright screenshots already cover the demo gate, so skip it for now to avoid tool sprawl.",
+          "confidence": "high"
+        },
+        {
+          "name": "Argos (argos-ci)",
+          "what_for": "Hosted visual review for Playwright screenshots with built-in screenshot stabilization.",
+          "url": "https://argos-ci.com/pricing",
+          "license_or_pricing": "Hobby free, up to 5,000 screenshots/mo, but 'designed for personal GitHub repositories'; a private org repo needs Pro at $100/mo (35,000 screenshots, $0.004 extra, $0.0015 per Storybook shot, 14-day trial). Argos repo and SDK are MIT.",
+          "status_2026": "@argos-ci/playwright 7.6.0 published 2026-09-13; repo pushed 2026-09-30",
+          "recommendation": "later",
+          "reason": "argosScreenshot waits for fonts, images and aria-busy, and hides carets and scrollbars. Uploads happen only in CI (uploadToArgos: !!process.env.CI). It is the best upgrade if self-hosted Playwright baselines get flaky, but it costs $100/mo on an org repo.",
+          "confidence": "high"
+        },
+        {
+          "name": "Lost Pixel",
+          "what_for": "Open-source visual regression (was an option).",
+          "url": "https://github.com/lost-pixel/lost-pixel",
+          "license_or_pricing": "MIT",
+          "status_2026": "Repo archived by owner on 2026-04-22 ('We are sunsetting the product'; team joining Figma); last npm release 3.22.0 in Nov 2024",
+          "recommendation": "avoid",
+          "reason": "Archived, read-only and unmaintained.",
+          "confidence": "high"
+        },
+        {
+          "name": "Lighthouse 13 (CLI / Chrome DevTools)",
+          "what_for": "Lab performance and accessibility audit under mid-tier mobile emulation before each demo.",
+          "url": "https://github.com/GoogleChrome/lighthouse",
+          "license_or_pricing": "Apache-2.0, free",
+          "status_2026": "13.5.0 published 2026-09-18 (13.0.0 on 2025-10-10); Node >=22.19",
+          "recommendation": "use_now",
+          "reason": "The mobile default is 'Slow 4G': 150 ms latency, 1.6 Mbps down / 750 Kbps up, 4x CPU slowdown. It emulates a moto g power (2022) at 412×823, DPR 1.75. Score weights per Chrome docs: TBT 30%, LCP 25%, CLS 25%, FCP 10%, SI 10%. Our gate is score ≥ 90, LCP ≤ 2.5 s, TBT ≤ 200 ms, CLS ≤ 0.1 on buyer routes, median of 5 runs. Calibrate the CPU multiplier with the benchmarkIndex from the report if CI hardware varies.",
+          "confidence": "high"
+        },
+        {
+          "name": "Lighthouse CI (@lhci/cli)",
+          "what_for": "PR-level assertions: fail CI when LCP, TBT, CLS or script bytes regress.",
+          "url": "https://github.com/GoogleChrome/lighthouse-ci",
+          "license_or_pricing": "Apache-2.0, free (self-run; temporary public storage or own LHCI server)",
+          "status_2026": "Latest 0.15.1 on 2025-06-25, which bundles lighthouse 12.6.1 (not 13); repo last push 2026-03-27; issue #1136 'Lighthouse 13 support?' open since Apr 2026",
+          "recommendation": "use_now",
+          "reason": "Still the simplest way to assert budgets in CI: numberOfRuns 5, assertions on metrics and resource-summary script size. It also replaces the 'First Load JS' number Next 16 removed from build output. Caveat: it measures with Lighthouse 12.6.1, so cross-check the final demo build in Lighthouse 13. If LHCI stays stale into 2027, replace it with a small script around the lighthouse 13 Node API.",
+          "confidence": "medium"
+        },
+        {
+          "name": "Core Web Vitals thresholds + web-vitals library",
+          "what_for": "Field (real-user) performance targets and measurement.",
+          "url": "https://web.dev/articles/vitals",
+          "license_or_pricing": "web-vitals is Apache-2.0, free",
+          "status_2026": "web-vitals 6.2.2 published 2026-09-14 and exports LCPThresholds [2500,4000], INPThresholds [200,500], CLSThresholds [0.1,0.25]; web.dev targets are measured at the 75th percentile",
+          "recommendation": "use_now",
+          "reason": "Good means LCP ≤ 2.5 s, INP ≤ 200 ms and CLS ≤ 0.1 at p75, segmented mobile and desktop. Poor means over 4 s, 500 ms or 0.25. Library size is about 3K brotli (+1.5K for the attribution build). Get it through PostHog's built-in web-vitals capture rather than wiring a second pipeline. A new site has no CrUX data, so PostHog is our field source.",
+          "confidence": "high"
+        },
+        {
+          "name": "PostHog (web vitals + session replay with DPDP-aware masking)",
+          "what_for": "Funnels, real-user CWV, and masked session replays of Hyderabad buyers and sellers to find UX failures.",
+          "url": "https://posthog.com/docs/session-replay/privacy",
+          "license_or_pricing": "posthog-js '(Apache-2.0 AND MIT)'. Cloud free tier: 1M events and 5K recordings/mo; $web_vitals events billed as normal events. Self-serve DPA with PostHog as processor.",
+          "status_2026": "posthog-js 1.435.1 published 2026-09-29; very active",
+          "recommendation": "use_now",
+          "reason": "Verified masking controls. session_recording: { maskAllInputs: true (inputs are masked by default), maskTextSelector: '*' (mask all text for India buyer surfaces), maskTextFn/maskInputFn }. The class 'ph-no-capture' blanks an element (use it on phone, OTP, address, UPI and pickup code). Network body and header capture is off by default (recordBody/recordHeaders), and headers such as authorization and cookie are never captured. A custom maskCapturedNetworkRequestFn replaces the automatic redaction, so avoid it unless complete. Top-level options: mask_all_text, mask_all_element_attributes, person_profiles 'identified_only' (the default), cookieless_mode, opt_out_capturing_by_default, before_send. Identify users only by an internal UUID, never by phone number. Cloud is US/EU only (from earlier stack research), so this is a cross-border transfer; the DPDP notice must name it.",
+          "confidence": "high"
+        },
+        {
+          "name": "Microsoft Clarity",
+          "what_for": "Free heatmaps and session replay (considered).",
+          "url": "https://learn.microsoft.com/en-us/clarity/faq",
+          "license_or_pricing": "Free forever; @microsoft/clarity SDK MIT (npm 1.0.2)",
+          "status_2026": "Active (docs updated 2026-09-21)",
+          "recommendation": "avoid",
+          "reason": "Clarity says it is GDPR-compliant 'as a data controller' and that 'Microsoft/Clarity has access to the data'. Data is stored in Azure, recordings are kept 30 days (favorites and samples up to 9 months), and consent signals are required for EEA/UK/CH. For India buyers, that means handing behaviour data to a second data fiduciary, which needs its own notice and consent. It also duplicates PostHog and adds another third-party script on low-end phones. Masking modes, for the record: Balanced is the default (numbers and emails masked), Strict masks everything, inputs are always masked.",
+          "confidence": "high"
+        },
+        {
+          "name": "Next.js 16 bundle analysis (next experimental-analyze)",
+          "what_for": "Find heavy client modules per route; diff bundle size before and after a change.",
+          "url": "https://nextjs.org/docs/app/guides/package-bundling",
+          "license_or_pricing": "Built into Next.js (MIT)",
+          "status_2026": "Available in v16.1+ (Turbopack, experimental); Next 16.3.7 current. @next/bundle-analyzer 16.3.7 is for Webpack builds only.",
+          "recommendation": "use_now",
+          "reason": "Run `npx next experimental-analyze` to see the treemap with import chains, filterable by route and client/server. `--output` writes .next/diagnostics/analyze, which you can copy and compare between PRs. Next 16 removed 'size' and 'First Load JS' from `next build` output, so enforce the JS budget (≤ 150 KB compressed initial JS per buyer route, our target) through Lighthouse CI resource-summary or size-limit (MIT, 14.1.0). Use optimizePackageImports for icon libraries and keep heavy rendering in Server Components.",
+          "confidence": "high"
+        },
+        {
+          "name": "next/image (Next.js 16 defaults)",
+          "what_for": "Responsive, compressed product images on 2G-4G data.",
+          "url": "https://nextjs.org/docs/app/api-reference/components/image",
+          "license_or_pricing": "Built into Next.js (MIT)",
+          "status_2026": "Next 16.3.7 docs",
+          "recommendation": "use_now",
+          "reason": "Next 16 changes that matter. `priority` is deprecated in favour of `preload`, and the docs say to prefer loading='eager' or fetchPriority='high' for the LCP image. qualities defaults to [75] and is now a required allowlist. minimumCacheTTL defaults to 4 h. formats defaults to ['image/webp']; AVIF is opt-in and cached separately. 16 was removed from imageSizes. Redirects are capped at 3, local IPs are blocked, and remotePatterns replaces domains. Always pass `sizes`. Copy retailer product images into POOL storage instead of optimizing arbitrary remote hosts.",
+          "confidence": "high"
+        },
+        {
+          "name": "next/font with Google Sans / Noto Telugu & Devanagari subsets",
+          "what_for": "Readable Telugu and Hindi text without layout shift or heavy font downloads.",
+          "url": "https://nextjs.org/docs/app/api-reference/components/font",
+          "license_or_pricing": "next/font built-in; fonts OFL via Google Fonts",
+          "status_2026": "next/font in 16.3.7 includes 'Google Sans' (subsets include telugu and devanagari; axes GRAD, opsz, wght)",
+          "recommendation": "use_now",
+          "reason": "next/font self-hosts at build time ('No requests are sent to Google by the browser'). display defaults to 'swap', and only the listed `subsets` are preloaded. Woff2 sizes measured from Google Fonts on 2026-09-30 (variable, same file for 400/600): Google Sans telugu 66,380 B, devanagari 50,000 B, latin 35,852 B. Noto Sans Telugu telugu subset 123,764 B; Noto Sans Devanagari devanagari 121,188 B. Google Sans therefore keeps Telugu at about 102 KB with Latin, against about 156 KB for Noto. Preload only the subset for the active locale. AOSP ships NotoSansTelugu-VF and NotoSansDevanagari-VF as system fonts, so a system-font fallback for Indic text is a 0 KB option to test on OEM phones. Budget: ≤ 110 KB of fonts per locale.",
+          "confidence": "high"
+        },
+        {
+          "name": "next-intl",
+          "what_for": "te / hi / en-IN / en-US UI strings, locale routing, ICU plurals, number and date formatting in Server and Client Components.",
+          "url": "https://next-intl.dev/",
+          "license_or_pricing": "MIT, free",
+          "status_2026": "4.14.8 released 2026-09-29; peer next ^16; about 4.4k stars",
+          "recommendation": "use_now",
+          "reason": "Next 16 support confirmed: the docs say 'proxy.ts was called middleware.ts up until Next.js 16', and Next's proxy runtime is nodejs only. Locale negotiation order: prefix → cookie → accept-language → default. Get type-safe keys by augmenting AppConfig.Messages, and typed ICU arguments via createMessagesDeclaration. Money goes through useFormatter/format.number or ICU {price, number, currency} with global formats. Trap: global-error.tsx renders outside the root layout, without global styles or fonts, so give it its own short trilingual text.",
+          "confidence": "high"
+        },
+        {
+          "name": "ECMA-402 Intl (NumberFormat / PluralRules / DateTimeFormat)",
+          "what_for": "Lakh/crore INR display, USD for US users, and correct plurals in Telugu and Hindi.",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat",
+          "license_or_pricing": "Built into browsers and Node",
+          "status_2026": "Tested locally on Node 24.12 (ICU 77.1, CLDR 47) on 2026-09-30",
+          "recommendation": "use_now",
+          "reason": "Verified outputs: en-IN INR → '₹12,34,567.50'; en-IN compact → '12L' / '12Cr'; hi-IN compact → '12 लाख'. te-IN compact → '1.2మి', which is million not lakh, so never use compact notation in Telugu. en-IN with USD → '$12,34,567.50' (wrong grouping for US), so format USD only with en-US ('$1,234,567.50'). PluralRules: en and te map 0 → 'other', but hi maps 0 → 'one', so every ICU plural needs an explicit =0 branch ('No bids yet'). Telugu native digits (numberingSystem 'telu') switch to Western grouping, so keep Latin digits. Always pass timeZone 'Asia/Kolkata' or 'America/…' for pool closing times.",
+          "confidence": "high"
+        },
+        {
+          "name": "eslint-plugin-i18next (rule: no-literal-string)",
+          "what_for": "Blocks hardcoded English strings in JSX so nothing ships untranslated.",
+          "url": "https://github.com/edvardchen/eslint-plugin-i18next",
+          "license_or_pricing": "MIT, free",
+          "status_2026": "6.1.5; repo pushed 2026-06-28; flat config supported ('flat/recommended')",
+          "recommendation": "use_now",
+          "reason": "The rule targets literal strings shown to users. It works on JSX regardless of runtime, so it pairs with next-intl. Scope it to app/ and components/, and exclude tests and stories. Gate: 0 violations plus a CI script that diffs message keys across the 4 locale JSON files (0 missing).",
+          "confidence": "medium"
+        },
+        {
+          "name": "Tolgee (Cloud Free as translator workspace)",
+          "what_for": "Web UI for native Telugu and Hindi reviewers, with machine-translation drafts and in-context review, synced to next-intl JSON in git.",
+          "url": "https://tolgee.io/pricing",
+          "license_or_pricing": "Platform Apache-2.0 outside ee/ (ee is proprietary); JS SDK MIT. Cloud Free: 30,000 hosted words, 3 seats, unlimited projects, keys not metered. Paid from €58/mo billed annually. Self-hosting free.",
+          "status_2026": "tolgee-platform pushed 2026-09-29; @tolgee/react 7.2.1 (2026-09-09); @tolgee/cli 2.20.0 (2026-06-25)",
+          "recommendation": "use_now",
+          "reason": "Three seats fit 1 Telugu reviewer, 1 Hindi reviewer and 1 dev. Keep next-intl as the runtime and JSON in git as the single source of truth. Use only `tolgee push` / `pull`, not the runtime SDK: Tolgee's next-intl integration keeps next-intl for routing but uses Tolgee's own translate hooks. Workflow: dev adds an English key → MT or LLM draft → native speaker edits in Tolgee → pull → reviewer checks Playwright screenshots per locale → sign-off.",
+          "confidence": "medium"
+        },
+        {
+          "name": "Crowdin",
+          "what_for": "Alternative translation management system.",
+          "url": "https://crowdin.com/pricing",
+          "license_or_pricing": "Official page confirms a 14-day Team trial, unlimited translators on paid plans, and MT/AI through a 'Managed Balance' add-on. Plan prices seen only on third-party sites (unverified).",
+          "status_2026": "@crowdin/cli 5.3.0 published 2026-09-24",
+          "recommendation": "later",
+          "reason": "Strong, but more than 4 locales and a handful of reviewers need. Official prices did not render for verification. Revisit only if we add many languages or outside vendors.",
+          "confidence": "medium"
+        },
+        {
+          "name": "Lingui",
+          "what_for": "Alternative i18n library with message extraction (considered).",
+          "url": "https://github.com/lingui/js-lingui",
+          "license_or_pricing": "MIT",
+          "status_2026": "@lingui/core 6.8.0 published 2026-09-23; very active",
+          "recommendation": "avoid",
+          "reason": "next-intl is already chosen and verified. Lingui's Next.js path needs @lingui/swc-plugin, whose README says 'SWC Plugin support is still experimental' with no semver compatibility across swc_core versions. That pins us to Next's SWC version and would be a switch with no benefit for the demo.",
+          "confidence": "high"
+        },
+        {
+          "name": "IndicTrans2 (AI4Bharat)",
+          "what_for": "Open-source machine translation drafts for Telugu and Hindi.",
+          "url": "https://github.com/AI4Bharat/IndicTrans2",
+          "license_or_pricing": "MIT model checkpoints (training data under mixed CC0 / CC-BY-4.0)",
+          "status_2026": "Covers all 22 scheduled Indian languages including tel_Telu and hin_Deva; last major update 18 Jan 2025 (long-context models)",
+          "recommendation": "later",
+          "reason": "Needs GPU hosting and gives drafts only. For the prototype, draft with Tolgee's MT or an LLM and always have a native speaker review. Revisit for large catalog or seller-content translation.",
+          "confidence": "medium"
+        },
+        {
+          "name": "GOV.UK Design System error-message guidance (base for POOL UX writing guide)",
+          "what_for": "Rules for error, empty and help copy in te, hi and en.",
+          "url": "https://design-system.service.gov.uk/components/error-message/",
+          "license_or_pricing": "Open Government Licence v3.0 (reusable)",
+          "status_2026": "Live guidance",
+          "recommendation": "use_now",
+          "reason": "Adopt its verified rules: say what happened and how to fix it. Do not use 'invalid', 'error', 'oops', blame words, or 'please/sorry'. Use different messages for empty, wrong-format and too-long input. Put the same text next to the field and in the summary. Never clear the user's input. POOL additions (our rules): one action per screen; short sentences; numbers as ₹ amounts, not jargon; money copy always says who holds the money and when it moves; write Telugu and Hindi natively, not literal translations.",
+          "confidence": "high"
+        },
+        {
+          "name": "Next.js App Router state files (error.tsx / global-error.tsx / not-found.tsx / loading.tsx)",
+          "what_for": "Consistent error, empty and loading states on every route.",
+          "url": "https://nextjs.org/docs/app/api-reference/file-conventions/error",
+          "license_or_pricing": "Built into Next.js (MIT)",
+          "status_2026": "In 16.3.0 the `retry` prop became stable (added as unstable_retry in 16.2); `reset` remains for re-render without refetch; catchError() for component-level recovery",
+          "recommendation": "use_now",
+          "reason": "Pattern for every data view: loading (skeleton), empty (why it is empty plus one next action, e.g. 'No seller bids yet, pool closes in 3h 20m'), error (plain cause plus a Retry button calling retry(); keep form data; log error.digest to match server logs), and offline (show last data plus a 'You are offline' banner). Production Server Component errors show only a generic message plus a digest, so user copy must come from our messages, not error.message. global-error must include its own <html>/<body> and does not get global styles.",
+          "confidence": "high"
+        },
+        {
+          "name": "In-person guerrilla testing + NN/g 5-user rounds",
+          "what_for": "Usability validation with first-time smartphone users in Hyderabad (Telugu, Hindi, English) before investor demos.",
+          "url": "https://www.nngroup.com/articles/why-you-only-need-to-test-with-5-users/",
+          "license_or_pricing": "Free method; small participant thank-you costs",
+          "status_2026": "Established method",
+          "recommendation": "use_now",
+          "reason": "NN/g: 5 users find about 85% of problems; run 3 small rounds, not one big one. With 3 or more distinct groups, test 3 per group per round. GOV.UK: 30–60 min sessions and tell participants 'you're testing the service, not them'. POOL plan: test at mutton shops, colleges and appliance stores on the users' own low-end phones on their own data, with a consent form. Record with masked PostHog replay plus notes. Gate: at least 4 of 5 first-time users finish paste → join → pay (test) unaided in 3 minutes or less.",
+          "confidence": "high"
+        },
+        {
+          "name": "Maze",
+          "what_for": "Unmoderated remote usability tests (considered).",
+          "url": "https://maze.co/pricing/",
+          "license_or_pricing": "Official page did not render limits. Third-party blogs report Free = 1 study/month, Starter $99/mo (unverified).",
+          "status_2026": "Active; trial switches to the Free plan after 30 days or 3 studies (official help center)",
+          "recommendation": "avoid",
+          "reason": "Remote, text-heavy unmoderated tasks are a poor fit for first-time Telugu smartphone users on patchy data, and the free-tier limits could not be verified. In-person testing gives better signal for free.",
+          "confidence": "medium"
+        },
+        {
+          "name": "Lookback",
+          "what_for": "Remote moderated sessions with US users or investors.",
+          "url": "https://lookback.com/pricing",
+          "license_or_pricing": "Freelance $299/year (10 sessions, 1 seat); Team $1,782/year (100 sessions, 10 seats); Insights Hub $4,122/year; 60-day trial with 5 free sessions",
+          "status_2026": "Active",
+          "recommendation": "later",
+          "reason": "Useful only for US remote testing after the India flows are stable. Android participant support was not confirmed.",
+          "confidence": "medium"
+        },
+        {
+          "name": "Maestro (for Expo mobile later)",
+          "what_for": "YAML E2E flows for the future Expo buyer and seller apps.",
+          "url": "https://github.com/mobile-dev-inc/Maestro",
+          "license_or_pricing": "Apache-2.0; CLI and Studio free on your own devices; Maestro Cloud $250/device/mo (free cloud trial)",
+          "status_2026": "Repo pushed 2026-09-29; about 15.9k stars. Expo documents running Maestro in EAS Workflows against built .apk/.app files.",
+          "recommendation": "later",
+          "reason": "Right tool once Expo starts; run the free CLI locally or in EAS. Not needed for the web demo.",
+          "confidence": "high"
+        },
+        {
+          "name": "DPDP Act + DPDP Rules 2025 (India) — constraint on analytics and replay",
+          "what_for": "Legal frame for masking, consent notice and cross-border analytics.",
+          "url": "https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc20251117695301.pdf",
+          "license_or_pricing": "Law",
+          "status_2026": "Rules notified 14 Nov 2025. Consent Managers phase at about 12 months (Nov 2026). Core notice, consent, security, breach and data-principal-rights obligations enforceable 13 May 2027 (per law-firm summaries).",
+          "recommendation": "use_now",
+          "reason": "Build it in now: a clear consent notice naming analytics and replay, and replay masking as set out in the PostHog item. Identify users only by UUID and keep no raw phone numbers in analytics. Sample replays for India users. Then the prototype does not need rework before May 2027.",
+          "confidence": "medium"
+        }
+      ],
+      "unverified": [
+        "Maze Free/Starter limits: the official pricing page did not render numbers. Third-party blogs say 1 study/month on Free and $99/mo Starter.",
+        "Crowdin plan prices (third-party: Free 60k hosted words + 1 private project, Pro $59/mo, Team $179/mo). Only the 14-day Team trial and the MT/AI Managed Balance add-on were confirmed on crowdin.com.",
+        "Lookback support for Android participants in unmoderated tests was not confirmed on the pricing page.",
+        "Whether Chromatic Playwright (E2E) snapshots count toward the same 5,000/mo free quota was not stated in its docs.",
+        "DPDP phase dates come from law-firm summaries (AZB/Mondaq via search). I did not read the PIB PDF directly.",
+        "Intl outputs were verified on Node 24.12 (ICU 77.1, CLDR 47). Chrome on older Android may use a different ICU/CLDR, so re-check the ₹ and plural outputs on the actual test phones.",
+        "AOSP main ships NotoSansTelugu-VF and NotoSansDevanagari-VF. Whether Samsung, Xiaomi, Realme and other OEM builds keep them was not checked.",
+        "Tolgee CLI push/pull compatibility with next-intl's nested ICU JSON was not confirmed in the docs. Test it with a sample file first.",
+        "How ESLint 10 behaves with eslint-config-next 16.3.7 was not tested. jsx-a11y's peer range excludes v10, so npm may raise ERESOLVE.",
+        "Whether PostHog replay records cross-origin payment iframes (Razorpay Checkout, Stripe Elements) was not verified. Add ph-no-capture around payment containers regardless.",
+        "Storybook's default value for parameters.a11y.test was not confirmed. Set it to 'error' explicitly.",
+        "Tolgee Free plan machine-translation credits and whether commercial use is allowed were not stated on the pricing page.",
+        "POOL-specific targets are my chosen thresholds, not industry standards: ≤150 KB compressed initial JS per buyer route, ≤110 KB fonts per locale, Lighthouse score ≥90, 10/10 consecutive E2E passes, ≥4 of 5 users completing the flow in ≤3 minutes, and 48×48 primary targets. The last one follows Android's 48dp guidance but goes beyond WCAG's 24px minimum."
+      ]
+    }
+  ],
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Research"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "research:ai-models-agent-stack",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a95921d670a61ff31",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790743971933,
+      "queuedAt": 1790743971800,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "ai-models-agent-stack",
+      "promptPreview": "POOL (India + USA startup, today 2026-09-30): buyers paste any product link, POOL identifies the product (AI helps, never invents), shows honest options, buyers join/start pools with a chosen closing time, verified sellers bid privately with guaranteed per-buyer prices, buyers pay through a licensed payment aggregator (Razorpay Route in India, Stripe Connect in US) with money held until a delivery…",
+      "promptFramed": true,
+      "lastProgressAt": 1790745547751,
+      "tokens": 162841,
+      "toolCalls": 108,
+      "durationMs": 1575808,
+      "resultPreview": "{\"lens\":\"ai-models-agent-stack\",\"summary\":\"What we should do, all checked on 2026-09-30 against official sites, npm, GitHub and Hugging Face:\\n\\n(1) Telugu and Hindi WhatsApp voice notes: use Sarvam saaras speech-to-text through its plain REST API.\\n- Cost is ₹30 per hour of audio. A 30-second note costs ₹0.25, and 1,000 such notes cost ₹250.\\n- Telugu (te-IN) is supported, OGG/Opus audio is accep…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "research:quality-a11y-i18n",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a8c1eaf6cd3ed1b0b",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790743971939,
+      "queuedAt": 1790743971800,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "quality-a11y-i18n",
+      "promptPreview": "POOL (India + USA startup, today 2026-09-30): buyers paste any product link, POOL identifies the product (AI helps, never invents), shows honest options, buyers join/start pools with a chosen closing time, verified sellers bid privately with guaranteed per-buyer prices, buyers pay through a licensed payment aggregator (Razorpay Route in India, Stripe Connect in US) with money held until a delivery…",
+      "promptFramed": true,
+      "lastProgressAt": 1790745268790,
+      "tokens": 204455,
+      "toolCalls": 118,
+      "durationMs": 1294762,
+      "resultPreview": "{\"lens\":\"quality-a11y-i18n\",\"summary\":\"I checked every tool on npm, GitHub or its official site on 2026-09-30. The web setup that works: WCAG 2.2 AA as the standard. For accessibility checks, axe-core via @axe-core/playwright and the Storybook 10 a11y addon, plus jsx-a11y lint. Playwright 1.63 covers E2E and screenshot testing, run inside the pinned Docker image. Performance uses Lighthouse 13 and…"
+    }
+  ],
+  "totalTokens": 367296,
+  "totalToolCalls": 226
+}
