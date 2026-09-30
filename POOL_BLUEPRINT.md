@@ -36,6 +36,32 @@
     - The largest slab is held from each payout until the pool closes. Seller-cancelled orders still pay their slab, from the seller's deposit.
     - The pot is paid as a partial refund to the original payment method. The screen shows real numbers only.
 11. **Proof-based tracking.** A status moves only with proof: seller confirms → dispatch photo → delivery/pickup code → serial photo + invoice → installation job number.
+12a. **Engine completeness checklist** (added 30 Sep 2026 after a gap review; the engine must cover all of it):
+    1. Quantity units: `unit`, `kg`, `g`, stored as integer base units, e.g. grams.
+    2. Per-buyer options, e.g. cut or RAM, that must match what the bid covers.
+    3. Seller capacity, and split awards: *proposed default A*: the earliest joiners get the winner's price, the rest get the backup's; each buyer sees their own price.
+    4. "No deal": if no valid bid beats the best outside price by max(₹1,000, 2%), or the US equivalent, all bookings are auto-refunded.
+    5. Accept window: *proposed default B*: no reply means walk away, with a full refund; never a silent charge.
+    6. Bids:
+       - *proposed default C*: a seller can only lower a bid before close, never raise it;
+       - every revision is logged;
+       - a bid must stay valid through the accept window;
+       - a bid more than 15% below the median bid is flagged for checks.
+    7. Pickup slots with capacity, by area and time (mutton).
+    8. An open-box checklist (right model, no damage, serial matches) must pass before the code can be used.
+    9. Cancellation:
+       - free before dispatch;
+       - after dispatch, the buyer pays at most the disclosed return cost;
+       - a seller who cancels pays the buyer the same amount (E-Commerce Rules 2020, Rule 4 symmetry).
+    10. Seller default: the backup takes over at the **same** buyer price; any difference comes from the seller's deposit, then from POOL's reserve.
+    11. Installation hold: released on installation, or 5 days after delivery, or up to 45 days if the buyer defers installation.
+    12. Late-delivery credit, paid from the seller's held money.
+    13. A close time is never extended without every member opting in (logged).
+    14. A pool matching key (product or grouping, region, area), so new buyers are shown existing pools.
+    15. Domain events and an append-only audit of every price, count and close time shown.
+    16. Idempotency keys on every money command.
+    - **Money representation:** integer minor units (paise/cents) inside the engine, plus a tested largest-remainder allocation. No money library in the core. (Dinero.js 2.0.2 ships its currencies at `dinero.js/currencies` if the UI needs formatting; `Intl.NumberFormat` is enough.)
+
 12. **No dark patterns.** India's CCPA 13-pattern checklist and the US FTC rules on every screen: no fake timers or counters, no drip pricing, no pre-ticked add-ons.
 
 ---

@@ -8,6 +8,30 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-09-30 · Claude Code · M1 DONE (engine)
+- **Did:** built `pool/packages/engine`, a pure TypeScript core with no I/O. Modules:
+  - `money`: integer paise/cents, exact `allocate`.
+  - `quantity`: unit or kg-as-grams.
+  - `policy`: India/US numbers, with GUESSes marked.
+  - `pool`: buyer-chosen close, household and payer caps, extension only with every member's opt-in, NO_DEAL, default B timeout.
+  - `bids`: default C lower-only, anomaly flag, published ranking, default A capacity split, listing rule.
+  - `order`: split, proof-gated lifecycle, late credit, install hold, Rule 4 cancellation symmetry, seller default gap.
+  - `wave-drop`: slab pot.
+  - `codes`: HMAC-hashed 4/6-digit codes, attempts, expiry, open-box gate.
+  - `slots`: pickup slots.
+- Added the 16-point engine completeness checklist and defaults A/B/C to `POOL_BLUEPRINT.md` §1 (12a).
+- **Verified:** `npx vitest run` → **7 files, 71 tests passed**; `npx tsc --noEmit` → **exit code 0**. The tests reproduce the Wave Drop table (10/25/34/49/50/100) and the TV ₹28,400 split to the paisa, and prove:
+  - `allocate` sums exactly (property test);
+  - the order split sums exactly (property test);
+  - Wave Drop refunds equal the pot, and held money balances (property test);
+  - an extra settled unit never lowers seller profit (property test);
+  - an end-to-end 30-buyer / 2-seller pool conserves every paisa.
+- **Bug found by the tests and fixed:** a seller penalty with zero settled buyers left money unassigned. The penalty now applies only when settled buyers exist.
+- **Next:** M2 — Postgres in Docker (pgvector + PostGIS), Drizzle schema, pgledger, DBOS workflows (pool close timer, payout hold until code, Wave Drop at close), integration tests.
+- **Open:**
+  - The founder should confirm defaults A/B/C and the GUESS numbers in `policy.ts` (fee 5%/3%, US minimum saving $20/2%, 5 kg cap, 24 h accept window, 7-day settle window, late credit ₹200/$5).
+  - The founder puts test keys in `pool/.env`.
+
 ### 2026-09-30 · Claude Code · M1 starting
 - **Did:**
   - Hidden-gems research: `research/08_hidden_gems.md`.
