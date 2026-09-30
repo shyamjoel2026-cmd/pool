@@ -13,7 +13,7 @@
   - Hidden-gems research: `research/08_hidden_gems.md`.
   - Wrote `POOL_BLUEPRINT.md`, the one build document.
   - Created `AGENTS.md` as the shared rules for Claude Code and Codex. `CLAUDE.md` now imports it.
-  - Created the `pool/` git repo (branch `main`, empty).
+  - Made the whole `idea/` folder ONE git repo (branch `main`, first commit 6be521a). Verified in OpenAI docs: Codex does not read AGENTS.md above the git root, so a separate `pool/` repo would have hidden the rules from Codex. The first time Claude Code sees the `@AGENTS.md` import it asks for approval once (Claude Code memory docs).
   - Installed pnpm 12.8.1 into `%APPDATA%\npm`.
 - **Verified:**
   - Docker 29.8.1 is running.

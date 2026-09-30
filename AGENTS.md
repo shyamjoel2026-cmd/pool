@@ -49,7 +49,7 @@ Commit code with a clear message. Never leave work uncommitted without noting it
 | `POOL_BLUEPRINT.md` | The one build document |
 | `POOL_WORKING_MODEL_v3.md` | Detailed business model (reference) |
 | `research/` | Verified research: `06_prototype_stack.md` (383 items), `08_hidden_gems.md` (123 gems plus critic verdict); raw JSON in `research/raw/` |
-| `pool/` | The code monorepo (git) |
+| `pool/` | The code monorepo (a folder inside this one git repository; the repo root is this folder, so Codex and Claude both read this AGENTS.md) |
 | Older `POOL_*` documents | Superseded; history only |
 
 ## 6. Local environment notes (Windows)
