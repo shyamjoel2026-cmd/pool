@@ -32,6 +32,10 @@ Commit code with a clear message. Never leave work uncommitted without noting it
 
 ## 4. How to work (the founder's rules)
 
+- **INDIA FIRST (founder, 30 Sep 2026).** Everything built now is for India: INR, GST (HSN rates, CGST/SGST vs IGST), TCS/TDS, UPI, Razorpay, Indian addresses and pincodes, and Telugu/Hindi/English. The US is parked. Keep the existing US code compiling, but add nothing US-specific until the founder says so.
+- **POOL is universal.** It works for ANY product. Never write product-specific logic; units, quantities, terms, fulfilment steps and tax rates are data.
+- **No fixed POOL fee.** Sellers bid their own price, and the POOL team sets each pool's buyer price.
+
 - **Never hallucinate.** Verify versions, APIs, prices and facts at the source (npm, official docs, GitHub). Check arithmetic with code, and label guesses "guess — check".
 - **Think like a co-founder.** Use plain, concrete language. Keep the founder's idea at the centre; improve it, don't replace it.
 - **Keep one source of truth.** Update `POOL_PROJECT_STATE.md` and `POOL_BLUEPRINT.md` instead of creating new documents.

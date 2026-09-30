@@ -8,6 +8,15 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-09-30 · Claude Code · handoff to Codex
+- **Did:**
+  - Founder decision: **India first**, US parked (recorded in §4 and AGENTS.md).
+  - Gap review of M1 for India. It found: needBy ignored in award, no booking amounts, no pay-at-door plan, GST not split CGST/SGST vs IGST, no pricing stage, seller default not executed, no event replay, no abuse detectors.
+  - Wrote the work order **`CODEX_PROMPT.md`**: Task A = M1.5 India-complete engine (A1–A10), Task B = M2 database + pgledger + DBOS workflows (B1–B7). It stops before M3.
+- **Verified:** tool URLs in the prompt come from `research/08_hidden_gems.md` (pgledger github.com/pgr0ss/pgledger, DBOS github.com/dbos-inc/dbos-transact-ts), and every research reference in the prompt was grep-checked to exist in the named file.
+- **Next:** Codex runs `CODEX_PROMPT.md`.
+- **Open:** as in the previous entry (GUESS numbers, Press Note 2 review, test keys in `pool/.env`).
+
 ### 2026-09-30 · Claude Code · M1 REBUILT — universal engine + team pricing
 - **Founder corrections (30 Sep):**
   1. There is **no fixed POOL fee**. The seller bids its own price, and the POOL team decides the buyer price per pool.
@@ -120,6 +129,7 @@ The first sector is appliances; then every sector, one at a time — Sunday mutt
 
 | Date | Decision |
 | --- | --- |
+| 30 Sep 2026 | **India first.** Everything now is built for India. The US is parked. The founder moves day-to-day building to **Codex** (Claude's usage limit keeps interrupting). The work order is in `CODEX_PROMPT.md`. |
 | 30 Sep 2026 | **No fixed POOL fee.** The seller bids its own price, and the POOL team decides the buyer price per pool (e.g. seller ₹40,000 → buyer ₹43,000 for a TV the market sells at ₹45,000). |
 | 30 Sep 2026 | **POOL is universal: any product.** No product-specific logic in the code. Units, quantities, caps, taxes, terms and fulfilment steps are data per pool. Typical meat purchase is 1 kg; there is no assumed cap. |
 | 30 Sep 2026 | GST turnover above ₹40 lakh; Docker, GitHub and accounts (Anthropic, Razorpay, Stripe, Meta, Twilio) ready. |
