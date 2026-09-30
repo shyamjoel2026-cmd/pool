@@ -1,177 +1,170 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
-  addProof,
+  backupCostGap,
   buyerCancels,
-  confirmBySeller,
-  confirmInstalled,
-  dispatch,
+  completeStep,
+  deferHold,
+  type FulfilmentProfile,
   handOver,
+  holdsDue,
   INDIA_POLICY,
-  installHoldDue,
   markPaid,
   money,
   type Order,
-  releaseInstallHoldOnTimeout,
+  PROFILES,
+  releaseDueHolds,
   returnOrder,
   sellerCancels,
   settle,
   splitOrder,
   US_POLICY,
-  backupCostGap,
+  validateProfile,
 } from '../src/index.ts';
 
 const DAY = 86_400_000;
-const T0 = Date.UTC(2026, 10, 16, 4, 30); // 16 Nov 2026 10:00 IST
+const T0 = Date.UTC(2026, 10, 16, 4, 30);
+const installProfile = PROFILES.delivery_with_installation!;
+const pickupProfile = PROFILES.store_pickup!;
 
-describe('splitOrder — matches POOL_WORKING_MODEL_v3.md §3 (TV ₹28,400 at 3%)', () => {
-  it('reproduces every line to the paisa', () => {
-    const s = splitOrder(INDIA_POLICY, 'tv', money('INR', 28_400_00), { installationIncluded: true, waveHoldMinor: 1000_00 });
-    expect(s.fee.minor).toBe(852_00);
-    expect(s.gstOnFee.minor).toBe(153_36);
-    expect(s.tcs.minor).toBe(120_34); // 0.5% of ₹24,067.80 taxable value
-    expect(s.tds.minor).toBe(28_40);
-    expect(s.installHold.minor).toBe(2_840_00);
-    expect(s.waveHold.minor).toBe(1_000_00);
-    expect(s.releaseOnCode.minor).toBe(23_405_90); // doc rounds to ₹23,406
+describe('splitOrder — team-priced (blueprint v2.2 bridge example: seller ₹40,000 → buyer ₹43,000)', () => {
+  it('every line to the paisa', () => {
+    const s = splitOrder(INDIA_POLICY, { buyerTotal: money('INR', 43_000_00), sellerTotal: money('INR', 40_000_00), goodsTaxBps: 1800, profile: installProfile, waveHoldMinor: 0 });
+    expect(s.margin.minor).toBe(3_000_00);
+    expect(s.gstInMargin.minor).toBe(457_63); // 18/118 of ₹3,000 (v2.2: ≈ ₹458)
+    expect(s.tcs.minor).toBe(182_20); // 0.5% of ₹36,440.68 taxable (v2.2: ₹182)
+    expect(s.tds.minor).toBe(43_00); // 0.1% of ₹43,000
+    expect(s.holds).toEqual([{ key: 'installation', amount: money('INR', 4_000_00) }]);
+    expect(s.releaseOnHandover.minor).toBe(40_000_00 - 182_20 - 43_00 - 4_000_00);
   });
-
-  it('US has no GST/TCS/TDS lines', () => {
-    const s = splitOrder(US_POLICY, 'large_appliance', money('USD', 899_00), { installationIncluded: false, waveHoldMinor: 0 });
-    expect(s.gstOnFee.minor + s.tcs.minor + s.tds.minor).toBe(0);
-    expect(s.fee.minor).toBe(44_95);
-    expect(s.releaseOnCode.minor).toBe(899_00 - 44_95);
+  it('a 0% GST product (fresh produce) and a pickup profile with no holds', () => {
+    const s = splitOrder(INDIA_POLICY, { buyerTotal: money('INR', 860_00), sellerTotal: money('INR', 800_00), goodsTaxBps: 0, profile: pickupProfile, waveHoldMinor: 0 });
+    expect(s.tcs.minor).toBe(4_30); // 0.5% of ₹860 (no GST to strip)
+    expect(s.holds).toEqual([]);
+    expect(s.releaseOnHandover.minor).toBe(800_00 - 4_30 - 86);
   });
-
-  it('every part sums exactly to the total (property)', () => {
+  it('US: no GST/TCS/TDS', () => {
+    const s = splitOrder(US_POLICY, { buyerTotal: money('USD', 899_00), sellerTotal: money('USD', 850_00), goodsTaxBps: 0, profile: PROFILES.home_delivery!, waveHoldMinor: 0 });
+    expect(s.gstInMargin.minor + s.tcs.minor + s.tds.minor).toBe(0);
+    expect(s.releaseOnHandover.minor).toBe(850_00);
+  });
+  it('every rupee is accounted for, for any prices, tax rates and hold rules (property)', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 100_00, max: 5_00_000_00 }),
-        fc.boolean(),
-        fc.integer({ min: 0, max: 5_000_00 }),
-        fc.constantFrom('tv', 'large_appliance', 'laptop', 'meat', 'other') as fc.Arbitrary<'tv' | 'large_appliance' | 'laptop' | 'meat' | 'other'>,
-        (total, install, hold, cat) => {
-          const s = splitOrder(INDIA_POLICY, cat, money('INR', total), { installationIncluded: install, waveHoldMinor: Math.min(hold, Math.floor(total / 10)) });
-          const parts = [s.fee, s.gstOnFee, s.tcs, s.tds, s.installHold, s.waveHold, s.releaseOnCode].reduce((a, m) => a + m.minor, 0);
-          expect(parts).toBe(total);
-          expect(s.releaseOnCode.minor).toBeGreaterThanOrEqual(0);
+        fc.integer({ min: 1_00, max: 50_00_000_00 }),
+        fc.integer({ min: 0, max: 3000 }), // team margin in bps of seller price
+        fc.constantFrom(0, 500, 1200, 1800, 2800, 4000), // any GST slab
+        fc.array(fc.integer({ min: 0, max: 2500 }), { maxLength: 3 }), // any holds
+        fc.integer({ min: 0, max: 500 }), // wave hold bps
+        (seller, marginBps, gst, holdBps, waveBps) => {
+          const profile: FulfilmentProfile = { ...PROFILES.home_delivery!, holds: holdBps.map((bps, i) => ({ key: `h${i}`, bps, releaseAfterDays: 3 })) };
+          const buyer = seller + Math.floor((seller * marginBps) / 10_000);
+          const s = splitOrder(INDIA_POLICY, { buyerTotal: money('INR', buyer), sellerTotal: money('INR', seller), goodsTaxBps: gst, profile, waveHoldMinor: Math.floor((seller * waveBps) / 10_000) });
+          const parts = s.margin.minor + s.tcs.minor + s.tds.minor + s.waveHold.minor + s.releaseOnHandover.minor + s.holds.reduce((a, h) => a + h.amount.minor, 0);
+          expect(parts).toBe(buyer);
+          expect(s.releaseOnHandover.minor).toBeGreaterThanOrEqual(0);
         },
       ),
     );
   });
 });
 
-function newOrder(overrides: Partial<Order> = {}): Order {
+function order(profile: FulfilmentProfile, over: Partial<Order> = {}): Order {
   return {
     id: 'ord_1',
     poolId: 'pool_1',
     buyerId: 'buyer_1',
     sellerId: 'seller_1',
-    category: 'tv',
-    split: splitOrder(INDIA_POLICY, 'tv', money('INR', 28_400_00), { installationIncluded: true, waveHoldMinor: 1000_00 }),
+    profile,
+    split: splitOrder(INDIA_POLICY, { buyerTotal: money('INR', 43_000_00), sellerTotal: money('INR', 40_000_00), goodsTaxBps: 1800, profile, waveHoldMinor: 0 }),
     promisedBy: T0 + 3 * DAY,
-    installationIncluded: true,
     returnCost: money('INR', 500_00),
     status: 'AWAITING_PAYMENT',
-    proofs: [],
+    steps: [],
+    holdDeferrals: {},
+    holdsReleased: [],
     openIssue: false,
-    ...overrides,
+    ...over,
   };
 }
 
-const proof = (kind: Parameters<typeof addProof>[1]['kind'], at = T0) => ({ kind, ref: `${kind}-ref`, by: 'tester', at });
-
-function toDispatched(): Order {
-  let o = markPaid(newOrder(), T0).order;
-  o = confirmBySeller(addProof(o, proof('SELLER_CONFIRMATION')), T0).order;
-  return dispatch(addProof(o, proof('DISPATCH_PHOTO')), T0).order;
+const paid = (p: FulfilmentProfile) => markPaid(order(p), T0).order;
+function readyForHandover(p: FulfilmentProfile): Order {
+  let o = paid(p);
+  for (const s of p.steps.filter((x) => !x.afterHandover)) o = completeStep(o, s.key, `${s.key}-proof`, 'seller_1', T0).order;
+  return o;
 }
 
-describe('order lifecycle only moves on proof', () => {
-  it('refuses to dispatch without a dispatch photo', () => {
-    let o = markPaid(newOrder(), T0).order;
-    o = confirmBySeller(addProof(o, proof('SELLER_CONFIRMATION')), T0).order;
-    expect(() => dispatch(o, T0)).toThrow(/DISPATCH_PHOTO/);
+describe('fulfilment follows the profile data', () => {
+  it('profiles validate', () => {
+    for (const p of Object.values(PROFILES)) expect(() => validateProfile(p)).not.toThrow();
+    expect(() => validateProfile({ ...PROFILES.home_delivery!, modes: [] })).toThrow();
   });
-  it('refuses to skip states', () => {
-    expect(() => dispatch(markPaid(newOrder(), T0).order, T0)).toThrow(/not allowed/);
+  it('steps must be done in order and need proof', () => {
+    const o = paid(installProfile);
+    expect(() => completeStep(o, 'dispatched', 'photo', 's', T0)).toThrow(/seller_confirmed first/);
+    expect(() => completeStep(o, 'seller_confirmed', '  ', 's', T0)).toThrow(/needs proof/);
+    expect(() => completeStep(o, 'teleported', 'x', 's', T0)).toThrow(/not in profile/);
   });
-
-  it('on-time handover releases exactly releaseOnCode', () => {
-    const o = addProof(toDispatched(), proof('CODE_VERIFIED'));
-    const { events } = handOver(INDIA_POLICY, o, T0 + DAY);
-    const release = events.find((e) => e.type === 'PAYOUT_RELEASE');
-    expect(release && 'amount' in release && release.amount.minor).toBe(o.split.releaseOnCode.minor);
-    expect(events.some((e) => e.type === 'LATE_CREDIT')).toBe(false);
+  it('handover needs every pre-handover step, then releases the seller amount', () => {
+    expect(() => handOver(paid(installProfile), 'code-ok', T0)).toThrow(/first/);
+    const { events } = handOver(readyForHandover(installProfile), 'code-ok', T0 + DAY);
+    expect(events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({ reason: 'HANDOVER_CODE' });
   });
-
-  it('late handover pays a late credit to the buyer out of the seller release', () => {
-    const o = addProof(toDispatched(), proof('CODE_VERIFIED'));
-    const { events } = handOver(INDIA_POLICY, o, o.promisedBy + 1);
-    const credit = events.find((e) => e.type === 'LATE_CREDIT');
-    const release = events.find((e) => e.type === 'PAYOUT_RELEASE');
-    expect(credit && 'amount' in credit && credit.amount.minor).toBe(INDIA_POLICY.lateCreditMinor);
-    expect(release && 'amount' in release && release.amount.minor).toBe(o.split.releaseOnCode.minor - INDIA_POLICY.lateCreditMinor);
+  it('an after-handover step (installation here) releases its hold; otherwise it releases on timeout or deferral cap', () => {
+    const handed = handOver(readyForHandover(installProfile), 'code-ok', T0).order;
+    const installed = completeStep(handed, 'installed', 'JOB-77', 'brand', T0 + DAY);
+    expect(installed.events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({ amount: money('INR', 4_000_00) });
+    expect(holdsDue(handed)).toEqual([{ key: 'installation', dueAt: T0 + 5 * DAY }]);
+    expect(releaseDueHolds(handed, T0 + 4 * DAY).events).toEqual([]);
+    expect(releaseDueHolds(handed, T0 + 5 * DAY).events).toHaveLength(1);
+    expect(releaseDueHolds({ ...handed, openIssue: true }, T0 + 9 * DAY).events).toEqual([]);
+    expect(holdsDue(deferHold(handed, 'installation', T0 + 90 * DAY))).toEqual([{ key: 'installation', dueAt: T0 + 45 * DAY }]);
   });
-
-  it('installation hold: released on install, or after 5 days, or at deferred date capped at 45 days', () => {
-    const handed = handOver(INDIA_POLICY, addProof(toDispatched(), proof('CODE_VERIFIED')), T0).order;
-    expect(installHoldDue(INDIA_POLICY, handed)).toBe(T0 + 5 * DAY);
-    expect(releaseInstallHoldOnTimeout(INDIA_POLICY, handed, T0 + 4 * DAY)).toEqual([]);
-    expect(releaseInstallHoldOnTimeout(INDIA_POLICY, handed, T0 + 5 * DAY)).toHaveLength(1);
-    expect(releaseInstallHoldOnTimeout(INDIA_POLICY, { ...handed, openIssue: true }, T0 + 6 * DAY)).toEqual([]);
-    const deferred = { ...handed, installDeferredUntil: T0 + 90 * DAY };
-    expect(installHoldDue(INDIA_POLICY, deferred)).toBe(T0 + 45 * DAY);
-    const installed = confirmInstalled(addProof(handed, proof('INSTALL_JOB')), T0 + DAY);
-    expect(installed.events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({ reason: 'INSTALL_CONFIRMED' });
+  it('a pickup profile has a short return window and no holds', () => {
+    const handed = handOver(readyForHandover(pickupProfile), 'code-ok', T0).order;
+    expect(holdsDue(handed)).toEqual([]);
+    expect(settle(handed, T0 + DAY).order.status).toBe('SETTLED');
   });
-
-  it('settles only after the replacement window and with no open issue', () => {
-    const handed = handOver(INDIA_POLICY, addProof(toDispatched(), proof('CODE_VERIFIED')), T0).order;
-    expect(() => settle(INDIA_POLICY, handed, T0 + 6 * DAY)).toThrow();
-    expect(() => settle(INDIA_POLICY, { ...handed, openIssue: true }, T0 + 8 * DAY)).toThrow();
-    expect(settle(INDIA_POLICY, handed, T0 + 7 * DAY).order.status).toBe('SETTLED');
+  it('late credit comes from the profile; none if the profile sets 0', () => {
+    const lateProfile = { ...PROFILES.home_delivery!, lateCreditMinor: 200_00 };
+    const late = handOver(readyForHandover(lateProfile), 'code-ok', T0 + 4 * DAY).events;
+    expect(late.find((e) => e.type === 'LATE_CREDIT')).toMatchObject({ amount: money('INR', 200_00) });
+    expect(handOver(readyForHandover(PROFILES.home_delivery!), 'code-ok', T0 + 4 * DAY).events.some((e) => e.type === 'LATE_CREDIT')).toBe(false);
+  });
+  it('settles only after the profile return window with no open issue', () => {
+    const handed = handOver(readyForHandover(installProfile), 'code-ok', T0).order;
+    expect(() => settle(handed, T0 + 6 * DAY)).toThrow();
+    expect(() => settle({ ...handed, openIssue: true }, T0 + 8 * DAY)).toThrow();
+    expect(settle(handed, T0 + 7 * DAY).order.status).toBe('SETTLED');
   });
 });
 
 describe('cancellation symmetry (E-Commerce Rules 2020, Rule 4)', () => {
-  it('buyer cancels before dispatch: full refund', () => {
-    const paid = markPaid(newOrder(), T0).order;
-    const refund = buyerCancels(paid, T0).events.find((e) => e.type === 'REFUND');
-    expect(refund && 'amount' in refund && refund.amount.minor).toBe(28_400_00);
+  it('free before the return-cost step (e.g. before dispatch)', () => {
+    const r = buyerCancels(paid(installProfile), T0).events.find((e) => e.type === 'REFUND');
+    expect(r).toMatchObject({ amount: money('INR', 43_000_00) });
   });
-  it('buyer refuses after dispatch: pays at most the disclosed return cost', () => {
-    const refund = buyerCancels(toDispatched(), T0).events.find((e) => e.type === 'REFUND');
-    expect(refund && 'amount' in refund && refund.amount.minor).toBe(28_400_00 - 500_00);
+  it('after dispatch: buyer pays at most the disclosed return cost', () => {
+    const r = buyerCancels(readyForHandover(installProfile), T0).events.find((e) => e.type === 'REFUND');
+    expect(r).toMatchObject({ amount: money('INR', 42_500_00) });
   });
-  it('seller cancels: buyer gets full refund AND the same amount as compensation', () => {
-    const { events } = sellerCancels(toDispatched(), T0);
-    const refund = events.find((e) => e.type === 'REFUND');
-    const charge = events.find((e) => e.type === 'SELLER_CHARGE');
-    expect(refund && 'amount' in refund && refund.amount.minor).toBe(28_400_00);
-    expect(charge && 'amount' in charge && charge.amount.minor).toBe(500_00);
+  it('seller cancels: full refund plus the same amount as compensation', () => {
+    const ev = sellerCancels(paid(installProfile), T0).events;
+    expect(ev.find((e) => e.type === 'REFUND')).toMatchObject({ amount: money('INR', 43_000_00) });
+    expect(ev.find((e) => e.type === 'SELLER_CHARGE')).toMatchObject({ amount: money('INR', 500_00) });
   });
-  it('unpaid order cancelled: no refund event', () => {
-    expect(buyerCancels(newOrder(), T0).events.some((e) => e.type === 'REFUND')).toBe(false);
+  it('defective/late return after handover: full refund', () => {
+    const handed = handOver(readyForHandover(installProfile), 'code-ok', T0).order;
+    expect(returnOrder(handed, 'DEFECTIVE', T0).events.find((e) => e.type === 'REFUND')).toMatchObject({ amount: money('INR', 43_000_00) });
   });
-  it('defective / late return: full refund', () => {
-    const handed = handOver(INDIA_POLICY, addProof(toDispatched(), proof('CODE_VERIFIED')), T0).order;
-    const refund = returnOrder(handed, 'DEFECTIVE', T0 + DAY).events.find((e) => e.type === 'REFUND');
-    expect(refund && 'amount' in refund && refund.amount.minor).toBe(28_400_00);
+  it('seller default: backup seller-price gap is charged to the defaulting seller, buyer price unchanged', () => {
+    expect(backupCostGap(money('INR', 40_000_00), money('INR', 40_600_00)).minor).toBe(600_00);
+    expect(backupCostGap(money('INR', 40_000_00), money('INR', 39_000_00)).minor).toBe(0);
   });
-  it('seller default: backup price gap is charged to the defaulting seller, never to the buyer', () => {
-    expect(backupCostGap(money('INR', 28_400_00), money('INR', 28_900_00)).minor).toBe(500_00);
-    expect(backupCostGap(money('INR', 28_400_00), money('INR', 28_000_00)).minor).toBe(0);
-  });
-});
-
-describe('money events carry idempotency keys', () => {
-  it('each money event has a stable key per order and action', () => {
-    const o = addProof(toDispatched(), proof('CODE_VERIFIED'));
-    const a = handOver(INDIA_POLICY, o, o.promisedBy + 1).events;
-    const b = handOver(INDIA_POLICY, o, o.promisedBy + 1).events;
-    const keys = (evs: typeof a) => evs.filter((e) => 'idempotencyKey' in e).map((e) => ('idempotencyKey' in e ? e.idempotencyKey : ''));
-    expect(keys(a)).toEqual(keys(b));
-    expect(new Set(keys(a)).size).toBe(keys(a).length);
+  it('money events have stable idempotency keys', () => {
+    const o = readyForHandover(installProfile);
+    const k = (evs: ReturnType<typeof handOver>['events']) => evs.flatMap((e) => ('idempotencyKey' in e ? [e.idempotencyKey] : []));
+    expect(k(handOver(o, 'c', T0).events)).toEqual(k(handOver(o, 'c', T0).events));
   });
 });

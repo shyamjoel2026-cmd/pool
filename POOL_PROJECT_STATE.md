@@ -8,6 +8,37 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-09-30 · Claude Code · M1 REBUILT — universal engine + team pricing
+- **Founder corrections (30 Sep):**
+  1. There is **no fixed POOL fee**. The seller bids its own price, and the POOL team decides the buyer price per pool.
+  2. POOL is for **any product**. The first engine was wrongly built around the examples we discussed (TV, meat, laptop, installation, 18% GST, a 5 kg cap).
+  3. Most buyers take 1 kg of meat, not 5 kg.
+- **Did:** rebuilt `pool/packages/engine` with no product-specific logic.
+  - **New modules:**
+    - `uom.ts`: any unit of measure as data; per-pool quantity rules with min, step and optional caps.
+    - `terms.ts`: bid terms and requirements as key/value data.
+    - `fulfilment.ts`: fulfilment profiles as data — ordered steps with proof, handover checklist, code length, holds, return window, late credit.
+    - `pricing.ts`: team price decisions, margin, offers, honest comparison as info only.
+    - `presets.ts`: example data only.
+  - **Rewritten modules:**
+    - `policy.ts`: region rules only.
+    - `bids.ts`: seller price, modes, terms.
+    - `pool.ts`: categoryPath, quantityRule, profile id, wave count mode.
+    - `order.ts`: profile-driven steps; the split is buyer = margin + TCS + TDS + holds + wave hold + release.
+    - `codes.ts`: digits and checklist from the profile.
+  - Removed `quantity.ts` and the fixed rate card.
+- **Verified:**
+  - `npx vitest run` → **8 files, 75 tests passed**. `npx tsc --noEmit` → **exit 0**.
+  - The end-to-end scenario runs the same code for a TV (India, installation, 18% GST, seller ₹40,000 → team ₹43,000), meat (India, 1 kg each, store pickup, 0% GST) and a US product, and every minor unit is conserved in each.
+  - The split reproduces the v2.2 bridge numbers (GST in margin ₹457.63, TCS ₹182.20, TDS ₹43).
+  - A property test covers any price, any GST slab and any holds.
+  - A grep of `src/` finds product words only in comments and example data.
+- **Next:** M2 — Postgres in Docker, Drizzle schema (products, pools, bids, price decisions, orders, fulfilment profiles as tables), pgledger, DBOS workflows, integration tests.
+- **Open:**
+  - The founder should confirm the remaining GUESS numbers: 24 h accept window, 60-minute minimum pool, 15% anomaly flag, example profiles.
+  - A lawyer must review team-set pricing vs FDI Press Note 2 before US investment closes.
+  - Test keys go in `pool/.env`.
+
 ### 2026-09-30 · Claude Code · M1 DONE (engine)
 - **Did:** built `pool/packages/engine`, a pure TypeScript core with no I/O. Modules:
   - `money`: integer paise/cents, exact `allocate`.
@@ -89,6 +120,9 @@ The first sector is appliances; then every sector, one at a time — Sunday mutt
 
 | Date | Decision |
 | --- | --- |
+| 30 Sep 2026 | **No fixed POOL fee.** The seller bids its own price, and the POOL team decides the buyer price per pool (e.g. seller ₹40,000 → buyer ₹43,000 for a TV the market sells at ₹45,000). |
+| 30 Sep 2026 | **POOL is universal: any product.** No product-specific logic in the code. Units, quantities, caps, taxes, terms and fulfilment steps are data per pool. Typical meat purchase is 1 kg; there is no assumed cap. |
+| 30 Sep 2026 | GST turnover above ₹40 lakh; Docker, GitHub and accounts (Anthropic, Razorpay, Stripe, Meta, Twilio) ready. |
 | 29 Sep 2026 | Keep a reference `.md` file (this one) plus `CLAUDE.md`, so work survives if the chat is lost. |
 | 29 Sep 2026 | UI/UX must be "wow", professional, very clear and very easy to use, with no UI issues. |
 | 29 Sep 2026 | Stop writing documents. Keep **one blueprint**. **Build a working prototype** (India + USA) for investor pitches. First deliverable: verified lists of connectors, open-source code, tech, AI models and advanced features. |

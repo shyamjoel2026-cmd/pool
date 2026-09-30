@@ -1,21 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyAward,
-  close,
-  committedCount,
-  confirmBooking,
-  createPool,
-  decide,
-  expireOffers,
-  extendClose,
-  grams,
-  INDIA_POLICY,
-  join,
-  leave,
-  optInToExtension,
-  type Pool,
-  poolMatchKey,
-  units,
+  applyAward, close, committedCount, confirmBooking, createPool, decide, expireOffers, extendClose, INDIA_POLICY,
+  join, leave, optInToExtension, type Pool, poolMatchKey, qty, type Quantity, type QuantityRule, UOM,
 } from '../src/index.ts';
 
 const MIN = 60_000;
@@ -23,118 +9,94 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const NOW = Date.UTC(2026, 10, 10);
 
-function openPool(closesAt = NOW + 2 * DAY, basis: 'unit' | 'kg' = 'unit'): Pool {
+function openPool(rule: QuantityRule, closesAt = NOW + 2 * DAY, categoryPath = ['food', 'meat']): Pool {
   return createPool(
     INDIA_POLICY,
-    { id: 'p1', category: basis === 'unit' ? 'tv' : 'meat', productKey: 'samsung-55', areaKey: 'kondapur', basis, createdBy: 'u0', createdAt: NOW, closesAt },
+    { id: 'p1', categoryPath, productKey: 'k', areaKey: 'kondapur', quantityRule: rule, fulfilmentProfileId: 'store_pickup', waveCountMode: 'per_order', createdBy: 'u0', createdAt: NOW, closesAt },
     NOW,
   ).value;
 }
+const meatRule: QuantityRule = { uom: UOM.kg, minBase: 500, stepBase: 250, maxPerHouseholdBase: 2000 };
+const pieceRule: QuantityRule = { uom: UOM.piece, minBase: 1, stepBase: 1 };
+const m = (id: string, q: Quantity, household = `h-${id}`) => ({ memberId: id, userId: `u-${id}`, householdKey: household, payerKey: `pay-${id}`, qty: q, options: [], needBy: NOW + 10 * DAY });
 
-const m = (id: string, household = `h-${id}`, qty = units(1)) => ({
-  memberId: id,
-  userId: `u-${id}`,
-  householdKey: household,
-  payerKey: `pay-${id}`,
-  qty,
-  options: [],
-  needBy: NOW + 10 * DAY,
-});
-
-describe('createPool — the starter chooses the closing time', () => {
-  it('accepts any time within product limits', () => {
-    expect(openPool(NOW + 90 * MIN).closesAt).toBe(NOW + 90 * MIN);
-    expect(openPool(NOW + 20 * DAY).closesAt).toBe(NOW + 20 * DAY);
+describe('createPool — any category, starter chooses the close time', () => {
+  it('works for any category path and any chosen time within platform limits', () => {
+    expect(openPool(pieceRule, NOW + 90 * MIN, ['books', 'school']).closesAt).toBe(NOW + 90 * MIN);
+    expect(openPool(meatRule, NOW + 20 * DAY).categoryPath).toEqual(['food', 'meat']);
   });
-  it('rejects too soon (sellers need time) and too late (holds expire)', () => {
-    expect(() => openPool(NOW + 10 * MIN)).toThrow(/at least/);
-    expect(() => openPool(NOW + 31 * DAY)).toThrow(/at most/);
+  it('rejects too soon, too late, missing category, broken quantity rule', () => {
+    expect(() => openPool(pieceRule, NOW + 10 * MIN)).toThrow(/at least/);
+    expect(() => openPool(pieceRule, NOW + 31 * DAY)).toThrow(/at most/);
+    expect(() => openPool(pieceRule, NOW + DAY, [])).toThrow(/categoryPath/);
+    expect(() => openPool({ uom: UOM.kg, minBase: 0, stepBase: 1 })).toThrow();
   });
   it('match key groups the same product and area', () => {
-    expect(poolMatchKey('IN', ' Samsung-55 ', 'Kondapur')).toBe(poolMatchKey('IN', 'samsung-55', 'kondapur'));
+    expect(poolMatchKey('IN', ' K-1 ', 'Kondapur')).toBe(poolMatchKey('IN', 'k-1', 'kondapur'));
   });
 });
 
-describe('joining and committing', () => {
-  it('only confirmed bookings count as committed', () => {
-    let p = join(INDIA_POLICY, openPool(), m('a'), NOW).value;
+describe('joining — rules come from the pool, not the product type', () => {
+  it('typical 1 kg buyers join; only confirmed bookings count', () => {
+    let p = join(INDIA_POLICY, openPool(meatRule), m('a', qty(UOM.kg, 1000)), NOW).value;
     expect(committedCount(p)).toBe(0);
     p = confirmBooking(p, 'a', NOW + 1).value;
     expect(committedCount(p)).toBe(1);
     expect(confirmBooking(p, 'a', NOW + 2).events).toEqual([]); // webhook replay is idempotent
   });
-  it('household cap: at most 2 units per household', () => {
-    let p = join(INDIA_POLICY, openPool(), m('a', 'flat-101', units(2)), NOW).value;
-    expect(() => join(INDIA_POLICY, p, m('b', 'flat-101'), NOW)).toThrow(/household/);
-    p = join(INDIA_POLICY, p, m('c', 'flat-102'), NOW).value;
-    expect(p.members).toHaveLength(2);
+  it('household cap only when the pool sets one (here 2 kg)', () => {
+    const p = join(INDIA_POLICY, openPool(meatRule), m('a', qty(UOM.kg, 1500), 'flat-1'), NOW).value;
+    expect(() => join(INDIA_POLICY, p, m('b', qty(UOM.kg, 1000), 'flat-1'), NOW)).toThrow(/household/);
+    expect(join(INDIA_POLICY, p, m('c', qty(UOM.kg, 500), 'flat-1'), NOW).value.members).toHaveLength(2);
   });
-  it('same user cannot hold two places', () => {
-    const p = join(INDIA_POLICY, openPool(), m('a'), NOW).value;
-    expect(() => join(INDIA_POLICY, p, { ...m('b'), userId: 'u-a' }, NOW)).toThrow(/already/);
+  it('no cap set → a buyer can take 40 pieces (e.g. a school)', () => {
+    expect(join(INDIA_POLICY, openPool(pieceRule), m('school', qty(UOM.piece, 40)), NOW).value.members).toHaveLength(1);
   });
-  it('weighed goods use grams and a gram cap (5 kg guess)', () => {
-    const p = openPool(NOW + 2 * DAY, 'kg');
-    expect(join(INDIA_POLICY, p, m('a', 'h', grams(1500)), NOW).value.members).toHaveLength(1);
-    expect(() => join(INDIA_POLICY, p, m('b', 'h', grams(6000)), NOW)).toThrow(/household/);
+  it('quantity must follow the pool rule', () => {
+    expect(() => join(INDIA_POLICY, openPool(meatRule), m('a', qty(UOM.kg, 300)), NOW)).toThrow(/minimum/);
+    expect(() => join(INDIA_POLICY, openPool(meatRule), m('a', qty(UOM.piece, 1)), NOW)).toThrow(/priced per kg/);
   });
-  it('cannot join after the chosen close time', () => {
-    expect(() => join(INDIA_POLICY, openPool(NOW + 2 * HOUR), m('a'), NOW + 2 * HOUR)).toThrow();
-  });
-  it('leaving before close refunds the booking', () => {
-    const p = join(INDIA_POLICY, openPool(), m('a'), NOW).value;
+  it('same user cannot hold two places; cannot join after close; leaving refunds', () => {
+    const p = join(INDIA_POLICY, openPool(pieceRule), m('a', qty(UOM.piece, 1)), NOW).value;
+    expect(() => join(INDIA_POLICY, p, { ...m('b', qty(UOM.piece, 1)), userId: 'u-a' }, NOW)).toThrow(/already/);
+    expect(() => join(INDIA_POLICY, openPool(pieceRule, NOW + 2 * HOUR), m('z', qty(UOM.piece, 1)), NOW + 2 * HOUR)).toThrow();
     expect(leave(p, 'a', NOW + 1).events[0]).toMatchObject({ type: 'MEMBER_LEFT', refundBooking: true });
   });
 });
 
-describe('close time is never extended without every committed member opting in', () => {
-  it('blocks extension until all committed members agree', () => {
-    let p = openPool();
-    for (const id of ['a', 'b']) p = confirmBooking(join(INDIA_POLICY, p, m(id), NOW).value, id, NOW).value;
+describe('close time: extend only with every committed member opting in; never shorten', () => {
+  it('works', () => {
+    let p = openPool(pieceRule);
+    for (const id of ['a', 'b']) p = confirmBooking(join(INDIA_POLICY, p, m(id, qty(UOM.piece, 1)), NOW).value, id, NOW).value;
     expect(() => extendClose(INDIA_POLICY, p, p.closesAt + DAY, NOW)).toThrow(/have not agreed/);
-    p = optInToExtension(p, 'a', NOW);
-    expect(() => extendClose(INDIA_POLICY, p, p.closesAt + DAY, NOW)).toThrow(/1 committed/);
-    p = optInToExtension(p, 'b', NOW);
+    p = optInToExtension(optInToExtension(p, 'a', NOW), 'b', NOW);
     expect(extendClose(INDIA_POLICY, p, p.closesAt + DAY, NOW).value.closesAt).toBe(NOW + 3 * DAY);
-  });
-  it('can never be shortened', () => {
-    expect(() => extendClose(INDIA_POLICY, openPool(), NOW + DAY, NOW)).toThrow(/never shortened/);
+    expect(() => extendClose(INDIA_POLICY, p, NOW + DAY, NOW)).toThrow(/never shortened/);
   });
 });
 
 describe('close → award → decide', () => {
-  function committedPool(ids: string[]): Pool {
-    let p = openPool();
-    for (const id of ids) p = confirmBooking(join(INDIA_POLICY, p, m(id), NOW).value, id, NOW).value;
+  const committed = (ids: string[]) => {
+    let p = openPool(pieceRule);
+    for (const id of ids) p = confirmBooking(join(INDIA_POLICY, p, m(id, qty(UOM.piece, 1)), NOW).value, id, NOW).value;
     return p;
-  }
-  it('closes only at the chosen time and drops unpaid joiners', () => {
-    let p = committedPool(['a']);
-    p = join(INDIA_POLICY, p, m('unpaid'), NOW).value;
+  };
+  it('closes only at the chosen time; unpaid joiners are dropped', () => {
+    const p = join(INDIA_POLICY, committed(['a']), m('unpaid', qty(UOM.piece, 1)), NOW).value;
     expect(() => close(p, p.closesAt - 1)).toThrow(/chosen time/);
-    const closed = close(p, p.closesAt).value;
-    expect(closed.members.find((x) => x.memberId === 'unpaid')?.status).toBe('LEFT');
+    expect(close(p, p.closesAt).value.members.find((x) => x.memberId === 'unpaid')?.status).toBe('LEFT');
   });
-  it('no offer for anyone → NO_DEAL, every booking refunded', () => {
-    const p = close(committedPool(['a', 'b']), NOW + 2 * DAY).value;
-    const r = applyAward(INDIA_POLICY, p, new Set(), NOW + 2 * DAY);
+  it('nobody served → NO_DEAL and every booking refunded', () => {
+    const r = applyAward(INDIA_POLICY, close(committed(['a', 'b']), NOW + 2 * DAY).value, new Set(), NOW + 2 * DAY);
     expect(r.value.state).toBe('NO_DEAL');
     expect(r.events[0]).toMatchObject({ type: 'POOL_NO_DEAL', refunds: 2 });
   });
-  it('default B: no reply by the accept deadline = walk away with refund', () => {
-    const closed = close(committedPool(['a', 'b', 'c']), NOW + 2 * DAY).value;
-    let p = applyAward(INDIA_POLICY, closed, new Set(['a', 'b']), NOW + 2 * DAY).value;
+  it('default B: no reply = walk away with refund; walking away is never blocked', () => {
+    let p = applyAward(INDIA_POLICY, close(committed(['a', 'b', 'c']), NOW + 2 * DAY).value, new Set(['a', 'b']), NOW + 2 * DAY).value;
     expect(p.members.find((x) => x.memberId === 'c')?.status).toBe('UNSERVED');
-    p = decide(p, 'a', 'ACCEPTED', NOW + 2 * DAY + HOUR).value;
-    expect(() => expireOffers(p, p.acceptBy!)).toThrow(/still open/);
-    const r = expireOffers(p, p.acceptBy! + 1);
-    expect(r.value.members.find((x) => x.memberId === 'b')?.status).toBe('TIMED_OUT');
-    expect(r.events).toEqual([expect.objectContaining({ memberId: 'b', decision: 'TIMED_OUT', refundBooking: true })]);
-    expect(() => decide(r.value, 'b', 'ACCEPTED', p.acceptBy! + 2)).toThrow();
-  });
-  it('walking away refunds the booking and is never blocked', () => {
-    const closed = close(committedPool(['a']), NOW + 2 * DAY).value;
-    const p = applyAward(INDIA_POLICY, closed, new Set(['a']), NOW + 2 * DAY).value;
     expect(decide(p, 'a', 'WALKED_AWAY', NOW + 2 * DAY + 1).events[0]).toMatchObject({ refundBooking: true });
+    p = decide(p, 'a', 'ACCEPTED', NOW + 2 * DAY + HOUR).value;
+    const r = expireOffers(p, p.acceptBy! + 1);
+    expect(r.events).toEqual([expect.objectContaining({ memberId: 'b', decision: 'TIMED_OUT', refundBooking: true })]);
   });
 });

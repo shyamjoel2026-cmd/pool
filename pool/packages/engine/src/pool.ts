@@ -1,5 +1,5 @@
-import type { Policy, Region, Category } from './policy.ts';
-import type { PriceBasis, Quantity } from './quantity.ts';
+import type { Policy, Region } from './policy.ts';
+import { checkQuantity, type Quantity, type QuantityRule, validateQuantityRule, type WaveCountMode } from './uom.ts';
 
 export class PoolError extends Error {
   override name = 'PoolError';
@@ -37,11 +37,17 @@ export interface Member {
 export interface Pool {
   readonly id: string;
   readonly region: Region;
-  readonly category: Category;
-  /** Canonical product id or grouping key (e.g. "brand:samsung|tv|55in|4k|2026"). */
+  /** Category path as DATA, e.g. ["electronics","tv"] or ["food","meat","mutton"] or ["books","school"]. */
+  readonly categoryPath: readonly string[];
+  /** Canonical product id or grouping key the same seller can fulfil. */
   readonly productKey: string;
   readonly areaKey: string;
-  readonly basis: PriceBasis;
+  /** Unit of measure, minimum, step and optional per-buyer / per-household caps — set per pool. */
+  readonly quantityRule: QuantityRule;
+  /** Fulfilment profile id (delivery / pickup / installation …) — data defined by the team. */
+  readonly fulfilmentProfileId: string;
+  /** How quantities count toward the Wave Drop for this pool. */
+  readonly waveCountMode: WaveCountMode;
   readonly createdBy: string;
   readonly createdAt: number;
   /** Chosen by whoever started the pool. Never changed without every committed member opting in. */
@@ -78,6 +84,8 @@ export function createPool(
   now: number,
 ): Result<Pool> {
   if (input.createdAt !== now) throw new PoolError('CLOCK', 'createdAt must equal now');
+  validateQuantityRule(input.quantityRule);
+  if (input.categoryPath.length === 0) throw new PoolError('CATEGORY', 'categoryPath is required');
   const minClose = now + policy.minPoolMinutes * 60_000;
   const maxClose = now + policy.maxPoolDays * 86_400_000;
   if (input.closesAt < minClose) throw new PoolError('CLOSE_TOO_SOON', `sellers need at least ${policy.minPoolMinutes} minutes to bid`);
@@ -115,18 +123,19 @@ export function join(
   now: number,
 ): Result<Pool> {
   requireOpen(pool, now);
-  if (m.qty.basis !== pool.basis) throw new PoolError('BASIS', 'quantity basis does not match the pool');
+  checkQuantity(pool.quantityRule, m.qty);
   if (pool.members.some((x) => x.memberId === m.memberId)) throw new PoolError('DUPLICATE', 'member already joined');
   if (pool.members.some((x) => active(x) && x.userId === m.userId)) throw new PoolError('ALREADY_IN_POOL', 'this user already has an active place in the pool');
-  const householdQty = pool.members
-    .filter((x) => active(x) && x.householdKey === m.householdKey)
-    .reduce((n, x) => n + x.qty.amount, 0);
-  const cap = pool.basis === 'unit' ? policy.maxUnitsPerHousehold : policy.maxGramsPerHousehold;
-  if (householdQty + m.qty.amount > cap) throw new PoolError('HOUSEHOLD_CAP', `a household can have at most ${cap} ${pool.basis === 'unit' ? 'units' : 'g'} in one pool`);
-  const payerQty = pool.members
-    .filter((x) => active(x) && x.payerKey === m.payerKey)
-    .reduce((n, x) => n + x.qty.amount, 0);
-  if (payerQty + m.qty.amount > cap) throw new PoolError('PAYER_CAP', 'this payment account has reached the per-pool cap');
+  // Caps apply only if the pool sets them. The same cap applies per payment account, so one payer
+  // cannot spread many "households" to game volume.
+  const cap = pool.quantityRule.maxPerHouseholdBase;
+  if (cap !== undefined) {
+    const label = pool.quantityRule.uom.baseLabel;
+    const householdQty = pool.members.filter((x) => active(x) && x.householdKey === m.householdKey).reduce((n, x) => n + x.qty.base, 0);
+    if (householdQty + m.qty.base > cap) throw new PoolError('HOUSEHOLD_CAP', `a household can have at most ${cap} ${label} in this pool`);
+    const payerQty = pool.members.filter((x) => active(x) && x.payerKey === m.payerKey).reduce((n, x) => n + x.qty.base, 0);
+    if (payerQty + m.qty.base > cap) throw new PoolError('PAYER_CAP', 'this payment account has reached the cap for this pool');
+  }
   const member: Member = { ...m, status: 'PENDING_BOOKING', joinedAt: now };
   return {
     value: { ...pool, members: [...pool.members, member] },

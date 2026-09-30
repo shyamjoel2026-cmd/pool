@@ -1,5 +1,5 @@
 /**
- * Pickup slots for area-wise collection (e.g. Sunday mutton): each slot has a capacity so
+ * Pickup / service time slots for any product: each slot has a capacity so
  * the shop is not overwhelmed and buyers don't queue.
  */
 export interface PickupSlot {

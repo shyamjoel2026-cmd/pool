@@ -30,12 +30,28 @@
    - India: Razorpay Orders + Route transfer with `on_hold=true`.
    - US: Stripe Connect capture + transfer.
    - The dealer is paid only after the **delivery/pickup code**, minus POOL's fee. POOL never holds buyer money in its own account.
-9. **Fee.** The seller's price *is* the buyer's price. POOL takes a uniform rate-card % from the seller payout (Guess: large appliances 5%, TVs 3%). Nothing is added on top.
+9. **Pricing, founder decision (30 Sep 2026). There is no fixed fee.**
+   - The seller bids ITS own price (e.g. ₹40,000 for a TV the market sells at ₹45,000).
+   - The **POOL team decides the buyer price for each pool** (e.g. ₹43,000), and POOL keeps the difference.
+   - Every price decision is recorded: who set it, when, and for which bid. Offers cannot go out until the team has priced every awarded bid.
+   - The team sees the outside price and a recommended saving as information only; the recommendation never blocks a price.
+   - Pricing below the seller's price (a POOL-funded discount) is switched off unless the founder turns it on.
+   - Legal record, as in v2.2: the seller invoices the buyer at the buyer price, and the difference is the seller's commission to POOL (with GST in India).
+   - **Lawyer must review before any foreign investment closes:** FDI Press Note 2 says a marketplace "shall not influence the sale price".
 10. **Wave Drop (slab pot).**
     - Each settled unit adds its slab to a pot, and the pot is split equally among settled buyers. The seller keeps each slab below its margin, so every extra sale stays profitable for it.
     - The largest slab is held from each payout until the pool closes. Seller-cancelled orders still pay their slab, from the seller's deposit.
     - The pot is paid as a partial refund to the original payment method. The screen shows real numbers only.
 11. **Proof-based tracking.** A status moves only with proof: seller confirms → dispatch photo → delivery/pickup code → serial photo + invoice → installation job number.
+12b. **Universal products, founder correction (30 Sep 2026).** POOL is for ANY product, not the examples we discussed. The engine has no product-specific logic. Everything product-specific is data set per pool or product:
+    - the category path;
+    - the unit of measure (piece, kg, litre, metre, pack, dozen …), with a minimum, a step and optional per-buyer and per-household caps;
+    - the tax rate of the product;
+    - bid terms and requirements as key/value data (e.g. warranty months, same-day preparation);
+    - delivery modes;
+    - fulfilment profiles as data: ordered steps with proof, the handover checklist, code length, holds, the return window and any late credit.
+    - There is no assumed cap: most buyers take 1 kg of meat, and a school may take 40 benches.
+
 12a. **Engine completeness checklist** (added 30 Sep 2026 after a gap review; the engine must cover all of it):
     1. Quantity units: `unit`, `kg`, `g`, stored as integer base units, e.g. grams.
     2. Per-buyer options, e.g. cut or RAM, that must match what the bid covers.
@@ -47,7 +63,7 @@
        - every revision is logged;
        - a bid must stay valid through the accept window;
        - a bid more than 15% below the median bid is flagged for checks.
-    7. Pickup slots with capacity, by area and time (mutton).
+    7. Pickup/service time slots with capacity, by area and time (any product).
     8. An open-box checklist (right model, no damage, serial matches) must pass before the code can be used.
     9. Cancellation:
        - free before dispatch;
