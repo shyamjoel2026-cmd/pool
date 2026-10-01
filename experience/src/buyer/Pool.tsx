@@ -1,5 +1,5 @@
 import { CalendarDays, Check, ChevronDown, Clock, Copy, Info, Lock, LogOut, MapPin, MessageCircle, PackageCheck, Share2, ShieldCheck, Store, Truck, Users, Wrench } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { INDIA } from '../lib/gst';
@@ -10,8 +10,8 @@ import { committedCount, committedUnits, lowest30, outsideBest, potFor, productO
 import { discardPending, joinPool, leavePool, payBooking, startPool, useNow, useSim } from '../sim/store';
 import type { Pool } from '../sim/types';
 import { Button, Card, Chip, Countdown, EmptyState, ErrorState, Field, inputCls, KV, LinkButton, ListSkeleton, Radio, Section, Sheet, SimTag, Stepper, Timeline, useToast } from '../ui/core';
-import { ProductArt } from '../ui/ProductArt';
-import { SealedVault, WaveMeter } from '../ui/visuals';
+import { artHue, ProductArt } from '../ui/ProductArt';
+import { Rolling, SealedVault, Water, WaveMeter } from '../ui/visuals';
 import { AppBar, PaymentSheet, poolStatus, useLoadState } from './parts';
 
 export function PoolPage() {
@@ -59,36 +59,38 @@ export function PoolPage() {
         <div className="p-4"><ErrorState onRetry={load.retry} /></div>
       ) : (
         <div className="space-y-6 px-4 pt-3">
-          <div className="flex gap-4">
-            <Link to={`/buyer/product/${product.id}`}><ProductArt art={product.art} size={96} rounded={20} /></Link>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Chip tone={st.tone} dot>{st.text}</Chip>
-                {pool.track === 'community' && <Chip tone="wave">Community</Chip>}
-                {pool.recurring && <Chip>{pool.recurring.split(' · ')[0]}</Chip>}
-              </div>
-              <div className="mt-1.5 text-[17px] font-bold leading-snug text-ink">{product.title}</div>
-              <div className="mt-1 flex items-center gap-1 text-[12.5px] text-ink-3"><MapPin className="h-3.5 w-3.5" />{pool.areaLabel}</div>
+          {/* Hero: the product in its own colour, and the pool filling up */}
+          <div className="hue-stage relative -mx-4 -mt-3 overflow-hidden px-4 pb-5 pt-3" style={{ '--hue': artHue(product.art) } as CSSProperties}>
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <Chip tone={st.tone} dot>{st.text}</Chip>
+              {pool.track === 'community' && <Chip tone="wave">Community</Chip>}
+              {pool.recurring && <Chip>{pool.recurring.split(' · ')[0]}</Chip>}
             </div>
+            <Link to={`/buyer/product/${product.id}`} className="mx-auto mt-1 block w-fit" aria-label={product.title}>
+              <div className="float-y"><ProductArt art={product.art} size={196} stage="none" /></div>
+            </Link>
+            <div className="text-center">
+              <div className="display-tight mx-auto max-w-[330px] text-[22px] leading-tight text-ink">{product.title}</div>
+              <div className="mt-1.5 flex items-center justify-center gap-1 text-[12.5px] text-ink-3"><MapPin className="h-3.5 w-3.5" />{pool.areaLabel}</div>
+            </div>
+            {isOpen && (
+              <div className="mt-5 grid grid-cols-[1.25fr_1fr_1fr] gap-2">
+                <div className="relative flex flex-col justify-between overflow-hidden rounded-[22px] border border-line bg-surface p-3">
+                  <Water level={Math.min(0.66, 0.46 + 0.2 * Math.sqrt(committed / 250))} />
+                  <div className="relative z-10 text-[11.5px] font-medium leading-tight text-ink-3">{tr('households paid a booking')}</div>
+                  <Rolling text={String(committed)} className="relative z-10 mt-2 num-wide text-[28px] font-[780] leading-none text-[#04211e]" />
+                </div>
+                <div className="rounded-[22px] border border-line bg-surface p-3">
+                  <div className="num-wide text-[24px] font-[780] leading-none text-ink">{Number.isInteger(units) ? units : units.toFixed(1)}</div>
+                  <div className="mt-1 text-[11.5px] leading-tight text-ink-3">{uom.plural} {tr('committed')}</div>
+                </div>
+                <div className="rounded-[22px] border border-warn/25 bg-warn-soft p-3">
+                  <Countdown to={pool.closesAt} compact className="text-[17px]" />
+                  <div className="mt-1 text-[11.5px] leading-tight text-ink-3">{tr('until close')}</div>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Live numbers */}
-          {isOpen && (
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-[16px] border border-line bg-surface p-3">
-                <div className="num text-[22px] font-bold text-ink">{committed}</div>
-                <div className="text-[11.5px] leading-tight text-ink-3">{tr('households paid a booking')}</div>
-              </div>
-              <div className="rounded-[16px] border border-line bg-surface p-3">
-                <div className="num text-[22px] font-bold text-ink">{Number.isInteger(units) ? units : units.toFixed(1)}</div>
-                <div className="text-[11.5px] leading-tight text-ink-3">{uom.plural} {tr('committed')}</div>
-              </div>
-              <div className="rounded-[16px] border border-warn/25 bg-warn-soft p-3">
-                <Countdown to={pool.closesAt} compact className="text-[18px]" />
-                <div className="text-[11.5px] leading-tight text-ink-3">{tr('until close')}</div>
-              </div>
-            </div>
-          )}
 
           {/* Member status */}
           {mine && mine.status === 'committed' && isOpen && (
@@ -157,7 +159,7 @@ export function PoolPage() {
           </Section>
 
           <Section title={tr('Best price outside today')}>
-            <Link to={`/buyer/product/${product.id}`} className="flex items-center justify-between rounded-[18px] border border-line bg-surface p-4">
+            <Link to={`/buyer/product/${product.id}`} className="flex items-center justify-between rounded-[22px] border border-line bg-surface p-4">
               <div>
                 <div className="num text-[20px] font-bold text-ink">{inr(best.price)}<span className="text-[13px] font-medium text-ink-3"> /{uom.label}</span></div>
                 <div className="text-[12.5px] text-ink-3">{best.quote.source}{best.cardLabel ? ` · ${best.cardLabel}` : ''} · {tr('30-day low')} {inr(lowest30(product))}</div>
@@ -172,7 +174,7 @@ export function PoolPage() {
       )}
 
       {isOpen && (!mine || mine.status === 'pending') && load.state === 'ready' && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-ink">{tr('Booking')} {inr(pool.bookingPaise)} · {tr('fully refundable')}</div>
@@ -238,7 +240,7 @@ function Faq() {
   ];
   return (
     <Section title={tr('Questions buyers ask')}>
-      <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+      <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
         {qs.map(([q, a], i) => (
           <div key={i}>
             <button onClick={() => setOpen(open === i ? null : i)} className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-[14px] font-semibold text-ink" aria-expanded={open === i}>
@@ -292,13 +294,13 @@ export function JoinFlow() {
     <div className="pb-32">
       <AppBar back={`/buyer/pool/${pool.id}`} title={tr('Join pool')} sub={product.short} />
       <div className="space-y-6 px-4 pt-3">
-        <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-3">
+        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-3">
           <ProductArt art={product.art} size={56} />
           <div className="min-w-0"><div className="truncate text-[14.5px] font-semibold text-ink">{product.title}</div><div className="text-[12px] text-ink-3">{pool.areaLabel} · {tr('closes')} {fmtWhen(pool.closesAt, t)}</div></div>
         </div>
 
         <Section title={`1. ${tr('How much?')}`} sub={pool.qtyRule.maxPerHouseholdBase ? tr('Up to {n} per household in this pool.', { n: qtyLabel(pool.qtyRule.maxPerHouseholdBase, uom) }) : pool.qtyRule.maxPerBuyerBase ? tr('Up to {n} per buyer.', { n: qtyLabel(pool.qtyRule.maxPerBuyerBase, uom) }) : undefined}>
-          <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface p-3">
+          <div className="flex items-center justify-between rounded-[22px] border border-line bg-surface p-3">
             <span className="text-[14px] font-semibold text-ink">{tr('Quantity')}</span>
             <Stepper value={qty} onChange={setQty} min={pool.qtyRule.minBase} max={pool.qtyRule.maxPerBuyerBase ?? pool.qtyRule.maxPerHouseholdBase} step={pool.qtyRule.stepBase} format={(v) => qtyLabel(v, uom)} />
           </div>
@@ -352,7 +354,7 @@ export function JoinFlow() {
           {err && <p className="rounded-[12px] bg-danger-soft p-3 text-[13px] font-medium text-danger">{err}</p>}
         </Section>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <Button full size="lg" onClick={proceed}>{tr('Pay {amt} booking', { amt: inr(pool.bookingPaise) })}</Button>
         <p className="mt-1.5 text-center text-[11.5px] text-ink-3">{tr('Next: you get a personal offer after {t}. Nothing else is charged now.', { t: fmtWhen(pool.closesAt, t) })}</p>
       </div>
@@ -362,7 +364,7 @@ export function JoinFlow() {
         amount={pool.bookingPaise}
         purpose={`Refundable booking · ${product.short} · ${pool.no}`}
         onPay={(m) => payBooking(memberId!, m)}
-        successText={tr("You're in. {n} households have now paid a booking. We'll message you when the pool closes and your offer is ready.", { n: committedCount(pool) + 1 })}
+        successText={tr("You're in. {n} households have now paid a booking. We'll message you when the pool closes and your offer is ready.", { n: committedCount(pool) })}
         onSuccess={() => { setPaying(false); toast(tr("You're in the pool")); nav(`/buyer/pool/${pool.id}`); }}
       />
     </div>
@@ -397,7 +399,7 @@ export function StartFlow() {
   const areaLabel = area === 'west' ? 'Hyderabad West' : addr.line2.split(',').pop()!.trim();
   const pins = area === 'west' ? ['500032', '500084', '500081', '500089', '500019', '500075', '500033'] : [addr.pincode];
   const closesAt = choices.find((c) => c.id === close)?.at ?? 0;
-  const booking = { electronics: 2000, appliances: 2000, laptops: 2000, groceries: 200, meat: 100, books: 100, building: 1000, services: 300, home: 500 }[product.category] * 100;
+  const booking = ({ phones: 1000, electronics: 2000, appliances: 2000, mobility: 3000, energy: 5000, laptops: 2000, groceries: 200, meat: 100, books: 100, building: 1000, services: 300, home: 500 } as const)[product.category] * 100;
   const go = () => {
     setErr('');
     if (!close) return setErr(tr('Choose when your pool closes. There is no default: you decide.'));
@@ -431,7 +433,7 @@ export function StartFlow() {
           </div>
         </Section>
         <Section title={`4. ${tr('Your quantity')}`}>
-          <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface p-3">
+          <div className="flex items-center justify-between rounded-[22px] border border-line bg-surface p-3">
             <span className="text-[14px] font-semibold text-ink">{tr('Quantity')}</span>
             <Stepper value={qty} onChange={setQty} min={product.uom === 'kg' ? 500 : 1} max={product.uom === 'kg' ? 3000 : 2} step={product.uom === 'kg' ? 250 : 1} format={(v) => qtyLabel(v, uom)} />
           </div>
@@ -442,7 +444,7 @@ export function StartFlow() {
         </Card>
         {err && <p className="rounded-[12px] bg-danger-soft p-3 text-[13px] font-medium text-danger">{err}</p>}
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <Button full size="lg" onClick={go}>{tr('Start pool · pay {amt}', { amt: inr(booking) })}</Button>
       </div>
       <PaymentSheet

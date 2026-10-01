@@ -1,3 +1,4 @@
+import type React from 'react';
 import { Lock, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { useT } from '../lib/i18n';
@@ -7,7 +8,7 @@ import { inr } from '../lib/money';
 export function WaveMeter({ level, title, value, caption, height = 132, className }: { level: number; title: string; value: string; caption?: string; height?: number; className?: string }) {
   const pct = Math.max(0.06, Math.min(1, level));
   return (
-    <div className={cn('relative overflow-hidden rounded-[18px] border border-wave/25 bg-wave-soft', className)} style={{ height }}>
+    <div className={cn('relative overflow-hidden rounded-[22px] border border-wave/25 bg-wave-soft', className)} style={{ height }}>
       <div className="absolute inset-x-0 bottom-0 transition-[height] duration-1000" style={{ height: `${pct * 100}%` }}>
         <svg className="wave-move absolute -top-[10px] left-0 h-[12px] w-[200%]" viewBox="0 0 400 12" preserveAspectRatio="none" aria-hidden="true">
           <path d="M0 6 Q25 0 50 6 T100 6 T150 6 T200 6 T250 6 T300 6 T350 6 T400 6 V12 H0Z" fill="var(--wave)" opacity=".35" />
@@ -30,7 +31,7 @@ export function SealedVault({ count, closesText, className, dark }: { count: num
   const tr = useT();
   const shown = Math.min(count, 7);
   return (
-    <div className={cn('rounded-[18px] p-4', dark ? 'bg-night-2 text-white' : 'border border-line bg-surface', className)}>
+    <div className={cn('rounded-[22px] p-4', dark ? 'bg-night-2 text-white' : 'border border-line bg-surface', className)}>
       <div className="flex items-center gap-3">
         <div className={cn('grid h-11 w-11 place-items-center rounded-[14px]', dark ? 'bg-white/10' : 'bg-brand-soft text-brand')}><Lock className="h-5 w-5" /></div>
         <div className="min-w-0">
@@ -45,7 +46,7 @@ export function SealedVault({ count, closesText, className, dark }: { count: num
               <svg viewBox="0 0 40 26" className="absolute inset-0 h-full w-full p-1.5" aria-hidden="true">
                 <path d="M2 4 L20 15 L38 4" fill="none" stroke={dark ? 'rgba(255,255,255,.55)' : 'var(--ink-3)'} strokeWidth="2" />
               </svg>
-              <span className={cn('absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full', dark ? 'bg-[#7ff0e6]' : 'bg-brand')} />
+              <span className={cn('absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full', dark ? 'bg-aqua' : 'bg-brand')} />
             </div>
           ))}
           {count > shown && <div className={cn('grid h-10 w-10 place-items-center rounded-[8px] text-[12px] font-bold', dark ? 'bg-white/10' : 'bg-surface-3 text-ink-2')}>+{count - shown}</div>}
@@ -113,17 +114,21 @@ export function CityMap({ bubbles, className, dark, highlight }: { bubbles: MapB
         </defs>
         <rect width="400" height="280" fill="url(#grid)" />
         <ellipse cx="200" cy="148" rx="168" ry="122" fill="none" stroke={dark ? 'rgba(127,240,230,.25)' : 'color-mix(in oklab, var(--wave) 40%, transparent)'} strokeWidth="3" strokeDasharray="2 6" strokeLinecap="round" />
-        <text x="40" y="38" fontSize="9" fill={fg} fontFamily="Google Sans, sans-serif">Outer Ring Road</text>
+        <text x="40" y="38" fontSize="9" fill={fg} fontFamily="Google Sans Flex, sans-serif">Outer Ring Road</text>
         <ellipse cx="244" cy="166" rx="16" ry="10" fill={dark ? 'rgba(127,200,255,.25)' : 'color-mix(in oklab, var(--brand) 18%, transparent)'} />
-        <text x="244" y="188" fontSize="8" fill={fg} textAnchor="middle" fontFamily="Google Sans, sans-serif">Hussain Sagar</text>
+        <text x="244" y="188" fontSize="8" fill={fg} textAnchor="middle" fontFamily="Google Sans Flex, sans-serif">Hussain Sagar</text>
         <path d="M58 128 L122 150 L160 164 L222 152 L296 128" fill="none" stroke={dark ? 'rgba(255,255,255,.12)' : 'var(--line-2)'} strokeWidth="2" />
         <path d="M104 78 L160 108 L222 152 L266 252" fill="none" stroke={dark ? 'rgba(255,255,255,.12)' : 'var(--line-2)'} strokeWidth="2" />
-        {Object.entries(LOCALITIES).map(([name, [x, y]]) => (
-          <g key={name}>
-            <circle cx={x} cy={y} r="2" fill={fg} />
-            <text x={x + 5} y={y + 3} fontSize="8.5" fill={fg} fontFamily="Google Sans, sans-serif">{name}</text>
-          </g>
-        ))}
+        {Object.entries(LOCALITIES).map(([name, [x, y]]) => {
+          // A locality with a live pool gets its label beside the bubble instead.
+          if (bubbles.some((b) => b.area === name)) return null;
+          return (
+            <g key={name}>
+              <circle cx={x} cy={y} r="2" fill={fg} />
+              <text x={x + 5} y={y + 3} fontSize="8.5" fill={fg} fontFamily="Google Sans Flex, sans-serif">{name}</text>
+            </g>
+          );
+        })}
         {bubbles.map((b) => {
           const pos = LOCALITIES[b.area];
           if (!pos) return null;
@@ -134,7 +139,8 @@ export function CityMap({ bubbles, className, dark, highlight }: { bubbles: MapB
             <g key={b.id} onClick={b.onClick} style={{ cursor: b.onClick ? 'pointer' : 'default' }}>
               <circle cx={pos[0]} cy={pos[1]} r={r} fill={c} opacity={hl ? 0.35 : 0.18} />
               <circle cx={pos[0]} cy={pos[1]} r={Math.max(6, r * 0.55)} fill={c} opacity={0.9} />
-              <text x={pos[0]} y={pos[1] + 3.5} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#fff" fontFamily="Google Sans, sans-serif">{b.value}</text>
+              <text x={pos[0]} y={pos[1] + 3.5} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#fff" fontFamily="Google Sans Flex, sans-serif">{b.value}</text>
+              <text x={pos[0] + r * 0.62 + 4} y={pos[1] + 3} fontSize="8.5" fontWeight="600" fill={dark ? '#fff' : 'var(--ink)'} fontFamily="Google Sans Flex, sans-serif" stroke={dark ? 'var(--night-2)' : 'var(--surface)'} strokeWidth="3" paintOrder="stroke">{b.area}</text>
               <title>{b.label}</title>
             </g>
           );
@@ -162,5 +168,45 @@ export function Sparkline({ values, className, height = 40 }: { values: number[]
       <circle cx={lx} cy={ly} r="3" fill="var(--save)" />
       <circle cx={ex} cy={ey} r="3.2" fill="var(--brand)" stroke="var(--surface)" strokeWidth="1.5" />
     </svg>
+  );
+}
+
+/** Animated water: two waves moving at different speeds over a gradient body. `level` is 0–1 of the parent's height. */
+export function Water({ level, tone = 'aqua', className, children }: { level: number; tone?: 'aqua' | 'brand' | 'gold'; className?: string; children?: React.ReactNode }) {
+  const pct = Math.max(0.04, Math.min(1, level));
+  const [a, b] = tone === 'gold' ? ['#ffd27a', '#f5a400'] : tone === 'brand' ? ['#8ea8ff', '#1f57ff'] : ['#3eead9', '#0a8fd1'];
+  return (
+    <div className={cn('pointer-events-none absolute inset-x-0 bottom-0 transition-[height] duration-[1400ms] [transition-timing-function:var(--ease-out)]', className)} style={{ height: `${pct * 100}%` }} aria-hidden="true">
+      <svg className="wave-move-slow absolute -top-[15px] left-0 h-[16px] w-[200%]" viewBox="0 0 400 16" preserveAspectRatio="none">
+        <path d="M0 9 Q25 1 50 9 T100 9 T150 9 T200 9 T250 9 T300 9 T350 9 T400 9 V16 H0Z" fill={a} opacity=".35" />
+      </svg>
+      <svg className="wave-move absolute -top-[9px] left-0 h-[10px] w-[200%]" viewBox="0 0 400 10" preserveAspectRatio="none">
+        <path d="M0 5 Q25 10 50 5 T100 5 T150 5 T200 5 T250 5 T300 5 T350 5 T400 5 V10 H0Z" fill={a} opacity=".75" />
+      </svg>
+      <div className="h-full w-full" style={{ background: `linear-gradient(180deg, ${a}bf 0%, ${b}f0 100%)` }} />
+      {children}
+    </div>
+  );
+}
+
+/** A number whose digits roll into place when it changes (prices, counts). Reads normally to screen readers. */
+export function Rolling({ text, className }: { text: string; className?: string }) {
+  const chars = [...text];
+  return (
+    <span className={cn('num inline-flex items-baseline', className)} aria-label={text} role="text">
+      {chars.map((ch, i) => {
+        const key = chars.length - i;
+        if (!/\d/.test(ch)) return <span key={`c${key}`} aria-hidden="true">{ch}</span>;
+        return (
+          <span key={`d${key}`} aria-hidden="true" className="relative inline-block overflow-hidden" style={{ height: '1em', lineHeight: 1 }}>
+            <span className="roll-col" style={{ transform: `translateY(-${Number(ch)}em)` }}>
+              {'0123456789'.split('').map((d) => (
+                <span key={d} className="block" style={{ height: '1em' }}>{d}</span>
+              ))}
+            </span>
+          </span>
+        );
+      })}
+    </span>
   );
 }

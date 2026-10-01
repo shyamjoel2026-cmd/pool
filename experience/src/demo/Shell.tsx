@@ -35,7 +35,7 @@ export function DemoBar({ role }: { role: Role }) {
             </Link>
           ))}
         </nav>
-        <button onClick={() => setTour({ active: !s.tour.active })} className={cn('hidden h-9 items-center gap-1.5 rounded-[10px] px-3 text-[12.5px] font-semibold transition lg:inline-flex', s.tour.active ? 'bg-[#7ff0e6] text-night' : 'bg-white/10 text-white hover:bg-white/15')}>
+        <button onClick={() => setTour({ active: !s.tour.active })} className={cn('hidden h-9 items-center gap-1.5 rounded-[10px] px-3 text-[12.5px] font-semibold transition lg:inline-flex', s.tour.active ? 'bg-aqua text-night' : 'bg-white/10 text-white hover:bg-white/15')}>
           <BookOpen className="h-4 w-4" /> Walkthrough
         </button>
         <button onClick={() => setControls(true)} className="inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-white/10 px-2.5 text-[12.5px] font-semibold text-white hover:bg-white/15" aria-label="Demo controls">
@@ -203,7 +203,7 @@ export function GuidePanel({ role }: { role: Role }) {
   const here = loc.pathname === step.path(s).split('?')[0];
   return (
     <div className="sticky top-[76px] space-y-3">
-      <div className="rounded-[22px] border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
+      <div className="rounded-[28px] border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
         <div className="flex items-center justify-between">
           <div className="eyebrow text-brand">{step.chapter}</div>
           <button onClick={() => setTour({ active: false })} className="grid h-8 w-8 place-items-center rounded-full text-ink-3 hover:bg-surface-3" aria-label="Close walkthrough"><X className="h-4 w-4" /></button>
@@ -238,7 +238,7 @@ export function GuidePanel({ role }: { role: Role }) {
           <Button size="sm" variant="outline" disabled={i === GUIDE.length - 1} iconRight={<ChevronRight className="h-4 w-4" />} onClick={() => { setI(i + 1); nav(GUIDE[i + 1].path(useSimSnapshot())); }}>Next step</Button>
         </div>
       </div>
-      <div className="rounded-[22px] border border-line bg-surface p-4">
+      <div className="rounded-[28px] border border-line bg-surface p-4">
         <div className="eyebrow mb-2 text-ink-3">The whole story</div>
         <ol className="space-y-0.5">
           {GUIDE.map((g, k) => (
@@ -263,13 +263,13 @@ function AboutPanel({ role, onStart }: { role: Role; onStart: () => void }) {
   const s = useSim();
   return (
     <div className="sticky top-[76px] space-y-3">
-      <div className="overflow-hidden rounded-[22px] bg-night p-5 text-white">
-        <div className="eyebrow text-[#7ff0e6]">Investor walkthrough</div>
+      <div className="overflow-hidden rounded-[28px] bg-night p-5 text-white">
+        <div className="eyebrow text-aqua">Investor walkthrough</div>
         <h3 className="mt-1 text-[22px] font-bold leading-tight">See the whole business in 15 steps</h3>
         <p className="mt-2 text-[13.5px] leading-relaxed text-white/70">One live story across the buyer, a seller and the POOL team: a 55″ TV pool from link to Wave Drop, with the money tracked at every step.</p>
         <Button className="mt-4" variant="wave" icon={<BookOpen className="h-4 w-4" />} onClick={onStart}>Start the walkthrough</Button>
       </div>
-      <div className="rounded-[22px] border border-line bg-surface p-5">
+      <div className="rounded-[28px] border border-line bg-surface p-5">
         <div className="eyebrow text-ink-3">{role === 'buyer' ? 'You are Ananya, a buyer in Gachibowli' : 'You are Lakshmi Home Appliances, a verified dealer'}</div>
         <ul className="mt-3 space-y-2.5 text-[13.5px] leading-relaxed text-ink-2">
           {role === 'buyer' ? (

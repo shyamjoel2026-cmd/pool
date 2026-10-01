@@ -32,18 +32,18 @@ export function Payouts() {
       <AppBar title="Payouts" sub={`${me.bank.name} ••${me.bank.last4} · settles T+2 working days`} right={<BellButton to="/seller/notifications" />} />
       {load.state === 'loading' ? <div className="p-4"><ListSkeleton rows={4} /></div> : load.state === 'error' ? <div className="p-4"><ErrorState onRetry={load.retry} /></div> : (
         <div className="space-y-5 px-4 pt-3">
-          <div className="overflow-hidden rounded-[22px] bg-night p-4 text-white">
+          <div className="overflow-hidden rounded-[28px] bg-night p-4 text-white">
             <div className="flex items-center justify-between"><div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-white/55">Coming to your bank</div><SimTag className="border-white/25 bg-white/10 text-white">Simulated</SimTag></div>
             <div className="num mt-1 text-[34px] font-bold leading-none">{inr(p.scheduled, { exact: p.scheduled % 100 !== 0 })}</div>
             <div className="mt-1 text-[12.5px] text-white/60">in the next 2 working days · {inr(p.paid, { exact: p.paid % 100 !== 0 })} paid so far</div>
             <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-white/10">
-              <span className="bg-[#7ff0e6]" style={{ width: `${(p.paid / total) * 100}%` }} />
+              <span className="bg-aqua" style={{ width: `${(p.paid / total) * 100}%` }} />
               <span className="bg-[#8aa4ff]" style={{ width: `${(p.scheduled / total) * 100}%` }} />
               <span className="bg-[#ffb547]" style={{ width: `${(p.onHoldPA / total) * 100}%` }} />
               <span className="bg-white/40" style={{ width: `${((p.onHoldHolds + p.onHoldWave) / total) * 100}%` }} />
             </div>
             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px] text-white/65">
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#7ff0e6]" />Paid</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-aqua" />Paid</span>
               <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#8aa4ff]" />Scheduled</span>
               <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#ffb547]" />Waiting for buyer codes</span>
               <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-white/40" />Installation & Wave holds</span>
@@ -68,7 +68,7 @@ export function Payouts() {
           <Section title="Every payout line" action={<Button size="sm" variant="ghost" icon={<Download className="h-4 w-4" />} onClick={() => toast('Statement emailed as CSV (simulated)', 'info')}>Statement</Button>}>
             <Segmented value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'scheduled', label: 'Scheduled' }, { value: 'paid', label: 'Paid' }]} />
             {lines.length === 0 ? <EmptyState icon={<Banknote className="h-6 w-6" />} title="No payouts yet" body="Money is released when buyers give their codes." /> : (
-              <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+              <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
                 {lines.slice(0, 40).map((l) => <PayLine key={l.id} l={l} t={t} />)}
               </div>
             )}
@@ -109,7 +109,7 @@ export function SellerAccount() {
       <div className="space-y-5 px-4 pt-3">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-14 w-14 place-items-center rounded-[18px] bg-wave-soft text-wave"><Store className="h-7 w-7" /></div>
+            <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-wave-soft text-wave"><Store className="h-7 w-7" /></div>
             <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 text-[17px] font-bold text-ink">{me.name}<BadgeCheck className="h-4.5 w-4.5 text-brand" /></div><div className="text-[12.5px] text-ink-3">{me.owner} · {me.area}, {me.city}</div></div>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -134,7 +134,7 @@ export function SellerAccount() {
           <Card className="divide-y divide-line">
             {me.team.map((m) => <div key={m.name} className="flex items-center gap-3 px-4 py-3"><Avatar name={m.name} size={36} tone="wave" /><div className="flex-1"><div className="text-[14px] font-semibold text-ink">{m.name}</div><div className="text-[12px] text-ink-3">{m.role === 'Owner' ? 'Everything, including bank and bids' : m.role === 'Dispatch' ? 'Orders and proof photos; no payouts' : 'Staff mode: today’s deliveries and codes only'}</div></div><Chip>{m.role}</Chip></div>)}
           </Card>
-          <Row icon={<Truck className="h-5 w-5" />} title="Open delivery staff mode" sub="Big buttons, Telugu or English, no prices" to="/seller/staff" className="rounded-[18px] border border-line bg-surface" />
+          <Row icon={<Truck className="h-5 w-5" />} title="Open delivery staff mode" sub="Big buttons, Telugu or English, no prices" to="/seller/staff" className="rounded-[22px] border border-line bg-surface" />
         </Section>
 
         <Section title="Where and what you sell">
@@ -147,14 +147,14 @@ export function SellerAccount() {
         </Section>
 
         <Section title="Money settings">
-          <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
             <Row icon={<Landmark className="h-5 w-5" />} title="Payout bank account" sub={`${me.bank.name} ••${me.bank.last4}`} onClick={() => setBank(true)} />
             <Row icon={<ShieldCheck className="h-5 w-5" />} title="Security deposit" sub={`${inr(me.depositPaise)} · covers buyer credits if you can’t deliver`} />
             <Row icon={<Receipt className="h-5 w-5" />} title="GST invoices" sub="Issued from your GSTIN at each handover; e-invoice ready" />
           </div>
         </Section>
 
-        <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+        <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
           <Row icon={<CalendarDays className="h-5 w-5" />} title="Forward demand" to="/seller/forward" />
           <Row icon={<Bell className="h-5 w-5" />} title="Notifications" to="/seller/notifications" />
           <Row icon={<HelpCircle className="h-5 w-5" />} title="Seller help & ranking rule" to="/buyer/help/ranking" />

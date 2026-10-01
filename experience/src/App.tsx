@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { HashRouter, MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { BuyerApp } from './buyer/BuyerApp';
 import { DemoBar, PhoneStage } from './demo/Shell';
-import { Landing } from './demo/Landing';
-import { OpsApp } from './ops/OpsApp';
-import { SellerApp } from './seller/SellerApp';
 import { tick, useSim } from './sim/store';
+
+// Each door loads on its own, so the landing page paints first on a slow phone.
+const Landing = lazy(() => import('./demo/Landing').then((m) => ({ default: m.Landing })));
+const BuyerApp = lazy(() => import('./buyer/BuyerApp').then((m) => ({ default: m.BuyerApp })));
+const SellerApp = lazy(() => import('./seller/SellerApp').then((m) => ({ default: m.SellerApp })));
+const OpsApp = lazy(() => import('./ops/OpsApp').then((m) => ({ default: m.OpsApp })));
+const ArtSheet = lazy(() => import('./demo/ArtSheet').then((m) => ({ default: m.ArtSheet })));
 
 function ThemeSync() {
   const theme = useSim().prefs.theme;
@@ -46,8 +49,10 @@ export function App() {
       <ThemeSync />
       <Clock />
       <ScrollTop />
+      <Suspense fallback={<div className="route-loading" role="status" aria-label="Loading POOL">POOL</div>}>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/art" element={<ArtSheet />} />
         <Route
           path="/buyer/*"
           element={
@@ -81,6 +86,7 @@ export function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

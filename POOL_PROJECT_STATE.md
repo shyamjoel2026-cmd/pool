@@ -8,6 +8,23 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-02 03:40 · Claude Code · Experience redesign: "Deep End" visual system, what India buys most
+- Did:
+  - Founder rejected the olive/paper palette on `codex/experience-polish` ("looks like garbage", "2010"). Rebuilt the look of `experience/` on `claude/magical-pascal-1zipb0` instead of recolouring it. Decision: one visual metaphor, **water rises, price falls**: pools fill as households join, the Wave Drop pot is water, prices roll into place.
+  - Type: Google Sans Flex (variable width/optical size) for UI and wide display headlines, Instrument Serif italic for the one emotional word, Anek Telugu / Anek Devanagari for Indian scripts. All verified on Google Fonts.
+  - Colour: electric pool blue `#1f57ff` for actions, aqua for live pools and money coming back, marigold for savings, green only for money states. Contrast checked with code (body grey raised to 4.7:1; old one was 3.7:1).
+  - Shape and motion: pill buttons, 24/16 radii, floating liquid-glass tab bars and action bars, rolling digits, water and drop/ripple animations (all off under reduced motion).
+  - New logo mark (a pool filling, one drop falling in) and favicon.
+  - Product art: replaced flat icons with lit 3D-style SVG renders for all 20 products (`src/ui/ProductArt.tsx`, QA sheet at `#/art`).
+  - Content: the landing page and buyer home now lead with what India buys most. Evidence: phones ~30% and phones + appliances 60–65% of online festive GMV 2025 (Redseer via Storyboard18; Counterpoint festive report). Added sample products and open pools: Orbit Nova 5G phone (HSN 8517 13, 18%), Raftaar E3 electric scooter (HSN 8711 60, 5%), 3 kW installed rooftop solar (8.9% overall GST: 70% goods at 5%, 30% services at 18%, rule since 22 Sep 2025). Rates checked against PIB / ClearTax / TaxHeal.
+  - Landing rebuilt: live pool hero (water level, drops, sealed bids, best outside price), "What India buys most" bento of live pools, six-step journey with real UI pieces, honesty case, Wave Drop as a rising pot, city map, three-script India section, doors, promise, investor maths from the live ledger.
+  - Buyer app: new home (deep-water header, "Pooling near you now" carousel), product-coloured heroes on pool and product pages, offer price hero with rolling digits. Accept and Walk away are now the same style (ported from Codex; POOL never nudges).
+  - Ported from Codex: booking-success count fix (it double-counted the new household) and lazy-loaded routes. Codex's olive palette and its POOL_BLUEPRINT.md paragraph were not taken.
+  - 59 new Telugu/Hindi strings (drafts, need native review). State key is now `pool-demo-state-v9`.
+- Verified: in `experience/`: `pnpm typecheck` passed; `pnpm test` 9/9; `pnpm build` and `pnpm build:demo` passed; `pnpm walkthrough` 15/15 with reconciliation ₹0.00; all 63 routes loaded with no runtime errors; screenshots reviewed at 1440 and 390–412 px, light and dark, English, Telugu and Hindi.
+- Next: founder review of the new look; native-speaker review of Telugu/Hindi; decide whether `codex/experience-polish` should be closed (it conflicts with this branch's styles).
+- Open issues / blockers: the seller app and POOL console got the new system through shared components, not a screen-by-screen redesign. The late credit (₹200) and return costs are still GUESS placeholders, same as the engine.
+
 ### 2026-10-02 02:00 · Claude Code · Experience QA, translations, end-to-end walkthrough
 - Did:
   - Visual QA of 60 routes (phone and desktop) and fixed what it found:

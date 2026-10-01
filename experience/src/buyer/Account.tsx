@@ -89,7 +89,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-2">
       <div className="px-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">{title}</div>
-      <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">{children}</div>
+      <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">{children}</div>
     </section>
   );
 }
@@ -135,7 +135,7 @@ export function Profile() {
         </Section>
 
         <Section title={tr('Sign-in & security')}>
-          <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
             <Row icon={<Fingerprint className="h-5 w-5" />} title={tr('Passkey')} sub={s.prefs.passkey ? tr('On · sign in with your fingerprint or face, no OTP') : tr('Sign in with fingerprint or face instead of OTP')} right={<Toggle label={tr('Passkey')} checked={!!s.prefs.passkey} onChange={(v) => (v ? setPasskey(true) : setPrefs({ passkey: false }))} />} />
             <Row icon={<Smartphone className="h-5 w-5" />} title={tr('This phone')} sub={tr('Pixel 9a · Hyderabad · active now')} right={<Chip tone="save">{tr('Current')}</Chip>} />
             <Row icon={<Globe className="h-5 w-5" />} title={tr('Chrome on Windows')} sub={tr('Last used 3 days ago')} right={<Button size="sm" variant="ghost" onClick={() => toast(tr('Signed out of that device'))}>{tr('Sign out')}</Button>} />
@@ -226,7 +226,7 @@ export function AddressEdit() {
         <Field label={tr('Receiver’s phone')} htmlFor="ad-ph"><input id="ad-ph" className={inputCls} value={a.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
         <label className="flex items-center gap-3 text-[14px] text-ink"><input type="checkbox" className="h-5 w-5 accent-[var(--brand)]" checked={!!a.isDefault} onChange={(e) => setA({ ...a, isDefault: e.target.checked })} />{tr('Make this my default address')}</label>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <Button full size="lg" onClick={() => { setTouched(true); if (!valid) return; saveAddress(a); toast(tr('Address saved')); nav(-1); }}>{tr('Save address')}</Button>
       </div>
     </div>
@@ -248,7 +248,7 @@ export function Cards() {
       <AppBar back="/buyer/account" title={tr('Cards & UPI')} />
       <div className="space-y-6 px-4 pt-3">
         <Section title={tr('UPI')}>
-          <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
             {s.me.upi.map((u) => <Row key={u} icon={<Smartphone className="h-5 w-5" />} title={u} sub={tr('Primary · used for bookings and refunds')} right={<Chip tone="save">{tr('Verified')}</Chip>} />)}
             <Row icon={<Users className="h-5 w-5" />} title={tr('Family pays with UPI Circle')} sub={tr('Let a parent approve and pay for a pool you join, from their own UPI')} onClick={() => setCircle(true)} />
           </div>
@@ -256,7 +256,7 @@ export function Cards() {
         <Section title={tr('Cards')} sub={tr('Saved as tokens by the payment company, as RBI requires. POOL never sees or stores your card number.')}>
           <div className="space-y-2">
             {s.me.cards.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-3.5">
+              <div key={c.id} className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-3.5">
                 <div className={cn('grid h-11 w-16 place-items-center rounded-[10px] text-[10px] font-bold text-white', c.bank.startsWith('HDFC') ? 'bg-[#0f3b8c]' : c.bank.startsWith('SBI') ? 'bg-[#1f6fb8]' : 'bg-[#5b2a86]')}>{c.network}</div>
                 <div className="min-w-0 flex-1"><div className="text-[14.5px] font-semibold text-ink">{c.bank} {c.type}</div><div className="text-[12.5px] text-ink-3">{c.last4 ? `•••• ${c.last4}` : tr('For offers only')}</div></div>
                 <Button size="sm" variant="ghost" onClick={() => { setCards(s.me.cards.filter((x) => x.id !== c.id)); toast(tr('Card removed')); }}>{tr('Remove')}</Button>
@@ -325,7 +325,7 @@ export function NotifSettings() {
             </div>
           </Card>
         ))}
-        <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+        <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
           <Row icon={<Moon className="h-5 w-5" />} title={tr('Quiet hours, 10 PM – 7 AM')} sub={tr('Held until morning, except a code on delivery day')} right={<Toggle label={tr('Quiet hours')} checked={!!s.prefs.quietHours} onChange={(v) => setPrefs({ quietHours: v })} />} />
           <Row icon={<Sparkles className="h-5 w-5" />} title={tr('Deals and news')} sub={tr('Off unless you turn it on')} right={<Toggle label={tr('Marketing')} checked={!!s.prefs.marketing} onChange={(v) => setPrefs({ marketing: v })} />} />
         </div>
@@ -374,12 +374,12 @@ export function Privacy() {
       <div className="space-y-6 px-4 pt-3">
         <Card tone="brand" className="flex gap-3 p-4"><Lock className="h-5 w-5 shrink-0 text-brand" /><p className="text-[13px] text-ink-2">{tr('Under the Digital Personal Data Protection Act, 2023, you can see, correct or erase your data, and withdraw consent at any time. You can also download a copy.')}</p></Card>
         <Section title={tr('Who sees what')}>
-          <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
             {sharing.map((x) => <div key={x.who} className="px-4 py-3"><div className="text-[14px] font-semibold text-ink">{x.who}</div><div className="text-[12.5px] text-ink-2">{x.what}</div><div className="text-[12px] text-ink-3">{x.when}</div></div>)}
           </div>
         </Section>
         <Section title={tr('Your choices')}>
-          <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
             <Row title={tr('Product analytics')} sub={tr('Anonymous usage to fix bugs')} right={<Toggle label={tr('Analytics')} checked={s.prefs.analytics !== false} onChange={(v) => setPrefs({ analytics: v })} />} />
             <Row title={tr('Promotions')} sub={tr('Off by default')} right={<Toggle label={tr('Promotions')} checked={!!s.prefs.marketing} onChange={(v) => setPrefs({ marketing: v })} />} />
           </div>
@@ -426,7 +426,7 @@ export function NotificationList({ to, base }: { to: Notification['to']; base: s
       {list.length === 0 ? <EmptyState icon={<Bell className="h-6 w-6" />} title={tr('You’re all caught up')} body={tr('Offers, codes and refunds will show up here.')} /> : groups.filter(([, xs]) => xs.length).map(([label, xs]) => (
         <div key={label} className="space-y-2">
           <div className="px-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">{label}</div>
-          <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
             {xs.map((n) => {
               const Icon = NKIND_ICON[n.kind];
               return (
@@ -490,7 +490,7 @@ export function Help() {
           <Link to="/buyer/whatsapp" className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-surface p-3 text-center text-[12.5px] font-semibold text-ink"><MessageCircle className="h-5 w-5 text-[#25a244]" />WhatsApp</Link>
           <button onClick={() => toast(tr('Call-back requested. POOL support will call you within 10 minutes (simulated).'), 'info')} className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-surface p-3 text-center text-[12.5px] font-semibold text-ink"><Phone className="h-5 w-5 text-wave" />{tr('Call back')}</button>
         </div>
-        <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+        <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
           {shown.length === 0 && <div className="p-5 text-center text-[13.5px] text-ink-3">{tr('No answers match. Ask us in chat.')}</div>}
           {shown.map((h) => (
             <div key={h.i}>
@@ -502,7 +502,7 @@ export function Help() {
             </div>
           ))}
         </div>
-        <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+        <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
           <Row icon={<ShieldCheck className="h-5 w-5" />} title={tr('The POOL Promise')} to="/buyer/help/promise" />
           <Row icon={<BookOpen className="h-5 w-5" />} title={tr('How POOL works')} to="/buyer/help/how" />
           <Row icon={<Scale className="h-5 w-5" />} title={tr('How sellers are chosen')} to="/buyer/help/ranking" />
@@ -531,7 +531,7 @@ export function Promise() {
     <div className="pb-10">
       <AppBar back="/buyer/help" title={tr('The POOL Promise')} />
       <div className="space-y-3 px-4 pt-3">
-        <div className="rounded-[22px] bg-night p-5 text-white"><ShieldCheck className="h-8 w-8 text-[#7ff0e6]" /><div className="mt-3 text-[22px] font-bold leading-tight">{tr('Eight things we always do.')}</div><div className="mt-1 text-[13px] text-white/60">{tr('Written into our terms, not just our ads.')}</div></div>
+        <div className="rounded-[28px] bg-night p-5 text-white"><ShieldCheck className="h-8 w-8 text-aqua" /><div className="mt-3 text-[22px] font-bold leading-tight">{tr('Eight things we always do.')}</div><div className="mt-1 text-[13px] text-white/60">{tr('Written into our terms, not just our ads.')}</div></div>
         {PROMISE.map((p, i) => (
           <Card key={i} className="flex gap-3 p-4"><span className="num grid h-8 w-8 shrink-0 place-items-center rounded-full bg-save-soft text-[13px] font-bold text-save">{i + 1}</span><div><div className="text-[14.5px] font-bold text-ink">{tr(p.title)}</div><div className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{tr(p.body)}</div></div></Card>
         ))}
@@ -557,7 +557,7 @@ export function HowItWorks() {
       <AppBar back="/buyer/help" title={tr('How POOL works')} />
       <div className="space-y-3 px-4 pt-3">
         {steps.map((st, i) => (
-          <div key={i} className="flex gap-3 rounded-[18px] border border-line bg-surface p-4">
+          <div key={i} className="flex gap-3 rounded-[22px] border border-line bg-surface p-4">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-brand-soft text-brand"><st.icon className="h-5 w-5" /></div>
             <div><div className="text-[12px] font-semibold text-ink-3">{tr('Step')} {i + 1}</div><div className="text-[15px] font-bold text-ink">{tr(st.t)}</div><div className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{tr(st.b)}</div></div>
           </div>
@@ -704,8 +704,8 @@ export function Connectors() {
     <div className="pb-10">
       <AppBar back="/buyer/account" title={tr('Connected apps')} />
       <div className="space-y-5 px-4 pt-3">
-        <div className="overflow-hidden rounded-[22px] bg-night p-5 text-white">
-          <Bot className="h-8 w-8 text-[#7ff0e6]" />
+        <div className="overflow-hidden rounded-[28px] bg-night p-5 text-white">
+          <Bot className="h-8 w-8 text-aqua" />
           <div className="mt-3 text-[19px] font-bold leading-snug">{tr('Use POOL from your AI assistant')}</div>
           <p className="mt-1 text-[13px] text-white/65">{tr('Connect POOL to any assistant that supports MCP. Ask it to find a pool, compare prices or track an order. It can never pay or accept an offer without you tapping “Yes” in POOL.')}</p>
           <Button className="mt-4" variant="wave" onClick={() => setSetup(true)}>{on('mcp') ? tr('Manage connection') : tr('Connect an assistant')}</Button>
@@ -722,7 +722,7 @@ export function Connectors() {
             <Button size="sm" variant="ghost" className="mt-2 text-danger" onClick={() => { set('mcp', false); toast(tr('Disconnected')); }}>{tr('Disconnect')}</Button>
           </Card>
         )}
-        <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+        <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
           <Row icon={<MessageCircle className="h-5 w-5 text-[#25a244]" />} title="WhatsApp" sub={tr('Join pools by voice note, get offers and codes')} right={<Toggle label="WhatsApp" checked={on('whatsapp', true)} onChange={(v) => set('whatsapp', v)} />} />
           <Row icon={<CalendarDays className="h-5 w-5" />} title={tr('Calendar')} sub={tr('Add delivery days and pickup slots')} right={<Toggle label={tr('Calendar')} checked={on('calendar')} onChange={(v) => set('calendar', v)} />} />
           <Row icon={<Sparkles className="h-5 w-5" />} title={tr('Ask POOL (in-app assistant)')} sub={tr('Voice in English, Telugu and Hindi')} to="/buyer/assistant" />

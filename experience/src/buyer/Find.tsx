@@ -1,5 +1,5 @@
 import { AlertTriangle, BadgeCheck, Camera, Check, CircleHelp, ClipboardPaste, Eye, EyeOff, FileSearch, Link2, Loader2, ScanLine, Search, ShieldCheck, Sparkles, Upload, UserCheck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useT } from '../lib/i18n';
@@ -10,7 +10,7 @@ import { committedCount, effectiveOutside, lowest30, outsideBest, productOf } fr
 import { addRecent, toggleWatch, useNow, useSim } from '../sim/store';
 import type { Evidence, Product } from '../sim/types';
 import { Button, Card, Chip, EmptyState, ErrorState, inputCls, LinkButton, ListSkeleton, Section, Segmented, SimTag, useToast } from '../ui/core';
-import { ProductArt } from '../ui/ProductArt';
+import { artHue, ProductArt } from '../ui/ProductArt';
 import { Sparkline } from '../ui/visuals';
 import { AppBar, PoolCard, useLoadState } from './parts';
 
@@ -221,7 +221,7 @@ function ScanBox({ onFound }: { onFound: (id: string) => void }) {
       <div className="relative aspect-[4/3] overflow-hidden rounded-[20px] bg-night">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,.08),transparent_60%)]" />
         <div className="absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-[14px] border-2 border-white/70">
-          <div className="absolute inset-x-2 top-1/2 h-[2px] -translate-y-1/2 bg-[#7ff0e6] shadow-[0_0_14px_#7ff0e6]" style={{ animation: 'float-y 1.6s ease-in-out infinite' }} />
+          <div className="absolute inset-x-2 top-1/2 h-[2px] -translate-y-1/2 bg-aqua shadow-[0_0_14px_#3eead9]" style={{ animation: 'float-y 1.6s ease-in-out infinite' }} />
         </div>
         <div className="absolute bottom-3 left-0 right-0 text-center text-[12.5px] font-medium text-white/70">{scanning ? 'Barcode found · matching…' : 'Point at the barcode on the box or shelf'}</div>
         <div className="absolute left-3 top-3"><SimTag className="border-white/30 bg-white/10 text-white">Camera simulated</SimTag></div>
@@ -305,13 +305,15 @@ export function ProductPage() {
         <div className="p-4"><ErrorState onRetry={load.retry} /></div>
       ) : (
         <div className="space-y-6 px-4 pt-3">
-          <div className="flex gap-4">
-            <ProductArt art={product.art} size={112} rounded={22} />
-            <div className="min-w-0 flex-1">
-              <div className="text-[18px] font-bold leading-snug text-ink">{product.title}</div>
-              <div className="mt-1 text-[12.5px] text-ink-3">{product.brand ? `${product.brand} · ` : ''}HSN {product.hsn} · GST {product.gstBps / 100}%</div>
-              <div className="mt-1.5 text-[12.5px] text-ink-2">{product.warranty}</div>
+          <div className="hue-stage -mx-4 -mt-3 px-4 pb-5 pt-2 text-center" style={{ '--hue': artHue(product.art) } as CSSProperties}>
+            <div className="float-y mx-auto w-fit"><ProductArt art={product.art} size={210} stage="none" /></div>
+            <div className="display-tight mx-auto max-w-[340px] text-[22px] leading-tight text-ink">{product.title}</div>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+              {product.brand && <Chip>{product.brand}</Chip>}
+              <Chip>HSN {product.hsn}</Chip>
+              <Chip tone="brand">GST {product.gstBps / 100}%</Chip>
             </div>
+            <div className="mt-2 text-[12.5px] text-ink-2">{product.warranty}</div>
           </div>
           <Section title={tr('What we know')} sub={tr('Every detail shows where it came from.')}>
             <EvidenceList product={product} />
@@ -323,7 +325,7 @@ export function ProductPage() {
             </div>
           )}
           <Section title={tr('Honest comparison')} sub={tr('All-in price you would pay today, with your own card offers.')} action={<SimTag>Sample prices</SimTag>}>
-            <div className="overflow-hidden rounded-[18px] border border-line bg-surface">
+            <div className="overflow-hidden rounded-[22px] border border-line bg-surface">
               {[...product.outside].sort((a, b) => effectiveOutside(a, s.me.cards).price - effectiveOutside(b, s.me.cards).price).map((q, i) => {
                 const e = effectiveOutside(q, s.me.cards);
                 const isBest = q.id === best.quote.id;
@@ -358,7 +360,7 @@ export function ProductPage() {
             <p className="px-1 text-[12px] text-ink-3">{tr('If one of these is better for you, buy there. POOL never hides a better option.')}</p>
           </Section>
           <Section title={tr('Price over 30 days')} sub={<>{tr('Lowest in 30 days')}: <span className="num font-semibold text-save">{inr(low30)}</span> · {tr('today')} <span className="num font-semibold text-ink-2">{inr(best.plainBest)}</span></>}>
-            <div className="rounded-[18px] border border-line bg-surface p-3">
+            <div className="rounded-[22px] border border-line bg-surface p-3">
               <Sparkline values={product.priceHistory} height={64} />
               <div className="mt-1 flex justify-between text-[10.5px] text-ink-3"><span>30 days ago</span><span>Today</span></div>
             </div>
@@ -367,7 +369,7 @@ export function ProductPage() {
           <Section title={pools.length ? tr('Pool near you') : tr('No pool near you yet')} sub={pools.length ? tr('Join instead of starting a duplicate.') : tr('Start one and choose when it closes. Sellers then bid privately.')}>
             {pools.map((p) => <PoolCard key={p.id} p={p} />)}
             {!pools.length && (
-              <div className="rounded-[18px] border border-dashed border-line-2 bg-surface p-4 text-center">
+              <div className="rounded-[22px] border border-dashed border-line-2 bg-surface p-4 text-center">
                 <CircleHelp className="mx-auto h-6 w-6 text-ink-3" />
                 <div className="mt-2 text-[14px] font-semibold text-ink">{tr('Be the first in your area')}</div>
                 <div className="mt-1 text-[12.5px] text-ink-3">{tr('Your neighbours see it, verified sellers get invited, and the countdown you choose is the one everyone sees.')}</div>
@@ -381,7 +383,7 @@ export function ProductPage() {
           )}
         </div>
       )}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         {myArea ? (
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">

@@ -1,5 +1,5 @@
 import { ArrowRight, Bell, Building2, CalendarClock, ChevronRight, ClipboardPaste, Eye, Hammer, HandCoins, LayoutGrid, List, Map as MapIcon, MapPin, Mic, PackageCheck, ScanLine, Search, ShieldCheck, Sparkles, Truck, Undo2, Wrench } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useT } from '../lib/i18n';
@@ -9,13 +9,41 @@ import { CATEGORIES } from '../sim/catalog';
 import { committedCount, outsideBest, productOf } from '../sim/engine';
 import { myMoneySummary } from '../sim/selectors';
 import { useNow, useSim } from '../sim/store';
-import type { CategoryId } from '../sim/types';
+import type { CategoryId, Pool } from '../sim/types';
 import { Card, Chip, Countdown, EmptyState, ErrorState, ListSkeleton, Section, Segmented, SimTag } from '../ui/core';
-import { ProductArt } from '../ui/ProductArt';
-import { CityMap, PIN_AREA } from '../ui/visuals';
+import { artHue, ProductArt } from '../ui/ProductArt';
+import { CityMap, PIN_AREA, Water } from '../ui/visuals';
 import { AppBar, BellButton, NextStepCard, nextSteps, PoolCard, useLoadState } from './parts';
 
-const CAT_ICON: Record<CategoryId, string> = { electronics: 'tv', appliances: 'ac', groceries: 'rice', meat: 'mutton', laptops: 'laptop', home: 'fan', books: 'books', building: 'cement', services: 'cleaning' };
+const CAT_ICON: Record<CategoryId, string> = { phones: 'phone', electronics: 'tv', appliances: 'ac', mobility: 'scooter', groceries: 'rice', laptops: 'laptop', home: 'fan', energy: 'solar', meat: 'mutton', books: 'books', building: 'cement', services: 'cleaning' };
+
+const RANK: Partial<Record<CategoryId, number>> = { phones: 0, electronics: 1, appliances: 2, mobility: 3, laptops: 4, groceries: 5, energy: 6, home: 7 };
+
+function HotPoolCard({ p, max }: { p: Pool; max: number }) {
+  const s = useSim();
+  const tr = useT();
+  const product = productOf(s, p.productId);
+  const n = committedCount(p);
+  const best = Math.min(...product.outside.map((q) => q.pricePaise));
+  return (
+    <Link to={`/buyer/pool/${p.id}`} className="hue-stage relative flex w-[232px] shrink-0 snap-start flex-col overflow-hidden rounded-[28px] border border-line p-4 transition active:scale-[0.98]" style={{ '--hue': artHue(product.art) } as CSSProperties}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-surface/85 px-2 py-1 text-[11px] font-semibold text-ink-2 backdrop-blur"><span className="h-1.5 w-1.5 rounded-full bg-wave" /><Countdown to={p.closesAt} compact className="text-[11px]" /></span>
+        <span className="truncate text-[11px] font-semibold text-ink-3">{p.areaLabel}</span>
+      </div>
+      <ProductArt art={product.art} size={150} stage="none" className="mx-auto -my-1" />
+      <div className="line-clamp-2 min-h-[40px] text-[15px] font-bold leading-tight text-ink">{product.short}</div>
+      <div className="mt-1 text-[12px] text-ink-3">{tr('Outside today')} <span className="num font-semibold text-ink-2">{inr(best)}</span></div>
+      <div className="relative mt-3 h-11 overflow-hidden rounded-full bg-surface/80">
+        <Water level={0.25 + 0.75 * Math.sqrt(n / max)} />
+        <div className="relative z-10 flex h-full items-center justify-between px-3.5 text-[#04211e]">
+          <span className="text-[12px] font-semibold">{tr('households')}</span>
+          <span className="num text-[17px] font-[780]">{n}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export function Home() {
   const s = useSim();
@@ -27,6 +55,9 @@ export function Home() {
   const money = myMoneySummary(s, t);
   const open = s.pools.filter((p) => p.state === 'open').sort((a, b) => a.closesAt - b.closesAt);
   const community = s.communities.find((c) => c.id === s.me.communityId);
+  // What India buys most leads; everything else open follows, soonest closing first.
+  const hot = [...open.filter((p) => p.track === 'open')].sort((a, b) => (RANK[productOf(s, a.productId).category] ?? 9) - (RANK[productOf(s, b.productId).category] ?? 9) || a.closesAt - b.closesAt).slice(0, 8);
+  const hotMax = Math.max(1, ...hot.map(committedCount));
   const weekly = s.pools.find((p) => p.recurring && p.state === 'open');
   const myWeekly = weekly?.members.find((m) => m.isMe && m.status === 'committed');
   const addr = s.me.addresses.find((a) => a.isDefault)!;
@@ -39,13 +70,12 @@ export function Home() {
 
   return (
     <div className="pb-6">
-      {/* Header */}
-      <div className="relative overflow-hidden bg-night px-4 pb-6 pt-3 text-white">
-        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#2b4bf2] opacity-40 blur-3xl" />
-        <div className="pointer-events-none absolute -left-20 top-16 h-56 w-56 rounded-full bg-[#0b9e97] opacity-30 blur-3xl" />
+      {/* Header: deep water, your place, one bar for everything */}
+      <div className="aurora relative overflow-hidden px-4 pb-6 pt-3 text-white">
+        <div className="caustics" />
         <div className="relative flex items-center justify-between">
-          <Link to="/buyer/account/addresses" className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/10 py-1.5 pl-2 pr-3 text-[12.5px] font-semibold">
-            <MapPin className="h-4 w-4 text-[#7ff0e6]" />
+          <Link to="/buyer/account/addresses" className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/10 py-1.5 pl-2 pr-3 text-[12.5px] font-semibold backdrop-blur">
+            <MapPin className="h-4 w-4 text-aqua" />
             <span className="truncate">{addr.line2.split(',').pop()?.trim()} · {addr.pincode}</span>
           </Link>
           <div className="flex items-center">
@@ -53,24 +83,24 @@ export function Home() {
             <div className="text-white [&_a]:text-white [&_a:hover]:bg-white/10"><BellButton to="/buyer/notifications" /></div>
           </div>
         </div>
-        <div className="relative mt-4">
-          <div className="text-[13px] text-white/60">{greet}, {s.me.name.split(' ')[0]}</div>
-          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.12] tracking-[-0.02em]">{tr('Before you buy it,')}<br /><span className="text-[#7ff0e6]">{tr('POOL it.')}</span></h1>
+        <div className="relative mt-5">
+          <div className="text-[13.5px] text-white/65">{greet}, {s.me.name.split(' ')[0]}</div>
+          <h1 className="display mt-1 text-[34px]">{tr('Before you buy it,')}<br /><span className="serif-it text-[1.12em] text-aqua">{tr('POOL it.')}</span></h1>
         </div>
         {/* Smart bar */}
-        <div className="relative mt-4 rounded-[18px] bg-surface p-1.5 text-ink shadow-[0_18px_40px_-18px_rgba(0,0,0,.6)]">
-          <button onClick={() => nav('/buyer/find')} className="flex h-12 w-full items-center gap-2.5 rounded-[13px] px-3 text-left text-[14.5px] text-ink-3">
+        <div className="relative mt-5 rounded-[28px] bg-surface p-1.5 text-ink shadow-[0_24px_50px_-20px_rgba(0,0,0,.7)]">
+          <button onClick={() => nav('/buyer/find')} className="flex h-12 w-full items-center gap-2.5 rounded-full px-3.5 text-left text-[15px] text-ink-3">
             <Search className="h-5 w-5 text-ink-2" />
             {tr('Paste a link, search, or ask')}
           </button>
           <div className="grid grid-cols-3 gap-1.5 px-1 pb-1">
-            <button onClick={() => nav('/buyer/find?mode=paste')} className="flex items-center justify-center gap-1.5 rounded-[11px] bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink"><ClipboardPaste className="h-4 w-4 text-brand" />{tr('Paste link')}</button>
-            <button onClick={() => nav('/buyer/assistant?voice=1')} className="flex items-center justify-center gap-1.5 rounded-[11px] bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink"><Mic className="h-4 w-4 text-brand" />{tr('Speak')}</button>
-            <button onClick={() => nav('/buyer/find?mode=scan')} className="flex items-center justify-center gap-1.5 rounded-[11px] bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink"><ScanLine className="h-4 w-4 text-brand" />{tr('Scan')}</button>
+            <button onClick={() => nav('/buyer/find?mode=paste')} className="flex items-center justify-center gap-1.5 rounded-full bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink transition active:scale-95"><ClipboardPaste className="h-4 w-4 text-brand" />{tr('Paste link')}</button>
+            <button onClick={() => nav('/buyer/assistant?voice=1')} className="flex items-center justify-center gap-1.5 rounded-full bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink transition active:scale-95"><Mic className="h-4 w-4 text-brand" />{tr('Speak')}</button>
+            <button onClick={() => nav('/buyer/find?mode=scan')} className="flex items-center justify-center gap-1.5 rounded-full bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink transition active:scale-95"><ScanLine className="h-4 w-4 text-brand" />{tr('Scan')}</button>
           </div>
         </div>
-        <Link to="/buyer/share" className="relative mt-3 flex items-center gap-1.5 text-[12px] text-white/65">
-          <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10.5px] font-bold text-white">NEW</span> {tr('Shopping on another app? Tap Share → POOL.')} <ChevronRight className="h-3.5 w-3.5" />
+        <Link to="/buyer/share" className="relative mt-3.5 flex items-center gap-1.5 text-[12px] text-white/65">
+          <span className="rounded-full bg-aqua/20 px-2 py-0.5 text-[10.5px] font-bold text-aqua">NEW</span> {tr('Shopping on another app? Tap Share → POOL.')} <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
@@ -79,6 +109,15 @@ export function Home() {
         {load.state === 'error' && <ErrorState onRetry={load.retry} />}
         {load.state === 'ready' && (
           <>
+            {/* What your neighbourhood is buying right now */}
+            <Section title={tr('Pooling near you now')} sub={tr('Real households who paid a booking. Real closing times.')} action={<Link to="/buyer/explore" className="text-[13px] font-semibold text-brand">{tr('See all')}</Link>}>
+              <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2">
+                {hot.map((p) => (
+                  <HotPoolCard key={p.id} p={p} max={hotMax} />
+                ))}
+              </div>
+            </Section>
+
             {steps.length > 0 && (
               <Section title={tr('Your next step')} sub={steps.length === 1 ? tr('One thing needs you') : tr('{n} things need you', { n: steps.length })}>
                 <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
@@ -90,7 +129,7 @@ export function Home() {
             )}
 
             {/* Money at a glance */}
-            <Link to="/buyer/money" className="grid grid-cols-3 divide-x divide-line rounded-[18px] border border-line bg-surface py-3 shadow-[var(--shadow-card)]">
+            <Link to="/buyer/money" className="grid grid-cols-3 divide-x divide-line rounded-[22px] border border-line bg-surface py-3 shadow-[var(--shadow-card)]">
               {[
                 [tr('Held until delivery'), money.heldBookings + money.heldOrders, 'text-ink'],
                 [tr('Refunds coming'), money.refundsInProgress, 'text-wave'],
@@ -137,15 +176,6 @@ export function Home() {
                 </div>
               </Card>
             )}
-
-            {/* Pools near you */}
-            <Section title={tr('Pools near you')} sub={tr('Real buyers who paid a booking. Real closing times.')} action={<Link to="/buyer/explore" className="text-[13px] font-semibold text-brand">{tr('See all')}</Link>}>
-              <div className="space-y-3">
-                {open.filter((p) => p.track === 'open').slice(0, 4).map((p) => (
-                  <PoolCard key={p.id} p={p} />
-                ))}
-              </div>
-            </Section>
 
             {/* Watching */}
             <Section title={tr('Watching')} action={<Link to="/buyer/watching" className="text-[13px] font-semibold text-brand">{tr('Manage')}</Link>}>
@@ -220,7 +250,7 @@ export function Home() {
             </Card>
 
             {/* Track record (from completed records only) */}
-            <div className="rounded-[18px] border border-line bg-surface p-4">
+            <div className="rounded-[22px] border border-line bg-surface p-4">
               <div className="flex items-center justify-between">
                 <div className="text-[15px] font-bold text-ink">{tr('Track record in Hyderabad West')}</div>
                 <SimTag>Sample data</SimTag>
@@ -317,7 +347,7 @@ export function Category() {
                   const best = outsideBest(p, s.me.cards);
                   const pool = s.pools.find((x) => x.productId === p.id && x.state === 'open');
                   return (
-                    <Link key={p.id} to={`/buyer/product/${p.id}`} className="rounded-[18px] border border-line bg-surface p-3">
+                    <Link key={p.id} to={`/buyer/product/${p.id}`} className="rounded-[22px] border border-line bg-surface p-3">
                       <ProductArt art={p.art} size="100%" className="aspect-square" />
                       <div className="mt-2 line-clamp-2 text-[13px] font-semibold leading-snug text-ink">{p.short}</div>
                       <div className="mt-1 text-[11.5px] text-ink-3">{tr('Outside from')} <span className="num font-semibold text-ink-2">{inr(best.plainBest)}</span></div>

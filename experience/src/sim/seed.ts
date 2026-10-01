@@ -9,7 +9,7 @@ import { PRODUCTS, PROFILES, SELLERS, UOMS } from './catalog';
 import { closeWave, computeAward, lineTotal, splitOrder, waveCount, holdPerUnit } from './engine';
 import type { AuditEvent, Bid, Community, Member, Notification, Order, Pool, RiskSignal, SellerApplication, State, Ticket } from './types';
 
-export const STATE_VERSION = 8;
+export const STATE_VERSION = 9;
 
 const FIRST = ['Ravi', 'Sowmya', 'Imran', 'Deepika', 'Venkat', 'Farhana', 'Kiran', 'Lavanya', 'Arjun', 'Meena', 'Suresh', 'Ayesha', 'Prakash', 'Swathi', 'Naveen', 'Rekha', 'Abdul', 'Harika', 'Mahesh', 'Divya', 'Srikanth', 'Nikhila', 'Rahul', 'Bhavana', 'Sai', 'Keerthi', 'Anil', 'Shreya', 'Gopal', 'Fatima', 'Vamsi', 'Pooja', 'Rajesh', 'Anusha', 'Karthik', 'Madhavi', 'Yusuf', 'Sneha', 'Teja', 'Ramya', 'Vinod', 'Priyanka', 'Ashok', 'Hima', 'Sandeep', 'Sravani', 'Manoj', 'Uma', 'Chaitanya', 'Neha', 'Zoya', 'Bharath', 'Tanvi', 'Rohit', 'Geetha', 'Salman', 'Mounika', 'Pavan', 'Jyothi', 'Aditya'];
 const INITIALS = 'ABCDGKLMNPRSTVY';
@@ -21,6 +21,7 @@ const AREAS: Record<string, Array<[string, string]>> = {
   north: [['500100', 'Kompally'], ['501401', 'Medchal'], ['500055', 'Jeedimetla']],
   medchal: [['501401', 'Medchal'], ['500100', 'Kompally']],
   lakeview: [['500032', 'Lakeview Heights, Gachibowli']],
+  kukatpally: [['500072', 'Sri Nagar Colony, Kukatpally']],
 };
 
 type R = () => number;
@@ -709,6 +710,67 @@ export function seed(now: number): State {
       invitedSellers: ['s-lakshmi', 's-deccan', 's-metro', 's-homefit'],
     });
     p.members = genMembers(rr, 29, { from: createdAt, to: T0 - 50 * MIN, area: 'west', qty: () => 1, booking: rs(1500) });
+    pools.push(p);
+  }
+
+  // =====================================================================================
+  // What India buys most: a festive phone pool, an electric-scooter pool and a colony's rooftop solar.
+  // =====================================================================================
+  {
+    const rr = mulberry32(1414);
+    const createdAt = at(-3, 19);
+    const closesAt = at(3, 21);
+    const p = basePool({
+      id: 'pool-phone', no: 'POOL-HYD-PH-0611', productId: 'p-phone', areaLabel: 'Hyderabad West', pincodes: ['500032', '500084', '500081', '500089', '500019', '500075', '500033'],
+      startedBy: { name: 'Sowmya P. (Madhapur)', at: createdAt }, createdAt, closesAt, state: 'open', profileId: 'home_delivery', bookingPaise: rs(1000),
+      requirements: { deliverWithinDays: 3, modes: ['home_delivery', 'store_pickup'], terms: [{ key: 'sealed_box', label: 'Sealed box, brand warranty', op: 'eq', value: true }] },
+      invitedSellers: ['s-cellpoint', 's-sangeetha', 's-deccan', 's-kaveri'],
+    });
+    p.members = genMembers(rr, 212, { from: createdAt, to: T0 - 6 * MIN, area: 'west', qty: (x) => (x() < 0.86 ? 1 : 2), booking: rs(1000) });
+    p.members[0].name = 'Sowmya P.';
+    p.members[0].area = 'Madhapur';
+    p.members[0].pincode = '500081';
+    const ph = (sid: string, price: number, cap: number, days: number, ago: number, extra: Partial<Bid> = {}) =>
+      mkBid('pool-phone', sid, price, cap, closesAt + days * DAY, T0 - ago * HOUR, { terms: { sealed_box: true }, ...extra });
+    p.bids = [
+      ph('s-cellpoint', 19850, 150, 2, 30, { slabs: [{ fromUnit: 51, perUnitPaise: rs(200) }, { fromUnit: 151, perUnitPaise: rs(400) }] }),
+      ph('s-sangeetha', 19990, 200, 2, 22, { slabs: [{ fromUnit: 101, perUnitPaise: rs(300) }] }),
+      ph('s-deccan', 20300, 60, 3, 11),
+    ];
+    log(createdAt, 'Sowmya P.', 'Pool started', 'Close time chosen by the starter: ' + fmtDayTime(closesAt), p.id);
+    pools.push(p);
+  }
+  {
+    const rr = mulberry32(1515);
+    const createdAt = at(-5, 18);
+    const closesAt = at(5, 19);
+    const p = basePool({
+      id: 'pool-scooter', no: 'POOL-HYD-EV-0042', productId: 'p-scooter', areaLabel: 'Hyderabad West', pincodes: ['500032', '500084', '500081', '500089', '500019'],
+      startedBy: { name: 'Imran S. (delivery partner, Kondapur)', at: createdAt }, createdAt, closesAt, state: 'open', profileId: 'store_pickup', bookingPaise: rs(3000),
+      qtyRule: { minBase: 1, stepBase: 1, maxPerHouseholdBase: 1 },
+      requirements: { deliverWithinDays: 10, modes: ['store_pickup'], terms: [{ key: 'warranty_months', label: 'Battery warranty (months)', op: 'gte', value: 36 }] },
+      invitedSellers: ['s-raftaarkdp'],
+    });
+    p.members = genMembers(rr, 38, { from: createdAt, to: T0 - 2 * HOUR, area: 'west', qty: () => 1, booking: rs(3000) });
+    p.bids = [mkBid('pool-scooter', 's-raftaarkdp', 104500, 50, closesAt + 9 * DAY, T0 - 14 * HOUR, { modes: ['store_pickup'], terms: { warranty_months: 36 } })];
+    pools.push(p);
+  }
+  {
+    const rr = mulberry32(1616);
+    const createdAt = at(-6, 10);
+    const closesAt = at(6, 18);
+    const p = basePool({
+      id: 'pool-solar', no: 'POOL-HYD-SOL-0007', productId: 'p-solar', areaLabel: 'Sri Nagar Colony, Kukatpally (independent houses)', pincodes: ['500072'],
+      startedBy: { name: 'Padma R. (colony welfare association)', at: createdAt }, createdAt, closesAt, state: 'open', profileId: 'delivery_with_installation', bookingPaise: rs(5000),
+      qtyRule: { minBase: 1, stepBase: 1, maxPerHouseholdBase: 1 },
+      requirements: { deliverWithinDays: 30, modes: ['home_delivery'], terms: [{ key: 'installation_included', label: 'Installation and net-meter filing included', op: 'eq', value: true }] },
+      invitedSellers: ['s-suryatej', 's-greenroof'],
+    });
+    p.members = genMembers(rr, 24, { from: createdAt, to: T0 - 4 * HOUR, area: 'kukatpally', qty: () => 1, booking: rs(5000) });
+    p.bids = [
+      mkBid('pool-solar', 's-suryatej', 168000, 30, closesAt + 28 * DAY, T0 - 30 * HOUR, { terms: { installation_included: true } }),
+      mkBid('pool-solar', 's-greenroof', 171500, 20, closesAt + 25 * DAY, T0 - 8 * HOUR, { terms: { installation_included: true } }),
+    ];
     pools.push(p);
   }
 

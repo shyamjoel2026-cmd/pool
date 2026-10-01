@@ -110,7 +110,7 @@ export function PageHead({ title, sub, right, eyebrow }: { title: ReactNode; sub
 export function Kpi({ label, value, sub, tone, icon }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'save' | 'warn' | 'danger' | 'brand' | 'wave'; icon?: ReactNode }) {
   const c = { save: 'text-save', warn: 'text-warn', danger: 'text-danger', brand: 'text-brand', wave: 'text-wave' }[tone ?? 'brand'];
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
+    <div className="rounded-[22px] border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between text-[12.5px] font-semibold text-ink-3">{label}{icon && <span className={c}>{icon}</span>}</div>
       <div className="num mt-1.5 text-[26px] font-bold tracking-[-0.02em] text-ink">{value}</div>
       {sub && <div className="mt-0.5 text-[12px] text-ink-3">{sub}</div>}
@@ -216,7 +216,7 @@ function Palette({ onClose }: { onClose: () => void }) {
   const go = (to: string) => { nav(to); onClose(); };
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center bg-[rgb(5_8_18/0.5)] px-4 pt-[12vh]" onClick={onClose}>
-      <div className="pop w-full max-w-[560px] overflow-hidden rounded-[18px] bg-surface shadow-[var(--shadow-pop)]" onClick={(e) => e.stopPropagation()}>
+      <div className="pop w-full max-w-[560px] overflow-hidden rounded-[22px] bg-surface shadow-[var(--shadow-pop)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 border-b border-line px-4"><Search className="h-5 w-5 text-ink-3" /><input autoFocus className="h-14 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3" placeholder="Search pools, sellers, tickets, pages" value={q} onChange={(e) => { setQ(e.target.value); setI(0); }} onKeyDown={(e) => { if (e.key === 'ArrowDown') setI(Math.min(i + 1, shown.length - 1)); if (e.key === 'ArrowUp') setI(Math.max(i - 1, 0)); if (e.key === 'Enter' && shown[i]) go(shown[i].to); }} /><Chip>Esc</Chip></div>
         <div className="max-h-[50vh] overflow-y-auto p-2">
           {shown.map((x, k) => <button key={k} onMouseEnter={() => setI(k)} onClick={() => go(x.to)} className={cn('flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left', k === i && 'bg-brand-soft')}><span className="text-ink-3">{x.icon}</span><span className="flex-1 truncate text-[14px] font-semibold text-ink">{x.label}</span><span className="truncate text-[12px] text-ink-3">{x.sub}</span></button>)}

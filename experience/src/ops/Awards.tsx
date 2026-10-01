@@ -27,7 +27,7 @@ export function Pools() {
     <>
       <PageHead title="Pools" sub="Every pool, its stage, and the next deadline the engine enforces." />
       <Segmented className="mb-4 max-w-[760px]" value={st} onChange={setSt} options={[{ value: 'all', label: 'All', count: s.pools.length }, ...(['open', 'closed', 'pricing', 'offers', 'fulfilment', 'completed', 'no_deal'] as const).map((x) => ({ value: x, label: poolStageLabel({ state: x } as Pool), count: s.pools.filter((p) => p.state === x).length }))]} />
-      <div className="overflow-x-auto rounded-[18px] border border-line bg-surface">
+      <div className="overflow-x-auto rounded-[22px] border border-line bg-surface">
         <table className="w-full min-w-[880px] text-[13px]">
           <thead className="bg-surface-2 text-left text-[12px] text-ink-3"><tr><th className="px-4 py-2.5 font-semibold">Pool</th><th className="px-3 py-2.5 font-semibold">Stage</th><th className="px-3 py-2.5 text-right font-semibold">Households</th><th className="px-3 py-2.5 text-right font-semibold">Bids</th><th className="px-3 py-2.5 font-semibold">Started by</th><th className="px-3 py-2.5 font-semibold">Next deadline</th><th className="px-3 py-2.5" /></tr></thead>
           <tbody className="divide-y divide-line">
@@ -108,7 +108,7 @@ export function Awards() {
             <Kpi label="Households served" value={`${award?.assignments.length ?? 0}/${members.length}`} tone="save" />
             <Kpi label="Pricing deadline" value={pool.pricingDeadline ? <Countdown to={pool.pricingDeadline} compact /> : '—'} sub="then no deal, full refunds" tone="warn" />
           </div>
-          <div className="overflow-x-auto rounded-[18px] border border-line bg-surface">
+          <div className="overflow-x-auto rounded-[22px] border border-line bg-surface">
             <table className="w-full min-w-[980px] text-[13px]">
               <thead className="bg-surface-2 text-left text-[12px] text-ink-3"><tr><th className="px-4 py-2.5 font-semibold">Rank</th><th className="px-3 py-2.5 font-semibold">Seller</th><th className="px-3 py-2.5 text-right font-semibold">Price/{uom.label}</th><th className="px-3 py-2.5 font-semibold">Deliver by</th><th className="px-3 py-2.5 text-right font-semibold">Capacity</th><th className="px-3 py-2.5 font-semibold">Wave Drop</th><th className="px-3 py-2.5 font-semibold">Assigned</th><th className="px-3 py-2.5 font-semibold">Check</th></tr></thead>
               <tbody className="divide-y divide-line">
@@ -161,7 +161,7 @@ export function Awards() {
             </Card>
           </div>
 
-          <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line bg-surface/95 p-4 shadow-[var(--shadow-pop)] backdrop-blur">
+          <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-line bg-surface/95 p-4 shadow-[var(--shadow-pop)] backdrop-blur">
             <div className="text-[13.5px] text-ink-2">{pool.state === 'closed' ? <>Confirming locks the assignment. Next: set buyer prices before <b className="text-ink">{fmtWhen(pool.pricingDeadline!, t)}</b>.</> : <>Award confirmed by {award?.confirmedBy} · {award?.confirmedAt ? fmtWhen(award.confirmedAt, t) : ''}.</>}</div>
             {pool.state === 'closed' ? <Button icon={<CheckCircle2 className="h-4.5 w-4.5" />} onClick={() => { const r = confirmAward(pool.id); if (r.ok) { toast('Award confirmed'); nav(`/ops/pricing/${pool.id}`); } else toast(r.error, 'err'); }}>Confirm award</Button> : pool.state === 'pricing' ? <Button icon={<Tag className="h-4.5 w-4.5" />} onClick={() => nav(`/ops/pricing/${pool.id}`)}>Go to pricing</Button> : <Chip tone="save">{poolStageLabel(pool)}</Chip>}
           </div>
@@ -268,7 +268,7 @@ export function Pricing() {
           );
         })}
       </div>
-      <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line bg-surface/95 p-4 shadow-[var(--shadow-pop)] backdrop-blur">
+      <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-line bg-surface/95 p-4 shadow-[var(--shadow-pop)] backdrop-blur">
         <div className="text-[13.5px] text-ink-2">{editable ? (missing.length ? <><Flag className="mr-1 inline h-4 w-4 text-warn" />{missing.length} winning {missing.length === 1 ? 'bid needs' : 'bids need'} a price.</> : <>All set. Pool margin <b className="text-ink">{inr(totalMargin)}</b> on {inr(totalGmv)} ({totalGmv ? ((totalMargin / totalGmv) * 100).toFixed(2) : 0}%). Publishing sends {pool.award.assignments.length} personal offers with a 24-hour decide window.</>) : <>Offers published {pool.offersAt ? fmtWhen(pool.offersAt, t) : ''}.</>}</div>
         {editable && <Button disabled={missing.length > 0} icon={<Send className="h-4.5 w-4.5" />} onClick={() => { const r = publishOffers(pool.id); r.ok ? (toast('Offers published'), nav('/ops')) : toast(r.error, 'err'); }}>Publish offers</Button>}
       </div>

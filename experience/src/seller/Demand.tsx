@@ -39,7 +39,7 @@ export function Today() {
     <div className="pb-6">
       <div className="aurora grain relative overflow-hidden px-4 pb-6 pt-3 text-white">
         <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold"><BadgeCheck className="h-4 w-4 text-[#7ff0e6]" />{me.name}</div>
+          <div className="flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold"><BadgeCheck className="h-4 w-4 text-aqua" />{me.name}</div>
           <BellButton to="/seller/notifications" />
         </div>
         <div className="relative z-10 mt-4">
@@ -95,8 +95,8 @@ export function Today() {
           </Section>
 
           <div className="grid grid-cols-2 gap-2">
-            <Link to="/seller/forward" className="rounded-[18px] border border-line bg-surface p-4"><CalendarDays className="h-5 w-5 text-wave" /><div className="mt-2 text-[14px] font-bold text-ink">Forward demand</div><div className="text-[12px] text-ink-3">Handovers and weekly pools ahead</div></Link>
-            <Link to="/seller/staff" className="rounded-[18px] border border-line bg-surface p-4"><Truck className="h-5 w-5 text-wave" /><div className="mt-2 text-[14px] font-bold text-ink">Delivery staff mode</div><div className="text-[12px] text-ink-3">A simple screen for Salim</div></Link>
+            <Link to="/seller/forward" className="rounded-[22px] border border-line bg-surface p-4"><CalendarDays className="h-5 w-5 text-wave" /><div className="mt-2 text-[14px] font-bold text-ink">Forward demand</div><div className="text-[12px] text-ink-3">Handovers and weekly pools ahead</div></Link>
+            <Link to="/seller/staff" className="rounded-[22px] border border-line bg-surface p-4"><Truck className="h-5 w-5 text-wave" /><div className="mt-2 text-[14px] font-bold text-ink">Delivery staff mode</div><div className="text-[12px] text-ink-3">A simple screen for Salim</div></Link>
           </div>
 
           <Card className="p-4">
@@ -132,7 +132,7 @@ function DemandCard({ p }: { p: Pool }) {
   const mine = latestBids(p.bids).find((b) => b.sellerId === s.sellerMeId);
   const units = committedUnits(p, uom);
   return (
-    <Link to={`/seller/demand/${p.id}`} className="flex gap-3 rounded-[18px] border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:border-line-2">
+    <Link to={`/seller/demand/${p.id}`} className="flex gap-3 rounded-[22px] border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:border-line-2">
       <ProductArt art={product.art} size={64} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">{mine ? <Chip tone="wave" icon={<Lock className="h-3 w-3" />}>Sealed · rev {mine.revision}</Chip> : <Chip tone="warn">No bid yet</Chip>}{p.track === 'community' && <Chip tone="brand">Community</Chip>}</div>
@@ -277,7 +277,7 @@ export function DemandDetail() {
         </div>
       )}
       {isOpen && load.state === 'ready' && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
           <LinkButton full size="lg" variant="wave" to={`/seller/demand/${pool.id}/bid`} icon={<Lock className="h-4.5 w-4.5" />}>{mine ? 'Lower your bid' : 'Place a sealed bid'}</LinkButton>
         </div>
       )}

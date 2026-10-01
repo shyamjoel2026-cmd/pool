@@ -52,7 +52,7 @@ function DecideCard({ p, t }: { p: Pool; t: number }) {
   const a = p.award?.assignments.find((x) => x.memberId === m.id);
   const price = a ? p.prices[a.bidId] : undefined;
   return (
-    <Link to={`/buyer/offer/${m.id}`} className="block overflow-hidden rounded-[18px] border border-warn/30 bg-surface shadow-[var(--shadow-card)]">
+    <Link to={`/buyer/offer/${m.id}`} className="block overflow-hidden rounded-[22px] border border-warn/30 bg-surface shadow-[var(--shadow-card)]">
       <div className="flex gap-3 p-3.5">
         <ProductArt art={product.art} size={60} />
         <div className="min-w-0 flex-1">
@@ -90,7 +90,7 @@ export function Orders() {
         ) : (
           <div className="space-y-3">{list.map((o) => <OrderCard key={o.id} o={o} t={t} />)}</div>
         )}
-        <Link to="/buyer/locker" className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-4">
+        <Link to="/buyer/locker" className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-4">
           <div className="grid h-10 w-10 place-items-center rounded-[12px] bg-wave-soft text-wave"><ShieldCheck className="h-5 w-5" /></div>
           <div className="flex-1"><div className="text-[14.5px] font-semibold text-ink">{tr('Warranty Locker')}</div><div className="text-[12.5px] text-ink-3">{tr('Invoices, serials and warranty dates for everything you bought')}</div></div>
           <ChevronRight className="h-4 w-4 text-ink-3" />
@@ -108,7 +108,7 @@ function OrderCard({ o, t }: { o: Order; t: number }) {
   const step = currentStep(o, profileOf(s, pool.profileId));
   const tone = o.status === 'awaiting_payment' || (o.status === 'confirmed' && o.balanceDue > 0 && o.steps.some((x) => x.key === 'dispatched')) ? 'warn' : o.status.startsWith('cancel') || o.status === 'returned' ? 'neutral' : o.status === 'settled' ? 'save' : 'brand';
   return (
-    <Link to={`/buyer/order/${o.id}`} className="block rounded-[18px] border border-line bg-surface p-3.5 shadow-[var(--shadow-card)] transition hover:border-line-2">
+    <Link to={`/buyer/order/${o.id}`} className="block rounded-[22px] border border-line bg-surface p-3.5 shadow-[var(--shadow-card)] transition hover:border-line-2">
       <div className="flex gap-3">
         <ProductArt art={product.art} size={60} />
         <div className="min-w-0 flex-1">
@@ -438,16 +438,16 @@ function LiveTracking({ o, isPickup, onContact }: { o: Order; isPickup: boolean;
   const tk = o.tracking!;
   const ev = [...tk.events].reverse();
   return (
-    <div className="overflow-hidden rounded-[22px] bg-night text-white shadow-[var(--shadow-pop)]">
+    <div className="overflow-hidden rounded-[28px] bg-night text-white shadow-[var(--shadow-pop)]">
       <div className="flex items-center justify-between px-4 pt-3.5">
-        <div className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-white/55"><span className="h-2 w-2 animate-pulse rounded-full bg-[#7ff0e6]" />{tr('Live')}</div>
+        <div className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-white/55"><span className="h-2 w-2 animate-pulse rounded-full bg-aqua" />{tr('Live')}</div>
         <SimTag className="border-white/25 bg-white/10 text-white">{tr('Tracking simulated')}</SimTag>
       </div>
       <div className="px-4 pb-3 pt-2">
         <div className="text-[22px] font-bold leading-tight">{isPickup ? tr('Ready at the counter') : `${tr('Arriving')} ${tk.etaText}`}</div>
         <div className="mt-0.5 text-[12.5px] text-white/60">{tk.partner} · {tk.awb}</div>
         <div className="relative mt-4 h-2 rounded-full bg-white/10">
-          <div className="absolute inset-y-0 left-0 w-[68%] rounded-full bg-gradient-to-r from-[#7ff0e6] to-[#8aa4ff]" />
+          <div className="absolute inset-y-0 left-0 w-[68%] rounded-full bg-gradient-to-r from-aqua to-[#8aa4ff]" />
           <Truck className="absolute -top-2.5 h-6 w-6 text-white" style={{ left: 'calc(68% - 12px)' }} />
         </div>
         <div className="mt-2 flex justify-between text-[10.5px] text-white/45"><span>{tr('Packed')}</span><span>{tr('On the way')}</span><span>{tr('At your door')}</span></div>
@@ -473,7 +473,7 @@ function HandoverPass({ o, sellerName, onWallet }: { o: Order; sellerName: strin
   const [shown, setShown] = useState(false);
   const digits = o.code.value.split('');
   return (
-    <div className="mt-2 overflow-hidden rounded-[18px] border border-brand/25 bg-gradient-to-br from-brand-soft to-wave-soft">
+    <div className="mt-2 overflow-hidden rounded-[22px] border border-brand/25 bg-gradient-to-br from-brand-soft to-wave-soft">
       <div className="flex items-center justify-between px-4 pt-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-brand-ink">
         <span>{tr('Handover pass')} · {o.no}</span>
         <span>{tr('Single use')}</span>
@@ -626,7 +626,7 @@ export function IssueFlow() {
         </Section>
         {err && <p className="rounded-[12px] bg-danger-soft p-3 text-[13px] font-medium text-danger">{err}</p>}
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <Button full size="lg" onClick={submit}>{tr('Submit')}</Button>
       </div>
     </div>
@@ -652,7 +652,7 @@ export function InvoicePage() {
       <AppBar back={`/buyer/order/${o.id}`} title={tr('Tax invoice')} sub={o.invoiceNo ?? tr('Issued at handover')} right={issued ? <button aria-label={tr('Download PDF')} onClick={() => toast(tr('PDF saved to Downloads (simulated)'), 'info')} className="grid h-10 w-10 place-items-center rounded-full text-ink-2 hover:bg-surface-3"><Download className="h-5 w-5" /></button> : undefined} />
       <div className="space-y-4 px-4 pt-3">
         {!issued && <Card tone="brand" className="p-4 text-[13px] text-ink-2">{tr('The seller issues the GST invoice in your name when you give your handover code. This is a preview.')}</Card>}
-        <div className="rounded-[18px] border border-line bg-white p-4 text-[12px] leading-relaxed text-[#1b1f2b] shadow-[var(--shadow-card)]">
+        <div className="rounded-[22px] border border-line bg-white p-4 text-[12px] leading-relaxed text-[#1b1f2b] shadow-[var(--shadow-card)]">
           <div className="flex items-start justify-between gap-3 border-b border-[#e4e7ef] pb-3">
             <div>
               <div className="text-[15px] font-bold">{seller.name}</div>

@@ -34,7 +34,7 @@ export function Exceptions() {
       {tab === 'tickets' && (s.tickets.length === 0 ? <EmptyState title="No tickets" /> : <div className="grid gap-4 xl:grid-cols-2">{[...open, ...s.tickets.filter((x) => x.status === 'resolved').slice(0, 4)].map((tk) => <TicketPanel key={tk.id} tk={tk} t={t} />)}</div>)}
       {tab === 'late' && <LateOrders t={t} />}
       {tab === 'refunds' && (
-        <div className="overflow-x-auto rounded-[18px] border border-line bg-surface">
+        <div className="overflow-x-auto rounded-[22px] border border-line bg-surface">
           <table className="w-full min-w-[820px] text-[13px]">
             <thead className="bg-surface-2 text-left text-[12px] text-ink-3"><tr><th className="px-4 py-2.5 font-semibold">Buyer</th><th className="px-3 py-2.5 font-semibold">Pool</th><th className="px-3 py-2.5 font-semibold">Reason</th><th className="px-3 py-2.5 text-right font-semibold">Amount</th><th className="px-3 py-2.5 font-semibold">Started</th><th className="px-3 py-2.5 font-semibold">Status</th><th className="px-3 py-2.5 font-semibold">Reference</th></tr></thead>
             <tbody className="divide-y divide-line">
@@ -155,9 +155,9 @@ export function Reconciliation() {
   return (
     <>
       <PageHead eyebrow="Finance" title="Reconciliation" sub="Every rupee that came in, and exactly where it is now. Computed live from bookings and orders, so it can be audited end to end." right={<Button variant="outline" icon={<Download className="h-4 w-4" />} onClick={() => toast('Ledger exported as CSV (simulated)', 'info')}>Export</Button>} />
-      <div className={cn('mb-6 flex flex-wrap items-center justify-between gap-4 rounded-[22px] p-6', ok ? 'bg-save-soft' : 'bg-danger-soft')}>
+      <div className={cn('mb-6 flex flex-wrap items-center justify-between gap-4 rounded-[28px] p-6', ok ? 'bg-save-soft' : 'bg-danger-soft')}>
         <div className="flex items-center gap-4">
-          <div className={cn('grid h-14 w-14 place-items-center rounded-[18px] text-white', ok ? 'bg-save' : 'bg-danger')}>{ok ? <CheckCircle2 className="h-7 w-7" /> : <AlertTriangle className="h-7 w-7" />}</div>
+          <div className={cn('grid h-14 w-14 place-items-center rounded-[22px] text-white', ok ? 'bg-save' : 'bg-danger')}>{ok ? <CheckCircle2 className="h-7 w-7" /> : <AlertTriangle className="h-7 w-7" />}</div>
           <div><div className="text-[13px] font-semibold text-ink-2">Money in − money accounted for</div><div className="num text-[36px] font-bold tracking-[-0.02em] text-ink">{inr(L.difference, { exact: true })}</div></div>
         </div>
         <div className="grid grid-cols-2 gap-6 text-[13px]">

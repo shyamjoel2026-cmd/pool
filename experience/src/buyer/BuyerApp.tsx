@@ -17,7 +17,7 @@ export function BuyerApp() {
   return (
     <div className="flex h-full flex-col bg-bg">
       <OfflineBanner />
-      <div data-scroll-root className="scroll-y relative min-h-0 flex-1" style={{ paddingBottom: showTabs ? 76 : 0 }}>
+      <div data-scroll-root className="scroll-y relative min-h-0 flex-1" style={{ paddingBottom: showTabs ? 92 : 0 }}>
         <Routes>
           <Route index element={<Home />} />
           <Route path="explore" element={<Explore />} />

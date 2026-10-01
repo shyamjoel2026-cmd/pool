@@ -18,12 +18,20 @@ Other commands:
 - `pnpm typecheck`, `pnpm build`
 - `pnpm build:demo`: a single self-contained HTML file in `dist-demo/`, for sharing.
 - `pnpm shots`: screenshots of every route into `.shots/`. Needs `pnpm preview` running.
+- `#/art`: a design QA sheet with every product render (not linked from the app).
+
+## Look and feel
+
+One idea runs through every screen: **water rises, price falls**. Pools fill as households join, the Wave Drop pot is water, prices roll into place.
+- Type: Google Sans Flex (wide display headlines), Instrument Serif italic for the one emotional word, Anek Telugu and Anek Devanagari for Indian scripts.
+- Colour: pool blue for the one action that matters, aqua for live pools and money coming back, marigold for savings, green only for money states.
+- Products: lit, 3D-style SVG renders in `src/ui/ProductArt.tsx`. Every product page and pool takes its colour from its product.
 
 ## What's inside
 
 | Path | What |
 | --- | --- |
-| `#/` | Landing page: live story, Wave Drop slider, city map, honesty case, investor maths from the live ledger |
+| `#/` | Landing page: a live pool filling up, what India buys most (phones, TVs, ACs, scooters, rice, laptops, solar) as live pools, six-step journey, honesty case, Wave Drop pot, city map, three-script India section, investor maths from the live ledger |
 | `#/buyer` | Buyer app: find (link, scan or ask), pool, join or start (starter picks the close time), refundable booking, personal offer (accept or walk away), pay now, EMI or at the door, handover code, issues, invoice, Wave Drop, money, account, community, Warranty Locker, assistant, WhatsApp |
 | `#/seller` | Seller app: demand, sealed bid (lower-only, Wave Drop slabs, payout preview), orders with proof, code verification, payouts and holds, staff mode, forward demand |
 | `#/ops` | POOL team: overview, seller KYB review, awards, buyer pricing, exceptions and refunds, reconciliation (ties out to ₹0.00), risk, audit, rules |
@@ -40,7 +48,7 @@ On desktop, the buyer and seller apps show inside a phone frame, with the 15-ste
 - `splitOrder` with TCS, TDS and holds;
 - the Wave Drop slab pot.
 
-State is kept in `localStorage`, under the key `pool-demo-state-v8`.
+State is kept in `localStorage`, under the key `pool-demo-state-v9`.
 
 ## Checks
 

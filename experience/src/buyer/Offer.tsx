@@ -1,5 +1,5 @@
 import { BadgeCheck, CalendarClock, Check, ChevronRight, CreditCard, HandCoins, Info, MapPin, ShieldCheck, Star, Store, ThumbsDown, Truck, Waves } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useT } from '../lib/i18n';
@@ -9,8 +9,8 @@ import { offerFor, productOf, profileOf, qtyLabel, uomOf } from '../sim/engine';
 import { decideOffer, payOrder, useNow, useSim } from '../sim/store';
 import type { Order } from '../sim/types';
 import { Button, Card, Chip, Countdown, EmptyState, ErrorState, KV, LinkButton, ListSkeleton, Radio, Section, Sheet, SimTag, useToast } from '../ui/core';
-import { ProductArt } from '../ui/ProductArt';
-import { MoneyRibbon } from '../ui/visuals';
+import { artHue, ProductArt } from '../ui/ProductArt';
+import { MoneyRibbon, Rolling } from '../ui/visuals';
 import { AppBar, GstBreakdown, PaymentSheet, useLoadState } from './parts';
 
 function useOffer(memberId: string | undefined) {
@@ -87,9 +87,9 @@ export function OfferPage() {
         </div>
 
         {/* Price hero */}
-        <div className="overflow-hidden rounded-[22px] bg-night text-white shadow-[var(--shadow-pop)]">
-          <div className="flex gap-3 p-4 pb-3">
-            <ProductArt art={product.art} size={64} rounded={16} />
+        <div className="hue-night overflow-hidden rounded-[32px] text-white shadow-[var(--shadow-pop)]" style={{ '--hue': artHue(product.art) } as CSSProperties}>
+          <div className="flex items-center gap-3 p-4 pb-2">
+            <ProductArt art={product.art} size={76} stage="none" className="-my-2 -ml-1" />
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-white/55">{tr('Guaranteed for you')}</div>
               <div className="mt-0.5 truncate text-[15px] font-semibold">{product.title}</div>
@@ -99,20 +99,20 @@ export function OfferPage() {
           <div className="px-4 pb-4">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <div className="num text-[38px] font-bold leading-none tracking-[-0.02em]">{inr(v.buyerTotal)}</div>
+                <Rolling text={inr(v.buyerTotal)} className="num-wide text-[42px] font-[780] leading-none" />
                 <div className="mt-1.5 text-[12.5px] text-white/60">{inr(v.buyerPrice)} {tr('per')} {uom.label} · {tr('all-in, GST and delivery included')}</div>
               </div>
-              {!cheaperOutside && <div className="rounded-[12px] bg-[#7ff0e6]/15 px-2.5 py-1.5 text-right"><div className="num text-[16px] font-bold text-[#7ff0e6]">−{inr(v.saving)}</div><div className="text-[10.5px] text-white/60">{pct}% {tr('less')}</div></div>}
+              {!cheaperOutside && <div className="rounded-[16px] bg-aqua/15 px-3 py-2 text-right"><div className="num whitespace-nowrap text-[16px] font-bold text-aqua">−{inr(v.saving)}</div><div className="text-[10.5px] text-white/60">{pct}% {tr('less')}</div></div>}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-[12px]">
-              <div className="rounded-[12px] bg-white/[0.07] p-2.5">
+              <div className="rounded-[18px] bg-white/[0.08] p-3">
                 <div className="text-white/55">{tr('Best outside for you')}</div>
                 <div className="num mt-0.5 text-[15px] font-bold">{inr(v.outsideTotal)}</div>
                 <div className="truncate text-white/50">{v.outsideSource}{v.outsideCard ? ` · ${tr('with your card')}` : ''}</div>
               </div>
-              <div className="rounded-[12px] bg-white/[0.07] p-2.5">
+              <div className="rounded-[18px] bg-white/[0.08] p-3">
                 <div className="text-white/55">{tr('Price can’t go up')}</div>
-                <div className="mt-0.5 flex items-center gap-1 text-[15px] font-bold"><ShieldCheck className="h-4 w-4 text-[#7ff0e6]" />{tr('Locked')}</div>
+                <div className="mt-0.5 flex items-center gap-1 text-[15px] font-bold"><ShieldCheck className="h-4 w-4 text-aqua" />{tr('Locked')}</div>
                 <div className="text-white/50">{tr('until')} {fmtTime(pool.acceptBy!)}</div>
               </div>
             </div>
@@ -179,10 +179,11 @@ export function OfferPage() {
       </div>
 
       {/* Equal-weight decision */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <div className="grid grid-cols-2 gap-2">
-          <Button size="lg" variant="outline" className="border-2 border-ink/80" onClick={() => setWalk(true)} icon={<ThumbsDown className="h-4 w-4" />}>{tr('Walk away')}</Button>
-          <Button size="lg" onClick={() => nav(`/buyer/accept/${member.id}`)} icon={<Check className="h-4 w-4" strokeWidth={3} />}>{tr('Accept')}</Button>
+          {/* Same size, same style: POOL never nudges the decision. */}
+          <Button size="lg" variant="outline" className="border-2 border-ink" onClick={() => setWalk(true)} icon={<ThumbsDown className="h-4 w-4" />}>{tr('Walk away')}</Button>
+          <Button size="lg" variant="outline" className="border-2 border-ink" onClick={() => nav(`/buyer/accept/${member.id}`)} icon={<Check className="h-4 w-4" strokeWidth={3} />}>{tr('Accept')}</Button>
         </div>
         <p className="mt-1.5 text-center text-[11.5px] text-ink-3">{tr('Walk away: {amt} back in full. Accept: choose how to pay next.', { amt: inr(v.booking) })}</p>
       </div>
@@ -276,7 +277,7 @@ export function AcceptFlow() {
     <div className="pb-36">
       <AppBar back={`/buyer/offer/${member.id}`} title={tr('Accept offer')} sub={product.short} />
       <div className="space-y-6 px-4 pt-3">
-        <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-3">
+        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-3">
           <ProductArt art={product.art} size={52} />
           <div className="min-w-0 flex-1"><div className="truncate text-[14.5px] font-semibold text-ink">{product.short} · {qtyLabel(member.qtyBase, uom)}</div><div className="text-[12px] text-ink-3">{v?.seller.name} · {tr('by')} {fmtDay(v?.deliverBy ?? t)}</div></div>
           <div className="num text-[16px] font-bold text-ink">{inr(total)}</div>
@@ -320,7 +321,7 @@ export function AcceptFlow() {
           {err && <p className="rounded-[12px] bg-danger-soft p-3 text-[13px] font-medium text-danger">{err}</p>}
         </Section>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <Button full size="lg" loading={busy} onClick={accept}>{chosen === 'door' ? tr('Accept · pay at the door') : chosen ? tr('Accept & pay {amt}', { amt: inr(balance) }) : tr('Accept offer')}</Button>
         <p className="mt-1.5 text-center text-[11.5px] text-ink-3">{tr('Decide by {t}', { t: fmtWhen(pool.acceptBy ?? t, t) })} · <SimTag>{tr('Simulated payment')}</SimTag></p>
       </div>

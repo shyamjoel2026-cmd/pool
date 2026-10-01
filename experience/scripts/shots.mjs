@@ -21,6 +21,9 @@ const ROUTES = [
   ['b-home', '/buyer', phone],
   ['b-explore', '/buyer/explore', phone],
   ['b-find', '/buyer/find?link=tv', phone],
+  ['b-pool-phone', '/buyer/pool/pool-phone', phone],
+  ['b-pool-solar', '/buyer/pool/pool-solar', phone],
+  ['b-product-scooter', '/buyer/product/p-scooter', phone],
   ['b-product', '/buyer/product/p-tv', phone],
   ['b-pool', '/buyer/pool/pool-tv', phone],
   ['b-join', '/buyer/join/pool-tv', phone],
@@ -81,12 +84,14 @@ const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypas
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', proxy, args: ['--disable-background-networking', '--disable-component-update', '--no-first-run', '--disable-sync'] });
 const errors = [];
 // Serve Google Fonts from a local cache so screenshots never wait on the network.
-const FC = `${OUT}/.fontcache`;
+const FC = `.shots/.fontcache2`;
+// A full Chrome user agent so Google Fonts serves the same variable WOFF2 files a real phone gets.
+const UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36';
 mkdirSync(FC, { recursive: true });
 const cached = (url) => {
   const f = `${FC}/${createHash('sha1').update(url).digest('hex')}`;
   if (!existsSync(f)) {
-    try { writeFileSync(f, execFileSync('curl', ['-sSL', '-m', '30', '-A', 'Mozilla/5.0 Chrome/141', url])); } catch { return undefined; }
+    try { writeFileSync(f, execFileSync('curl', ['-sSL', '-m', '30', '-A', UA, url])); } catch { return undefined; }
   }
   return readFileSync(f);
 };
@@ -131,7 +136,7 @@ for (const [name, path0, vp, full] of ROUTES) {
     await page.close();
     continue;
   }
-  await page.waitForFunction(() => document.fonts.check('600 16px "Google Sans"'), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => document.fonts.check('600 16px "Google Sans Flex"'), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/${name}${dark ? '-dark' : ''}${lang ? '-' + lang : ''}.png`, fullPage: !!full, timeout: 20000 });
   await page.close();

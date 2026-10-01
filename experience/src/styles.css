@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 /*
-  POOL design tokens.
-  Layout concept: a phone-first product (buyer, seller) and a desk-first console (POOL team) sharing one token set.
-  Colour: ultramarine "pool" for actions, teal "wave" for money coming back, green for savings, amber only for real deadlines.
-  Type: Google Sans (one family covers English, తెలుగు and हिन्दी), tabular figures for every price.
+  POOL design system · "Deep End" (Oct 2026)
+  Idea: water rises, price falls. Pools fill, waves pay back. Everything visual follows that one metaphor.
+  Colour: electric pool blue for the one action that matters, aqua for live pools and money coming back,
+          marigold for savings and celebration, green only for money states, amber/red only for real deadlines.
+  Type: Google Sans Flex (variable: width, optical size, weight) for UI and wide display headlines,
+        Instrument Serif italic for the emotional word in a headline, Anek Telugu / Anek Devanagari for Indian scripts.
+  Shape: pill buttons, concentric 24/16/12 radii, liquid-glass bars that float over content.
 */
 
 @theme inline {
-  --font-sans: "Google Sans", "Noto Sans Telugu", "Noto Sans Devanagari", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Google Sans Flex", "Anek Telugu", "Anek Devanagari", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Instrument Serif", "Anek Telugu", "Anek Devanagari", ui-serif, Georgia, serif;
   --color-bg: var(--bg);
   --color-bg-2: var(--bg-2);
   --color-surface: var(--surface);
@@ -27,6 +31,9 @@
   --color-wave: var(--wave);
   --color-wave-soft: var(--wave-soft);
   --color-wave-ink: var(--wave-ink);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-ink: var(--gold-ink);
   --color-save: var(--save);
   --color-save-soft: var(--save-soft);
   --color-warn: var(--warn);
@@ -37,115 +44,137 @@
   --color-sim-soft: var(--sim-soft);
   --color-night: var(--night);
   --color-night-2: var(--night-2);
+  --color-aqua: #3eead9;
+  --color-marigold: #ffb21e;
   --color-art-a: var(--art-a);
   --color-art-b: var(--art-b);
-  --radius-card: 18px;
-  --radius-field: 12px;
-  --shadow-card: 0 1px 2px rgb(13 20 36 / 0.05), 0 2px 8px -2px rgb(13 20 36 / 0.06);
-  --shadow-pop: 0 18px 48px -12px rgb(13 20 36 / 0.28), 0 4px 12px -4px rgb(13 20 36 / 0.12);
+  --radius-card: 24px;
+  --radius-field: 16px;
+  --shadow-card: 0 1px 1px rgb(11 15 26 / 0.04), 0 2px 6px -2px rgb(11 15 26 / 0.06), 0 12px 24px -16px rgb(11 15 26 / 0.12);
+  --shadow-pop: 0 24px 60px -18px rgb(11 15 26 / 0.32), 0 6px 16px -6px rgb(11 15 26 / 0.14);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 :root {
-  --bg: #f2f4f9;
-  --bg-2: #e9edf6;
+  --bg: #f3f4f7;
+  --bg-2: #eaecf1;
   --surface: #ffffff;
-  --surface-2: #f7f8fc;
-  --surface-3: #eef1f8;
-  --line: #e2e6ef;
-  --line-2: #cfd5e3;
-  --ink: #0d1424;
-  --ink-2: #485267;
-  --ink-3: #7a8398;
-  --brand: #2b4bf2;
-  --brand-strong: #1c35c8;
-  --brand-soft: #ebeeff;
-  --brand-ink: #1a2a96;
+  --surface-2: #f7f8fa;
+  --surface-3: #eef0f4;
+  --line: #e4e7ed;
+  --line-2: #ced3dd;
+  --ink: #0b0f1a;
+  --ink-2: #4a5265;
+  --ink-3: #6b7387;
+  --brand: #1f57ff;
+  --brand-strong: #1546e8;
+  --brand-soft: #e9eeff;
+  --brand-ink: #1235b8;
   --on-brand: #ffffff;
-  --wave: #0b9e97;
-  --wave-soft: #e1f6f4;
-  --wave-ink: #075f5b;
-  --save: #12804a;
-  --save-soft: #e4f5ea;
-  --warn: #b25a07;
-  --warn-soft: #fff1de;
-  --danger: #cf2f2f;
-  --danger-soft: #fdeaea;
-  --sim: #6447c9;
+  --wave: #00a99a;
+  --wave-soft: #e0f7f4;
+  --wave-ink: #00756b;
+  --gold: #ffb21e;
+  --gold-soft: #fff4dc;
+  --gold-ink: #8a5300;
+  --save: #0a7d50;
+  --save-soft: #e3f5ec;
+  --warn: #b45400;
+  --warn-soft: #fff1e0;
+  --danger: #d92d3a;
+  --danger-soft: #fdebec;
+  --sim: #6a45f5;
   --sim-soft: #f0ecff;
-  --night: #0b1020;
-  --night-2: #151c33;
+  --night: #05070f;
+  --night-2: #0d1120;
   --art-a: #ffffff;
-  --art-b: #0d1424;
+  --art-b: #0b0f1a;
+  --glass: rgb(255 255 255 / 0.62);
+  --glass-edge: rgb(255 255 255 / 0.75);
+  --glass-line: rgb(11 15 26 / 0.08);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #090d18;
-    --bg-2: #0e1322;
-    --surface: #121828;
-    --surface-2: #171e31;
-    --surface-3: #1d2539;
-    --line: #262f46;
-    --line-2: #34405c;
-    --ink: #eef1f8;
-    --ink-2: #aeb6c9;
-    --ink-3: #7c8599;
-    --brand: #6b82ff;
-    --brand-strong: #8a9bff;
-    --brand-soft: #1b2450;
-    --brand-ink: #c3cbff;
-    --on-brand: #070b19;
-    --wave: #2fd0c6;
-    --wave-soft: #0d2d2f;
-    --wave-ink: #8be8e1;
-    --save: #4fd18b;
-    --save-soft: #0f2a1d;
+    --bg: #07090f;
+    --bg-2: #0b0e16;
+    --surface: #10141e;
+    --surface-2: #151a26;
+    --surface-3: #1c2230;
+    --line: #252c3b;
+    --line-2: #333c4f;
+    --ink: #f2f4f8;
+    --ink-2: #aeb6c8;
+    --ink-3: #7c86a0;
+    --brand: #6d8bff;
+    --brand-strong: #8ba3ff;
+    --brand-soft: #18204a;
+    --brand-ink: #c6d1ff;
+    --on-brand: #0b0f1a;
+    --wave: #3eead9;
+    --wave-soft: #0c2b2a;
+    --wave-ink: #8ef3e8;
+    --gold: #ffc24d;
+    --gold-soft: #2e2208;
+    --gold-ink: #ffd58a;
+    --save: #45d38c;
+    --save-soft: #0e2a1d;
     --warn: #ffb35c;
     --warn-soft: #33220b;
     --danger: #ff7a7a;
     --danger-soft: #3a1616;
     --sim: #b6a2ff;
     --sim-soft: #231b45;
-    --night: #05070f;
-    --night-2: #0d1222;
-    --art-a: #1d2539;
-    --art-b: #eef1f8;
+    --night: #03040a;
+    --night-2: #0b0f1c;
+    --art-a: #1c2230;
+    --art-b: #f2f4f8;
+    --glass: rgb(22 27 39 / 0.62);
+    --glass-edge: rgb(255 255 255 / 0.1);
+    --glass-line: rgb(255 255 255 / 0.08);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #090d18;
-  --bg-2: #0e1322;
-  --surface: #121828;
-  --surface-2: #171e31;
-  --surface-3: #1d2539;
-  --line: #262f46;
-  --line-2: #34405c;
-  --ink: #eef1f8;
-  --ink-2: #aeb6c9;
-  --ink-3: #7c8599;
-  --brand: #6b82ff;
-  --brand-strong: #8a9bff;
-  --brand-soft: #1b2450;
-  --brand-ink: #c3cbff;
-  --on-brand: #070b19;
-  --wave: #2fd0c6;
-  --wave-soft: #0d2d2f;
-  --wave-ink: #8be8e1;
-  --save: #4fd18b;
-  --save-soft: #0f2a1d;
+  --bg: #07090f;
+  --bg-2: #0b0e16;
+  --surface: #10141e;
+  --surface-2: #151a26;
+  --surface-3: #1c2230;
+  --line: #252c3b;
+  --line-2: #333c4f;
+  --ink: #f2f4f8;
+  --ink-2: #aeb6c8;
+  --ink-3: #7c86a0;
+  --brand: #6d8bff;
+  --brand-strong: #8ba3ff;
+  --brand-soft: #18204a;
+  --brand-ink: #c6d1ff;
+  --on-brand: #0b0f1a;
+  --wave: #3eead9;
+  --wave-soft: #0c2b2a;
+  --wave-ink: #8ef3e8;
+  --gold: #ffc24d;
+  --gold-soft: #2e2208;
+  --gold-ink: #ffd58a;
+  --save: #45d38c;
+  --save-soft: #0e2a1d;
   --warn: #ffb35c;
   --warn-soft: #33220b;
   --danger: #ff7a7a;
   --danger-soft: #3a1616;
   --sim: #b6a2ff;
   --sim-soft: #231b45;
-  --night: #05070f;
-  --night-2: #0d1222;
-  --art-a: #1d2539;
-  --art-b: #eef1f8;
+  --night: #03040a;
+  --night-2: #0b0f1c;
+  --art-a: #1c2230;
+  --art-b: #f2f4f8;
+  --glass: rgb(22 27 39 / 0.62);
+  --glass-edge: rgb(255 255 255 / 0.1);
+  --glass-line: rgb(255 255 255 / 0.08);
   color-scheme: dark;
 }
 
@@ -162,6 +191,7 @@ body {
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.45;
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
@@ -171,6 +201,11 @@ h1,
 h2,
 h3 {
   text-wrap: balance;
+  letter-spacing: -0.015em;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 .num {
@@ -188,7 +223,11 @@ button:disabled {
 :focus-visible {
   outline: 2.5px solid var(--brand);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 8px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brand) 28%, transparent);
 }
 
 .scroll-y {
@@ -205,13 +244,194 @@ button:disabled {
 }
 
 .eyebrow {
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-/* Shimmer for loading skeletons */
+/* ------------------------------------------------------------------------------------------------
+   Type
+------------------------------------------------------------------------------------------------ */
+/* Wide, tight display headlines. Width and optical size only apply where the variable font supports them. */
+.display {
+  font-weight: 760;
+  font-stretch: 112%;
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+}
+.display-tight {
+  font-weight: 760;
+  font-stretch: 106%;
+  font-variation-settings: "opsz" 96;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+/* The one emotional word in a headline. */
+.serif-it {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-stretch: 100%;
+  letter-spacing: -0.015em;
+}
+.num-wide {
+  font-variant-numeric: tabular-nums;
+  font-stretch: 110%;
+  letter-spacing: -0.03em;
+}
+.text-gradient {
+  background: linear-gradient(100deg, #ffffff 0%, #bcd0ff 40%, #3eead9 75%, #ffffff 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 9s ease-in-out infinite;
+}
+.text-gradient-ink {
+  background: linear-gradient(100deg, var(--brand) 0%, var(--wave) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@keyframes sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Surfaces
+------------------------------------------------------------------------------------------------ */
+/* Liquid glass: translucent, blurred, with a bright top edge. Floats over content (tab bars, docks, sheets). */
+.liquid-glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    0 10px 30px -10px rgb(11 15 26 / 0.25),
+    0 2px 8px -2px rgb(11 15 26 / 0.08);
+  backdrop-filter: blur(22px) saturate(1.8);
+  -webkit-backdrop-filter: blur(22px) saturate(1.8);
+}
+.glass {
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+.glass-light {
+  background: color-mix(in oklab, var(--surface) 72%, transparent);
+  border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+
+/* Deep-water backdrop for dark heroes: a lit surface at the top, depth below, caustic light moving slowly. */
+.aurora {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(120% 90% at 50% -10%, #12235c 0%, #0a1230 38%, #05070f 75%);
+}
+.aurora::before {
+  content: "";
+  position: absolute;
+  inset: -10% -10% auto -10%;
+  height: 110%;
+  z-index: -1;
+  background:
+    radial-gradient(34% 40% at 20% 22%, rgb(31 87 255 / 0.55), transparent 70%),
+    radial-gradient(30% 36% at 82% 14%, rgb(62 234 217 / 0.32), transparent 70%),
+    radial-gradient(26% 30% at 62% 78%, rgb(255 178 30 / 0.14), transparent 70%);
+  filter: blur(24px) saturate(1.15);
+  animation: aurora-drift 24s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-3%, 2%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(3%, -2%, 0) scale(1.02);
+  }
+}
+/* Caustics: the light pattern on the floor of a pool. */
+.caustics {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='c' x='0' y='0' width='100%' height='100%'><feTurbulence type='turbulence' baseFrequency='.018' numOctaves='2' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3  0 0 0 0 .95  0 0 0 0 .9  0 0 0 -2.2 1.3'/></filter><rect width='100%' height='100%' filter='url(%23c)'/></svg>");
+  background-size: 420px 420px;
+  animation: caustics 40s linear infinite;
+  mask-image: radial-gradient(80% 70% at 50% 30%, #000 0%, transparent 100%);
+}
+@keyframes caustics {
+  to {
+    background-position: 420px 210px;
+  }
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.ring-glow {
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.08),
+    0 40px 90px -30px rgb(31 87 255 / 0.6),
+    0 14px 40px -16px rgb(62 234 217 / 0.35);
+}
+.card-lift {
+  transition:
+    transform 0.45s var(--ease-spring),
+    box-shadow 0.35s;
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-pop);
+}
+.dot-grid {
+  background-image: radial-gradient(color-mix(in oklab, var(--ink) 14%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+/* A product's own colour, used as a soft stage behind it. Set --hue on the element. */
+.hue-stage {
+  background:
+    radial-gradient(90% 80% at 50% 0%, color-mix(in oklab, var(--hue, var(--brand)) 26%, var(--surface)) 0%, transparent 70%),
+    linear-gradient(180deg, color-mix(in oklab, var(--hue, var(--brand)) 10%, var(--surface)), var(--surface));
+}
+.hue-night {
+  background:
+    radial-gradient(100% 80% at 50% 0%, color-mix(in oklab, var(--hue, var(--brand)) 55%, #05070f) 0%, transparent 72%),
+    #05070f;
+}
+
+/* Primary button sheen: a lit top edge so the action reads as physical. */
+.btn-lit {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 55%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 10px 22px -10px color-mix(in oklab, var(--brand) 70%, transparent);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Motion
+------------------------------------------------------------------------------------------------ */
 @keyframes shimmer {
   0% {
     background-position: -280px 0;
@@ -224,13 +444,13 @@ button:disabled {
   background: linear-gradient(90deg, var(--surface-3) 0%, var(--surface-2) 50%, var(--surface-3) 100%);
   background-size: 560px 100%;
   animation: shimmer 1.3s linear infinite;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 @keyframes rise {
   from {
     opacity: 0.001;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -238,7 +458,7 @@ button:disabled {
   }
 }
 .rise {
-  animation: rise 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: rise 0.42s var(--ease-out) both;
 }
 
 @keyframes sheet-up {
@@ -258,10 +478,10 @@ button:disabled {
   }
 }
 .sheet-enter {
-  animation: sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: sheet-up 0.42s var(--ease-out) both;
 }
 .fade-enter {
-  animation: fade-in 0.2s ease both;
+  animation: fade-in 0.22s ease both;
 }
 
 @keyframes pulse-ring {
@@ -289,6 +509,9 @@ button:disabled {
 .wave-move {
   animation: wave-move 6s linear infinite;
 }
+.wave-move-slow {
+  animation: wave-move 11s linear infinite;
+}
 
 @keyframes spin {
   to {
@@ -305,7 +528,7 @@ button:disabled {
     opacity: 0;
   }
   60% {
-    transform: scale(1.08);
+    transform: scale(1.06);
     opacity: 1;
   }
   100% {
@@ -313,7 +536,7 @@ button:disabled {
   }
 }
 .pop {
-  animation: pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: pop 0.5s var(--ease-out) both;
 }
 
 @keyframes draw {
@@ -333,11 +556,11 @@ button:disabled {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-6px);
+    transform: translateY(-8px);
   }
 }
 .float-y {
-  animation: float-y 5s ease-in-out infinite;
+  animation: float-y 6s ease-in-out infinite;
 }
 
 @keyframes marquee {
@@ -349,7 +572,62 @@ button:disabled {
   }
 }
 .marquee {
-  animation: marquee 38s linear infinite;
+  animation: marquee 48s linear infinite;
+}
+.marquee:hover {
+  animation-play-state: paused;
+}
+
+/* A household dropping into the pool: falls, splashes, ripples out. */
+@keyframes drop-in {
+  0% {
+    transform: translateY(-70px) scale(0.6);
+    opacity: 0;
+  }
+  55% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(0) scale(1.15, 0.85);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.drop-in {
+  animation: drop-in 0.9s var(--ease-out) both;
+}
+@keyframes ripple {
+  from {
+    transform: scale(0.2);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+.ripple {
+  animation: ripple 1.6s var(--ease-out) both;
+}
+
+/* Rolling digits for prices that change. */
+.roll {
+  display: inline-flex;
+  overflow: hidden;
+  line-height: 1;
+  vertical-align: bottom;
+}
+.roll-col {
+  display: inline-flex;
+  flex-direction: column;
+  transition: transform 0.9s var(--ease-spring);
+}
+.roll-col > span {
+  height: 1em;
+  line-height: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -368,128 +646,80 @@ button:disabled {
   transform: translateZ(0);
 }
 
-/* ------------------------------------------------------------------------------------------------
-   Landing & "wow" layer: aurora light, film grain, glass, display type, scroll-driven reveals.
-   Everything degrades gracefully: no scroll timelines → content simply shows.
------------------------------------------------------------------------------------------------- */
-.aurora {
-  position: relative;
-  isolation: isolate;
-  background: #070b18;
-}
-.aurora::before {
-  content: "";
-  position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 120%;
-  z-index: -1;
-  background:
-    radial-gradient(40% 50% at 18% 30%, rgb(43 75 242 / 0.55), transparent 70%),
-    radial-gradient(35% 45% at 82% 18%, rgb(11 158 151 / 0.45), transparent 70%),
-    radial-gradient(30% 40% at 60% 75%, rgb(127 240 230 / 0.18), transparent 70%),
-    radial-gradient(45% 55% at 40% 100%, rgb(100 71 201 / 0.35), transparent 70%);
-  filter: blur(20px) saturate(1.2);
-  animation: aurora-drift 22s ease-in-out infinite alternate;
-}
-@keyframes aurora-drift {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-3%, 2%, 0) scale(1.06); }
-  100% { transform: translate3d(3%, -2%, 0) scale(1.02); }
-}
-.grain::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.07;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-}
-.glass {
-  background: rgb(255 255 255 / 0.06);
-  border: 1px solid rgb(255 255 255 / 0.12);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-}
-.glass-light {
-  background: color-mix(in oklab, var(--surface) 72%, transparent);
-  border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
-  backdrop-filter: blur(18px) saturate(1.3);
-  -webkit-backdrop-filter: blur(18px) saturate(1.3);
-}
-.display {
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
-}
-.text-gradient {
-  background: linear-gradient(100deg, #ffffff 0%, #c8d3ff 35%, #7ff0e6 70%, #ffffff 100%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: sheen 8s ease-in-out infinite;
-}
-.text-gradient-ink {
-  background: linear-gradient(100deg, var(--brand) 0%, var(--wave) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-@keyframes sheen {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-.ring-glow {
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 30px 80px -20px rgb(43 75 242 / 0.55), 0 10px 30px -10px rgb(11 158 151 / 0.4);
-}
-.card-lift {
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s;
-}
-.card-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-pop);
-}
-.dot-grid {
-  background-image: radial-gradient(color-mix(in oklab, var(--ink) 14%, transparent) 1px, transparent 1px);
-  background-size: 18px 18px;
-}
-
 /* Scroll-driven reveal (Chrome, Edge, Safari 26+). Off for people who ask for reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
-@supports (animation-timeline: view()) {
-  .reveal {
-    animation: reveal-in linear both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 28%;
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 26%;
+    }
+    @keyframes reveal-in {
+      from {
+        opacity: 0;
+        transform: translateY(32px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+    /* Water level that rises as a section scrolls into view. */
+    .fill-on-scroll {
+      animation: fill-up linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 55%;
+    }
+    @keyframes fill-up {
+      from {
+        transform: translateY(70%);
+      }
+      to {
+        transform: translateY(0);
+      }
+    }
   }
-  @keyframes reveal-in {
-    from { opacity: 0; transform: translateY(28px) scale(0.985); }
-    to { opacity: 1; transform: none; }
-  }
-}
 }
 
 /* Story steps in the hero demo */
 @keyframes slide-up-fade {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .step-in {
-  animation: slide-up-fade 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: slide-up-fade 0.6s var(--ease-out) both;
 }
 @keyframes envelope-drop {
-  0% { opacity: 0; transform: translateY(-26px) rotate(-8deg); }
-  60% { opacity: 1; transform: translateY(3px) rotate(2deg); }
-  100% { opacity: 1; transform: none; }
+  0% {
+    opacity: 0;
+    transform: translateY(-26px) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(3px) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
 }
 .envelope-drop {
-  animation: envelope-drop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: envelope-drop 0.65s var(--ease-out) both;
 }
 @keyframes count-glow {
-  0%, 100% { text-shadow: 0 0 0 transparent; }
-  50% { text-shadow: 0 0 24px rgb(127 240 230 / 0.6); }
+  0%,
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
+  50% {
+    text-shadow: 0 0 28px rgb(62 234 217 / 0.6);
+  }
 }
 .count-glow {
   animation: count-glow 2.4s ease-in-out infinite;
@@ -500,7 +730,26 @@ button:disabled {
   animation: 160ms ease-out both vt-out;
 }
 ::view-transition-new(root) {
-  animation: 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both vt-in;
+  animation: 260ms var(--ease-out) both vt-in;
 }
-@keyframes vt-out { to { opacity: 0; } }
-@keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Lazy route fallback */
+.route-loading {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+  color: var(--ink-3);
+  font-weight: 650;
+  letter-spacing: 0.12em;
+}

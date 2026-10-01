@@ -53,7 +53,7 @@ export function SellerOrders() {
             const product = productOf(s, pool.productId);
             return (
               <Section key={pid} title={<span className="flex items-center gap-2"><ProductArt art={product.art} size={28} rounded={8} />{product.short}</span>} sub={`${pool.no} · ${os.length} ${os.length === 1 ? 'order' : 'orders'}`} action={tab === 'confirm' && os.length > 1 ? <Button size="sm" variant="wave" icon={<CheckCheck className="h-4 w-4" />} onClick={() => { const n = confirmAllForPool(pid); toast(`${n} orders confirmed`); }}>Confirm all</Button> : undefined}>
-                <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+                <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
                   {os.map((o) => <OrderRow key={o.id} o={o} t={t} />)}
                 </div>
               </Section>
@@ -205,7 +205,7 @@ function ProofSheet({ open, onClose, label, onDone }: { open: boolean; onClose: 
   return (
     <Sheet open={open} onClose={onClose} title={label} footer={<Button full variant="wave" disabled={!shot} onClick={() => onDone(`photo_${Date.now().toString(36)}.jpg`)}>Use photo</Button>}>
       <div className="space-y-3">
-        <button onClick={() => setShot(true)} className={cn('relative grid h-56 w-full place-items-center overflow-hidden rounded-[18px]', shot ? 'bg-gradient-to-br from-[#c9d4e8] to-[#8fa2c4]' : 'bg-night')}>
+        <button onClick={() => setShot(true)} className={cn('relative grid h-56 w-full place-items-center overflow-hidden rounded-[22px]', shot ? 'bg-gradient-to-br from-[#c9d4e8] to-[#8fa2c4]' : 'bg-night')}>
           {shot ? <div className="flex flex-col items-center text-night"><Package className="h-16 w-16" /><span className="mt-2 rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">Geo-tagged · {fmtTime(Date.now())}</span></div> : <div className="flex flex-col items-center text-white/70"><Camera className="h-10 w-10" /><span className="mt-2 text-[13px]">Tap to take photo</span></div>}
         </button>
         <p className="text-[12px] text-ink-3">The photo is stamped with time and place and shown to the buyer and POOL if there’s a dispute.</p>
@@ -324,13 +324,13 @@ export function StaffMode() {
           {today.map((o, i) => {
             const p = productOf(s, o.productId);
             return (
-              <div key={o.id} className="rounded-[22px] bg-white/[0.06] p-4">
-                <div className="flex items-center gap-3"><span className="num grid h-9 w-9 place-items-center rounded-full bg-[#7ff0e6] text-[15px] font-bold text-night">{i + 1}</span><div className="min-w-0 flex-1"><div className="truncate text-[16px] font-bold">{o.buyerName}</div><div className="truncate text-[12.5px] text-white/55">{p.short} · {qtyLabel(o.qtyBase, uomOf(p.uom))}</div></div></div>
+              <div key={o.id} className="rounded-[28px] bg-white/[0.06] p-4">
+                <div className="flex items-center gap-3"><span className="num grid h-9 w-9 place-items-center rounded-full bg-aqua text-[15px] font-bold text-night">{i + 1}</span><div className="min-w-0 flex-1"><div className="truncate text-[16px] font-bold">{o.buyerName}</div><div className="truncate text-[12.5px] text-white/55">{p.short} · {qtyLabel(o.qtyBase, uomOf(p.uom))}</div></div></div>
                 <div className="mt-3 flex items-start gap-2 text-[13.5px] text-white/80"><MapPin className="mt-0.5 h-4 w-4 shrink-0" />{o.address}</div>
                 {o.balanceDue > 0 && <div className="mt-3 rounded-[12px] bg-[#ffb547]/15 px-3 py-2 text-[13px] font-semibold text-[#ffcf85]">{L(`Buyer pays ${inr(o.balanceDue)} in the app first`, `ముందు కస్టమర్ యాప్‌లో ${inr(o.balanceDue)} కట్టాలి`)}</div>}
                 <div className="mt-3 grid grid-cols-[auto_1fr] gap-2">
                   <button onClick={() => toast('Calling via masked number (simulated)', 'info')} className="grid h-12 w-12 place-items-center rounded-[14px] bg-white/10" aria-label="Call"><Phone className="h-5 w-5" /></button>
-                  <Link to={`/seller/order/${o.id}/verify`} className="flex h-12 items-center justify-center gap-2 rounded-[14px] bg-[#7ff0e6] text-[15px] font-bold text-night"><KeyRound className="h-5 w-5" />{L('Enter code', 'కోడ్ ఎంటర్ చేయండి')}</Link>
+                  <Link to={`/seller/order/${o.id}/verify`} className="flex h-12 items-center justify-center gap-2 rounded-[14px] bg-aqua text-[15px] font-bold text-night"><KeyRound className="h-5 w-5" />{L('Enter code', 'కోడ్ ఎంటర్ చేయండి')}</Link>
                 </div>
               </div>
             );

@@ -54,15 +54,15 @@ export function TabBar() {
     { to: '/buyer/account', icon: User, label: t('Account') },
   ];
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} aria-label="Main">
-      <div className="mx-auto grid max-w-[560px] grid-cols-5">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))' }} aria-label="Main">
+      <div className="liquid-glass pointer-events-auto mx-auto grid max-w-[520px] grid-cols-5 rounded-[28px] p-1.5">
         {tabs.map((tb) => (
-          <NavLink key={tb.to} to={tb.to} end={tb.end} className={({ isActive }) => cn('relative flex h-[60px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition', isActive ? 'text-brand' : 'text-ink-3 hover:text-ink-2')}>
+          <NavLink key={tb.to} to={tb.to} end={tb.end} className={({ isActive }) => cn('relative flex h-[54px] flex-col items-center justify-center gap-[3px] rounded-[28px] text-[10.5px] font-semibold transition-all duration-300', isActive ? 'bg-brand-soft text-brand-ink' : 'text-ink-3 hover:text-ink-2 active:scale-95')}>
             {({ isActive }) => (
               <>
-                <tb.icon className="h-[22px] w-[22px]" strokeWidth={isActive ? 2.4 : 2} />
-                <span>{tb.label}</span>
-                {tb.badge ? <span className="num absolute right-[22%] top-2 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-warn px-1 text-[10px] font-bold text-white">{tb.badge}</span> : null}
+                <tb.icon className="h-[21px] w-[21px]" strokeWidth={isActive ? 2.4 : 1.9} />
+                <span className="max-w-full truncate px-0.5">{tb.label}</span>
+                {tb.badge ? <span className="num absolute right-[18%] top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-gold px-1 text-[10px] font-bold text-[#1d1300] ring-2 ring-surface">{tb.badge}</span> : null}
               </>
             )}
           </NavLink>
@@ -104,7 +104,7 @@ export function PoolCard({ p, compact }: { p: Pool; compact?: boolean }) {
   const mine = p.members.find((m) => m.isMe && !['left', 'pending'].includes(m.status));
   const st = poolStatus(p, t);
   return (
-    <Link to={`/buyer/pool/${p.id}`} className="flex gap-3 rounded-[18px] border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:border-line-2 active:scale-[0.995]">
+    <Link to={`/buyer/pool/${p.id}`} className="flex gap-3 rounded-[22px] border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:border-line-2 active:scale-[0.995]">
       <ProductArt art={product.art} size={compact ? 60 : 76} />
       <div className="min-w-0 flex-1 py-0.5">
         <div className="flex items-center gap-1.5">
@@ -329,7 +329,7 @@ export function NextStepCard({ n }: { n: NextStep }) {
   const tone = { warn: 'border-warn/30 bg-warn-soft', brand: 'border-brand/20 bg-brand-soft', wave: 'border-wave/25 bg-wave-soft', save: 'border-save/20 bg-save-soft' }[n.tone];
   const prod = s.products.find((p) => p.art === n.art);
   return (
-    <Link to={n.to} className={cn('flex w-[290px] shrink-0 snap-start flex-col justify-between rounded-[18px] border p-3.5 transition active:scale-[0.99]', tone)}>
+    <Link to={n.to} className={cn('flex w-[290px] shrink-0 snap-start flex-col justify-between rounded-[22px] border p-3.5 transition active:scale-[0.99]', tone)}>
       <div className="flex gap-3">
         {prod && <ProductArt art={prod.art} size={44} rounded={12} />}
         <div className="min-w-0">

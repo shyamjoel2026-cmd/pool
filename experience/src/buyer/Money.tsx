@@ -35,7 +35,7 @@ export function MoneyPage() {
       <AppBar title={tr('Money')} right={<BellButton to="/buyer/notifications" />} />
       {load.state === 'loading' ? <div className="p-4"><ListSkeleton rows={4} /></div> : load.state === 'error' ? <div className="p-4"><ErrorState onRetry={load.retry} /></div> : (
         <div className="space-y-5 px-4 pt-3">
-          <div className="overflow-hidden rounded-[22px] bg-night p-4 text-white shadow-[var(--shadow-pop)]">
+          <div className="overflow-hidden rounded-[28px] bg-night p-4 text-white shadow-[var(--shadow-pop)]">
             <div className="flex items-center justify-between">
               <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-white/55">{tr('Saved with POOL')}</div>
               <SimTag className="border-white/25 bg-white/10 text-white">{tr('Sample data')}</SimTag>
@@ -45,7 +45,7 @@ export function MoneyPage() {
             <div className="mt-4 grid grid-cols-3 gap-2 text-[12px]">
               <div className="rounded-[12px] bg-white/[0.07] p-2.5"><div className="text-white/55">{tr('Held for you')}</div><div className="num mt-0.5 text-[15px] font-bold">{inr(sum.heldBookings + sum.heldOrders)}</div></div>
               <div className="rounded-[12px] bg-white/[0.07] p-2.5"><div className="text-white/55">{tr('Refunds coming')}</div><div className="num mt-0.5 text-[15px] font-bold">{inr(sum.refundsInProgress)}</div></div>
-              <div className="rounded-[12px] bg-white/[0.07] p-2.5"><div className="text-white/55">{tr('Wave Drops')}</div><div className="num mt-0.5 text-[15px] font-bold text-[#7ff0e6]">{inr(sum.waveReceived, { exact: sum.waveReceived % 100 !== 0 })}</div></div>
+              <div className="rounded-[12px] bg-white/[0.07] p-2.5"><div className="text-white/55">{tr('Wave Drops')}</div><div className="num mt-0.5 text-[15px] font-bold text-aqua">{inr(sum.waveReceived, { exact: sum.waveReceived % 100 !== 0 })}</div></div>
             </div>
           </div>
 
@@ -73,7 +73,7 @@ export function MoneyPage() {
             [...groups.entries()].map(([day, xs]) => (
               <div key={day} className="space-y-2">
                 <div className="px-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">{fmtDate(day)}</div>
-                <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+                <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
                   {xs.map((x) => <TxnRow key={x.id} x={x} />)}
                 </div>
               </div>
@@ -124,7 +124,7 @@ export function TxnPage() {
       <AppBar back="/buyer/money" title={tr('Transaction')} />
       <div className="space-y-5 px-4 pt-3">
         <div className="flex flex-col items-center py-4 text-center">
-          <span className={cn('grid h-14 w-14 place-items-center rounded-[18px]', x.kind === 'wave_drop' ? 'bg-wave-soft text-wave' : x.direction === 'in' ? 'bg-save-soft text-save' : 'bg-brand-soft text-brand')}><Icon className="h-7 w-7" /></span>
+          <span className={cn('grid h-14 w-14 place-items-center rounded-[22px]', x.kind === 'wave_drop' ? 'bg-wave-soft text-wave' : x.direction === 'in' ? 'bg-save-soft text-save' : 'bg-brand-soft text-brand')}><Icon className="h-7 w-7" /></span>
           <div className={cn('num mt-3 text-[34px] font-bold tracking-[-0.02em]', x.direction === 'in' ? 'text-save' : 'text-ink')}>{x.direction === 'in' ? '+' : x.direction === 'out' ? '−' : ''}{inr(x.amount, { exact: x.amount % 100 !== 0 })}</div>
           <div className="mt-1 text-[15px] font-semibold text-ink">{x.title}</div>
           <div className="text-[13px] text-ink-3">{x.sub}</div>

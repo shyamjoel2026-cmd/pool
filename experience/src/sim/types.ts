@@ -3,11 +3,11 @@ import type { Paise } from '../lib/money';
 export type Lang = 'en' | 'te' | 'hi';
 export type ThemePref = 'system' | 'light' | 'dark';
 
-export type CategoryId = 'electronics' | 'appliances' | 'groceries' | 'meat' | 'books' | 'services' | 'building' | 'laptops' | 'home';
+export type CategoryId = 'electronics' | 'appliances' | 'groceries' | 'meat' | 'books' | 'services' | 'building' | 'laptops' | 'home' | 'mobility' | 'energy' | 'phones';
 
 export type ArtKey =
   | 'tv' | 'ac' | 'washer' | 'fridge' | 'mixer' | 'rice' | 'oil' | 'mutton' | 'cement' | 'books' | 'cleaning'
-  | 'laptop' | 'fan' | 'purifier' | 'geyser' | 'chimney' | 'waterpurifier';
+  | 'laptop' | 'fan' | 'purifier' | 'geyser' | 'chimney' | 'waterpurifier' | 'scooter' | 'solar' | 'phone';
 
 /** Units are data (engine uom.ts): price per 1 `code`, quantities in integer base units. */
 export interface Uom {

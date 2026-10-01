@@ -76,7 +76,7 @@ export function BidForm() {
   if (done) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="envelope-drop relative grid h-24 w-28 place-items-center rounded-[18px] bg-wave text-white shadow-[var(--shadow-pop)]"><Lock className="h-10 w-10" /><span className="absolute -bottom-2 -right-2 grid h-9 w-9 place-items-center rounded-full bg-save ring-4 ring-bg"><Check className="h-5 w-5" strokeWidth={3} /></span></div>
+        <div className="envelope-drop relative grid h-24 w-28 place-items-center rounded-[22px] bg-wave text-white shadow-[var(--shadow-pop)]"><Lock className="h-10 w-10" /><span className="absolute -bottom-2 -right-2 grid h-9 w-9 place-items-center rounded-full bg-save ring-4 ring-bg"><Check className="h-5 w-5" strokeWidth={3} /></span></div>
         <div className="mt-6 text-[22px] font-bold text-ink">Your bid is sealed</div>
         <p className="mt-2 max-w-[320px] text-[14px] text-ink-2">{inr(pricePaise)} per {uom.label}, up to {qtyLabel(cap, uom)}, delivered by {fmtDay(deliverBy)}. Nobody can see it until {fmtWhen(pool.closesAt, t)}, and every view after that is logged for you to see.</p>
         <div className="mt-6 grid w-full max-w-[320px] gap-2">
@@ -92,7 +92,7 @@ export function BidForm() {
     <div className="pb-36">
       <AppBar back={`/seller/demand/${pool.id}`} title={existing ? 'Lower your bid' : 'Sealed bid'} sub={`${product.short} · ${pool.no}`} />
       <div className="space-y-6 px-4 pt-3">
-        <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-3">
+        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-3">
           <ProductArt art={product.art} size={52} />
           <div className="min-w-0 flex-1"><div className="truncate text-[14px] font-semibold text-ink">{product.title}</div><div className="text-[12px] text-ink-3">{qtyLabel(committedQty, uom)} committed · closes {fmtWhen(pool.closesAt, t)}</div></div>
         </div>
@@ -184,7 +184,7 @@ export function BidForm() {
         {err && <p className="rounded-[12px] bg-danger-soft p-3 text-[13px] font-medium text-danger">{err}</p>}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-30 liquid-glass rounded-t-[28px] px-4 pb-3 pt-3.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <Button full size="lg" variant="wave" disabled={!ok} icon={<Lock className="h-4.5 w-4.5" />} onClick={() => setConfirm(true)}>{existing ? 'Review lower bid' : 'Review and seal'}</Button>
         <p className="mt-1.5 text-center text-[11.5px] text-ink-3">You can lower it until close. You can’t raise or withdraw it.</p>
       </div>

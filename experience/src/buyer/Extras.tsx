@@ -40,7 +40,7 @@ export function Community() {
       <AppBar back="/buyer" title={c.name} sub={`${c.builder} · ${tr('move-in desk')}`} />
       <div className="space-y-6 px-4 pt-3">
         <div className="relative overflow-hidden rounded-[24px] bg-night p-5 text-white">
-          <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-[#7ff0e6]/10" />
+          <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-aqua/10" />
           <div className="absolute -bottom-16 right-10 h-40 w-40 rounded-full bg-[#8aa4ff]/10" />
           <div className="relative">
             <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-white/55"><Building2 className="h-4 w-4" />{c.builder} × POOL</div>
@@ -138,7 +138,7 @@ export function Locker() {
     <div className="pb-10">
       <AppBar back="/buyer/account" title={tr('Warranty Locker')} right={<button onClick={() => setScan('scanning')} aria-label={tr('Add a purchase')} className="grid h-10 w-10 place-items-center rounded-full text-ink-2 hover:bg-surface-3"><Plus className="h-5 w-5" /></button>} />
       <div className="space-y-6 px-4 pt-3">
-        <div className="rounded-[22px] border border-wave/25 bg-gradient-to-br from-wave-soft to-surface p-4">
+        <div className="rounded-[28px] border border-wave/25 bg-gradient-to-br from-wave-soft to-surface p-4">
           <ShieldCheck className="h-7 w-7 text-wave" />
           <div className="mt-2 text-[17px] font-bold text-ink">{tr('Your home, on record')}</div>
           <p className="mt-1 text-[13px] text-ink-2">{tr('Invoices, serial numbers, installation job numbers and warranty dates, kept automatically for POOL purchases. Add things you bought elsewhere by scanning the invoice.')}</p>
@@ -181,14 +181,14 @@ export function Locker() {
         )}
         {extra.length > 0 && (
           <Section title={tr('Added by you')}>
-            <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+            <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
               {extra.map((x) => <div key={x.id} className="flex items-center gap-3 px-4 py-3"><FileText className="h-5 w-5 text-ink-3" /><div className="min-w-0 flex-1"><div className="truncate text-[14px] font-semibold text-ink">{x.title}</div><div className="text-[12px] text-ink-3">{x.boughtFrom} · {fmtDate(x.boughtAt)} · {tr('warranty until {d}', { d: fmtDate(x.boughtAt + x.warrantyMonths * 30.44 * DAY) })}</div></div></div>)}
             </div>
           </Section>
         )}
         {coming.length > 0 && (
           <Section title={tr('On the way')}>
-            <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+            <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">
               {coming.map((o) => { const p = productOf(s, o.productId); return <Link key={o.id} to={`/buyer/order/${o.id}`} className="flex items-center gap-3 px-4 py-3"><ProductArt art={p.art} size={40} rounded={12} /><div className="flex-1"><div className="text-[14px] font-semibold text-ink">{p.short}</div><div className="text-[12px] text-ink-3">{tr('Added automatically at handover')}</div></div><ChevronRight className="h-4 w-4 text-ink-3" /></Link>; })}
             </div>
           </Section>
@@ -198,9 +198,9 @@ export function Locker() {
       <Sheet open={scan !== 'closed'} onClose={() => setScan('closed')} title={scan === 'scanning' ? tr('Scan invoice') : tr('Check what we read')} footer={scan === 'review' ? <Button full onClick={() => { addLockerItem({ title: 'AeroLite 1200 mm BLDC ceiling fan', boughtFrom: 'Sri Sai Electricals, Miyapur', boughtAt: t - 200 * DAY, warrantyMonths: 36, serial: 'AL12-88213409' }); setScan('closed'); toast(tr('Added to your locker')); }}>{tr('Save to locker')}</Button> : undefined}>
         {scan === 'scanning' ? (
           <div className="space-y-3">
-            <div className="relative grid h-56 place-items-center overflow-hidden rounded-[18px] bg-night">
+            <div className="relative grid h-56 place-items-center overflow-hidden rounded-[22px] bg-night">
               <div className="h-40 w-32 rotate-[-3deg] rounded-[6px] bg-white/90 p-2 text-[6px] leading-tight text-[#333]"><div className="font-bold">TAX INVOICE</div><div>Sri Sai Electricals</div><div className="mt-2">AeroLite 1200mm BLDC</div><div>S/N AL12-88213409</div><div className="mt-2">Total ₹3,450</div></div>
-              <div className="absolute inset-x-6 top-1/2 h-0.5 animate-pulse bg-[#7ff0e6]" />
+              <div className="absolute inset-x-6 top-1/2 h-0.5 animate-pulse bg-aqua" />
             </div>
             <Button full icon={<Camera className="h-4 w-4" />} onClick={() => setScan('review')}>{tr('Capture')}</Button>
             <SimTag>{tr('Camera and reading simulated')}</SimTag>
@@ -348,7 +348,7 @@ export function Assistant() {
       <div className="flex-1 space-y-3 px-4 py-4">
         {msgs.length === 0 && (
           <div className="flex flex-col items-center py-6 text-center">
-            <div className="grid h-16 w-16 place-items-center rounded-[22px] bg-gradient-to-br from-brand to-wave text-white shadow-[var(--shadow-pop)]"><Sparkles className="h-8 w-8" /></div>
+            <div className="grid h-16 w-16 place-items-center rounded-[28px] bg-gradient-to-br from-brand to-wave text-white shadow-[var(--shadow-pop)]"><Sparkles className="h-8 w-8" /></div>
             <div className="mt-3 text-[18px] font-bold text-ink">{tr('What do you want to buy?')}</div>
             <p className="mt-1 max-w-[290px] text-[13px] text-ink-3">{tr('Ask in English, Telugu or Hindi. I can compare prices with your own cards and prepare a join, but you always confirm and pay yourself.')}</p>
             <div className="mt-4 w-full space-y-2">{suggestions.map((q) => <button key={q} onClick={() => ask(q)} className="flex w-full items-center justify-between rounded-[14px] border border-line bg-surface px-3.5 py-3 text-left text-[13.5px] font-semibold text-ink">{q}<ArrowRight className="h-4 w-4 text-ink-3" /></button>)}</div>
@@ -661,7 +661,7 @@ export function ShareDemo() {
             { n: 'More', c: 'bg-surface-3' },
           ].map((x) => (
             <button key={x.n} onClick={x.on} className="flex flex-col items-center gap-1.5">
-              <span className={cn('grid h-14 w-14 place-items-center rounded-[18px] text-[13px] font-black text-white', x.c, x.hl && 'ring-4 ring-brand/30')}>{x.n === 'POOL' ? 'P' : x.n === 'Copy' || x.n === 'More' ? <Plus className="h-5 w-5 text-ink-2" /> : x.n[0]}</span>
+              <span className={cn('grid h-14 w-14 place-items-center rounded-[22px] text-[13px] font-black text-white', x.c, x.hl && 'ring-4 ring-brand/30')}>{x.n === 'POOL' ? 'P' : x.n === 'Copy' || x.n === 'More' ? <Plus className="h-5 w-5 text-ink-2" /> : x.n[0]}</span>
               <span className={cn('text-[12px]', x.hl ? 'font-bold text-ink' : 'text-ink-3')}>{x.n}</span>
             </button>
           ))}
