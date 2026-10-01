@@ -1,8 +1,7 @@
 import { beforeAll, afterAll, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { randomUUID } from 'node:crypto';
-import { fork, type ChildProcess } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { worker, message } from './worker-fixture.ts';
 import { connect, schema } from '@pool/db';
 import { migrate } from '../../db/src/migrate.ts';
 import * as e from '@pool/engine';
@@ -216,6 +215,9 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
     stateCode: '36',
   });
   await submitBid(db, bid, id + ':bid', 2000);
+  await expect(
+    submitBid(db, { ...bid, id: id + ':backdated', revision: 2 }, id + ':backdated', 2001),
+  ).rejects.toThrow(/trusted receipt clock/);
   p = await poolCommand(db, id, id + ':close', {}, (p) => e.close(p!, closeAt));
   p = await awardPersistedPool(db, id, id + ':stage', 'ops', closeAt);
   await savePrice(
@@ -328,6 +330,21 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
   expect(
     (await db.query('SELECT data FROM pools WHERE id=$1', [id])).rows[0].data.members[0].status,
   ).toBe('OFFERED');
+  await expect(
+    acceptCheckout(
+      db,
+      id,
+      'm',
+      oid,
+      id + ':invented-exemption',
+      profile,
+      { ...checkoutTax, tdsApplicable: false },
+      4000000,
+      e.money('INR', 10),
+      10,
+      closeAt + 1,
+    ),
+  ).rejects.toThrow(/reviewed pool treatment/);
   p = await acceptCheckout(
     db,
     id,
@@ -414,67 +431,14 @@ it('rollback leaves no state, audit or transfer after a failed transaction', asy
     (await db.query('SELECT id FROM money_events WHERE event_key=$1', [id + ':1'])).rowCount,
   ).toBe(0);
 });
-const workerDiagnostics = new WeakMap<ChildProcess, string>();
-function worker(crash = false) {
-  const child = fork(fileURLToPath(new URL('../src/worker.ts', import.meta.url)), [], {
-    execArgv: ['--env-file=../../.env'],
-    env: {
-      ...process.env,
-      POOL_TEST_WORKER: '1',
-      POOL_TEST_CRASH_BOUNDARY: crash ? '1' : '0',
-    },
-    stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-  });
-  workerDiagnostics.set(child, '');
-  child.stderr?.on('data', (chunk: Buffer) => {
-    let value = chunk.toString();
-    for (const secret of [
-      process.env.DATABASE_URL,
-      process.env.CODE_SECRET,
-      process.env.POSTGRES_PASSWORD,
-    ])
-      if (secret) value = value.replaceAll(secret, '[REDACTED]');
-    value = value.replace(/postgres(?:ql)?:\/\/\S+/g, '[REDACTED_DATABASE_URL]');
-    workerDiagnostics.set(child, ((workerDiagnostics.get(child) ?? '') + value).slice(-4096));
-  });
-  return child;
-}
-function message(child: ChildProcess, type: string, timeout = 60000) {
-  return new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error('worker timeout: ' + type + '; ' + workerDiagnostics.get(child)));
-    }, timeout);
-    const onMessage = (m: unknown) => {
-      if ((m as { type: string }).type === type) {
-        cleanup();
-        resolve();
-      } else if ((m as { type: string }).type === 'failed') {
-        cleanup();
-        reject(new Error('worker failed'));
-      }
-    };
-    const cleanup = () => {
-      clearTimeout(timer);
-      child.off('message', onMessage);
-      child.off('exit', onExit);
-    };
-    const onExit = (code: number | null) => {
-      cleanup();
-      reject(
-        new Error(
-          'worker exited before ' + type + ': ' + code + '; ' + workerDiagnostics.get(child),
-        ),
-      );
-    };
-    child.on('message', onMessage);
-    child.once('exit', onExit);
-  });
-}
 it('kills worker after wave transaction commit, restarts DBOS, and never double posts', async () => {
   const id = randomUUID(),
     now = Date.now();
-  await poolCommand(db, id, id + ':create', {}, () => start(id, now + 3600000, now));
+  // Isolated recovery fixture: decisions complete, held money funded, accepted terms persisted.
+  await poolCommand(db, id, id + ':create', {}, () => ({
+    ...start(id, now + 3600000, now),
+    value: { ...start(id, now + 3600000, now).value, state: 'AWARDED' as const },
+  }));
   await command(db, id + ':fund', 'test', id + ':fund', {}, () => ({
     state: {},
     events: [{ type: 'TEST_CAPTURE' }],
@@ -499,6 +463,12 @@ it('kills worker after wave transaction commit, restarts DBOS, and never double 
         sellerId: id + ':seller',
         status: 'SETTLED',
         split: { waveHold: e.money('INR', 10) },
+        waveTerms: {
+          sellerId: id + ':seller',
+          bidId: id + ':bid',
+          slabs: [{ fromUnit: 1, perUnitMinor: 10 }],
+          count: 1,
+        },
       },
     ],
   );

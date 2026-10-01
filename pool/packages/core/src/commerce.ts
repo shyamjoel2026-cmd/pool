@@ -11,8 +11,13 @@ export function saveSeller(
   key: string,
   facts: e.SellerFacts & { gstin: string; stateCode: string },
 ) {
-  if (!e.validateGSTIN(facts.gstin) || facts.gstin.slice(0, 2) !== facts.stateCode)
+  if (!e.validateGSTINFormat(facts.gstin) || facts.gstin.slice(0, 2) !== facts.stateCode)
     throw new Error('invalid GSTIN/state');
+  // UNVERIFIED checksum algorithm remains advisory; ops supplies verified status, not this calculation.
+  const reviewedFacts = {
+    ...facts,
+    gstinChecksumStatus: e.validateGSTIN(facts.gstin) ? 'ADVISORY_MATCH' : 'ADVISORY_MISMATCH',
+  };
   return command(
     db,
     'seller:' + id,
@@ -20,8 +25,8 @@ export function saveSeller(
     key,
     facts,
     () => ({
-      state: facts,
-      events: [{ type: 'SELLER_REVIEWED', sellerId: id, ...facts }],
+      state: reviewedFacts,
+      events: [{ type: 'SELLER_REVIEWED', sellerId: id, ...reviewedFacts }],
       postings: [],
     }),
     async (c, s) => {
@@ -33,6 +38,8 @@ export function saveSeller(
   );
 }
 export async function submitBid(db: PgPool, bid: e.Bid, key: string, now: number) {
+  if (bid.submittedAt !== now)
+    throw new Error('bid submission time must match the trusted receipt clock');
   if (!Number.isSafeInteger(bid.returnCostMinor) || bid.returnCostMinor! < 0)
     throw new Error('bid requires disclosed return cost in paise');
   return command<e.Bid>(
@@ -332,6 +339,29 @@ export function acceptCheckout(
         tax.sellerStateCode !== seller?.state_code
       )
         throw new Error('checkout tax differs from persisted pool/seller');
+      const reviewed = p.reviewedTaxTreatment ?? { supplyKind: 'MOVEMENT_OF_GOODS' };
+      if (p.gstRateBps === 0 && reviewed.tcsApplicable === undefined)
+        throw new Error('zero-rate supply needs reviewed TCS applicability');
+      const treatment = (
+        context: Pick<
+          e.IndiaTaxContext,
+          | 'supplyKind'
+          | 'placeOfSupplyStateCode'
+          | 'taxTreatmentSource'
+          | 'tcsApplicable'
+          | 'tdsApplicable'
+        >,
+      ) => ({
+        supplyKind: context.supplyKind,
+        placeOfSupplyStateCode: context.placeOfSupplyStateCode ?? null,
+        taxTreatmentSource: context.taxTreatmentSource ?? null,
+        tcsApplicable: context.tcsApplicable ?? p.gstRateBps! > 0,
+        tdsApplicable: context.tdsApplicable ?? true,
+      });
+      if (fingerprint(treatment(tax)) !== fingerprint(treatment(reviewed)))
+        throw new Error(
+          'checkout withholding/place of supply differs from reviewed pool treatment',
+        );
       const storedProfile = (
         await c.query('SELECT data FROM fulfilment_profiles WHERE id=$1', [p.fulfilmentProfileId])
       ).rows[0]?.data;
@@ -352,6 +382,12 @@ export function acceptCheckout(
           buyerId: memberId,
           sellerId: offer.sellerId,
           bidId: offer.bidId,
+          waveTerms: {
+            sellerId: offer.sellerId,
+            bidId: offer.bidId,
+            slabs: bid.slabs,
+            count: e.waveCount(offer.qty, p.quantityRule.uom, p.waveCountMode),
+          },
           profile,
           split: e.splitOrder(e.INDIA_POLICY, {
             buyerTotal: offer.buyerTotal,
