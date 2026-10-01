@@ -205,3 +205,9 @@ These are not needed for the demo; they must be done before live money.
 - GST TCS 0.5% and TDS 0.1%.
 - DPDP consent notices.
 - A lawyer reviews the Wave Drop credit-note treatment and the cancellation policy.
+
+## M1.5 / M2 audit checkpoint — 1 Oct 2026
+
+The implementation is not yet accepted as complete. See POOL_PROJECT_STATE.md §0 for exact evidence and unresolved defects. Current persisted names are assignments (awards), wave_pots (wave_drop_pots), plus units, fulfilment_profiles, price_decisions, offers, order_steps, handover_codes, idempotency_keys, aggregates, money_events, ledger_account_map and workflow_outbox. India-only persistence; existing US engine regression remains.
+
+Unresolved product rule: capacity-split pools can have different seller Wave Drop slabs; whether pots are seller-specific or pool-wide needs a founder decision. The existing single-slab calculation does not resolve this. No implementation may silently choose how one seller subsidizes another.
