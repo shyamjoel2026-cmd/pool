@@ -33,6 +33,8 @@ export interface Bid {
   /** Variant/option values covered, e.g. ["cut:curry", "cut:boneless"] or ["ram:16gb"]. */
   readonly optionsCovered: readonly string[];
   readonly slabs: readonly Slab[];
+  /** Disclosed cancellation/return compensation, in paise; supplied as bid data. */
+  readonly returnCostMinor?: number;
   readonly validUntil: number;
   readonly submittedAt: number;
 }

@@ -56,6 +56,7 @@ export interface OfferInput {
 }
 
 export interface Offer {
+  readonly returnCost?: Money;
   readonly memberId: string;
   readonly bidId: string;
   readonly sellerId: string;

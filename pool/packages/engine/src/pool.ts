@@ -1,4 +1,5 @@
 import { policyFor } from './policy.ts';
+import { validateAddress, validateStateCode, type Address } from './india.ts';
 import {
   bookingAmount,
   refundBooking,
@@ -41,6 +42,7 @@ export type MemberStatus =
   | 'TIMED_OUT'; // did not answer within the accept window: treated as walk away (default B); booking refunded
 
 export interface Member {
+  readonly deliveryAddress?: Address;
   readonly memberId: string;
   readonly userId: string;
   /** Normalised delivery address + payer identity hash; one household = one key. */
@@ -56,6 +58,7 @@ export interface Member {
 }
 
 export interface Pool {
+  readonly poolStateCode?: string;
   readonly id: string;
   readonly region: Region;
   /** Category path as DATA, e.g. ["electronics","tv"] or ["food","meat","mutton"] or ["books","school"]. */
@@ -167,6 +170,7 @@ function createPoolCommand(
 ): Result<Pool> {
   if (input.createdAt !== now) throw new PoolError('CLOCK', 'createdAt must equal now');
   validateQuantityRule(input.quantityRule);
+  if (input.poolStateCode !== undefined) validateStateCode(input.poolStateCode);
   if (!Number.isSafeInteger(now) || !Number.isSafeInteger(input.closesAt))
     throw new PoolError('CLOCK', 'integer UTC times required');
   if (
@@ -260,6 +264,7 @@ function joinCommand(
 ): Result<Pool> {
   requireOpen(pool, now);
   checkQuantity(pool.quantityRule, m.qty);
+  if (m.deliveryAddress) validateAddress(m.deliveryAddress);
   if (!Number.isSafeInteger(m.needBy) || m.needBy < pool.closesAt)
     throw new PoolError('NEED_BY', 'need-by precedes pool close');
   if (pool.members.some((x) => x.memberId === m.memberId))
@@ -337,9 +342,45 @@ function confirmBookingCommand(
       throw new PoolError('PAYMENT', 'receipt differs from recorded payment');
   }
   if (m.status === 'COMMITTED') return { value: pool, events: [] }; // idempotent webhook replay
+  if (
+    receipt &&
+    m.booking?.paymentRef === receipt.paymentRef &&
+    m.booking.disposition === 'REFUNDED'
+  )
+    return { value: pool, events: [] };
+  // An observed PA capture cannot disappear merely because its webhook arrived after close/leave.
+  // Do not reopen committed demand. Record capture and refund in the same command transaction.
+  if (
+    receipt &&
+    ['PENDING_BOOKING', 'LEFT'].includes(m.status) &&
+    (now >= pool.closesAt || pool.state !== 'OPEN' || m.status === 'LEFT')
+  ) {
+    const value = replaceMember(pool, memberId, {
+      status: 'LEFT',
+      booking: {
+        ...m.booking!,
+        paid: receipt.amount,
+        paymentRef: receipt.paymentRef,
+        disposition: 'HELD',
+      },
+    });
+    return {
+      value,
+      events: [
+        {
+          type: 'BOOKING_CAPTURE',
+          poolId: pool.id,
+          memberId,
+          amount: receipt.amount,
+          idempotencyKey: pool.id + ':' + memberId + ':booking-capture',
+          at: now,
+        },
+      ],
+    };
+  }
   if (m.status !== 'PENDING_BOOKING')
     throw new PoolError('BAD_STATE', `cannot confirm booking in status ${m.status}`);
-  // A booking confirmed after close still counts only if it was paid before close; the caller passes paidAt as now.
+  // The processing clock is now; paidAt remains the original PA timestamp.
   if (now >= pool.closesAt)
     throw new PoolError('CLOSED', 'booking confirmed after close — refund instead');
   if (pool.state !== 'OPEN') throw new PoolError('CLOSED', 'cannot confirm after pool closes');
@@ -736,7 +777,15 @@ export function publishOffers(
     if (decisions.get(a.bidId)?.poolId !== pool.id)
       throw new PoolError('PRICE', 'decision belongs to another pool');
   }
-  const offers = makeOffers(policy, pool.quantityRule.uom, pool.assignments ?? [], decisions);
+  const offers = makeOffers(policy, pool.quantityRule.uom, pool.assignments ?? [], decisions).map(
+    (offer) => {
+      const cost = bids.find((b) => b.id === offer.bidId)!.returnCostMinor;
+      if (cost === undefined) return offer;
+      if (!Number.isSafeInteger(cost) || cost < 0)
+        throw new PoolError('RETURN_COST', 'invalid disclosed return cost');
+      return { ...offer, returnCost: money(policy.currency, cost) };
+    },
+  );
   for (const o of offers)
     if (
       o.buyerTotal.minor < pool.members.find((m) => m.memberId === o.memberId)!.booking!.paid.minor

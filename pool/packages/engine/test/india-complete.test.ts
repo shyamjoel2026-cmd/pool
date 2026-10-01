@@ -53,6 +53,48 @@ const tax: IndiaTaxContext = {
   poolStateCode: '36',
   supplyKind: 'MOVEMENT_OF_GOODS',
 };
+
+it('delayed booking receipt is captured and fully refunded, never committed (property)', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 1, max: 100000 }), fc.boolean(), (amount, alreadyClosed) => {
+      let p = create().value;
+      p = {
+        ...p,
+        bookingRule: { kind: 'FIXED', amountMinor: amount, minMinor: amount, maxMinor: amount },
+      };
+      p = join(
+        INDIA_POLICY,
+        p,
+        {
+          memberId: 'late',
+          userId: 'late',
+          payerKey: 'late',
+          householdKey: 'late',
+          qty: qty(UOM.piece, 1),
+          options: [],
+          needBy: 5000000,
+        },
+        1,
+      ).value;
+      if (alreadyClosed) p = close(p, 3600000).value;
+      const receipt = { amount: money('INR', amount), paymentRef: 'late-receipt', paidAt: 2 };
+      const r = confirmBooking(p, 'late', 3600001, receipt);
+      expect(r.value.members[0]!.status).toBe('LEFT');
+      expect(r.value.members[0]!.booking!.disposition).toBe('REFUNDED');
+      const capture = r.events.reduce(
+        (n, e) => n + (e.type === 'BOOKING_CAPTURE' ? e.amount.minor : 0),
+        0,
+      );
+      const refund = r.events.reduce(
+        (n, e) => n + (e.type === 'BOOKING_REFUND' ? e.amount.minor : 0),
+        0,
+      );
+      expect(capture).toBe(amount);
+      expect(capture - refund).toBe(0);
+      expect(confirmBooking(r.value, 'late', 3600002, receipt).events).toEqual([]);
+    }),
+  );
+});
 const create = () =>
   createPool(
     INDIA_POLICY,
