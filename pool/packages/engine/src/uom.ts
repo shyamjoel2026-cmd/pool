@@ -17,7 +17,8 @@ export interface UnitOfMeasure {
 
 export function defineUom(code: string, baseScale: number, baseLabel: string): UnitOfMeasure {
   if (!code.trim()) throw new MoneyError('uom code is required');
-  if (!Number.isSafeInteger(baseScale) || baseScale < 1) throw new MoneyError('baseScale must be a positive integer');
+  if (!Number.isSafeInteger(baseScale) || baseScale < 1)
+    throw new MoneyError('baseScale must be a positive integer');
   return { code: code.trim().toLowerCase(), baseScale, baseLabel };
 }
 
@@ -28,14 +29,18 @@ export interface Quantity {
 }
 
 export function qty(uom: UnitOfMeasure, base: number): Quantity {
-  if (!Number.isSafeInteger(base) || base <= 0) throw new MoneyError(`quantity must be a positive integer number of ${uom.baseLabel}, got ${base}`);
+  if (!Number.isSafeInteger(base) || base <= 0)
+    throw new MoneyError(
+      `quantity must be a positive integer number of ${uom.baseLabel}, got ${base}`,
+    );
   return { uom: uom.code, base };
 }
 
 /** Price for a quantity: price-per-uom × base / baseScale, rounded half-up once. */
 export function lineTotal(pricePerUom: Money, q: Quantity, uom: UnitOfMeasure): Money {
   if (q.uom !== uom.code) throw new MoneyError(`quantity is in ${q.uom}, price is per ${uom.code}`);
-  if (!Number.isSafeInteger(q.base) || q.base <= 0) throw new MoneyError('quantity must be a positive integer');
+  if (!Number.isSafeInteger(q.base) || q.base <= 0)
+    throw new MoneyError('quantity must be a positive integer');
   return money(pricePerUom.currency, mulDivRoundHalfUp(pricePerUom.minor, q.base, uom.baseScale));
 }
 
@@ -54,25 +59,44 @@ export interface QuantityRule {
 
 export class QuantityError extends Error {
   override name = 'QuantityError';
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message);
   }
 }
 
 export function validateQuantityRule(r: QuantityRule): void {
-  for (const [k, v] of [['minBase', r.minBase], ['stepBase', r.stepBase]] as const) {
-    if (!Number.isSafeInteger(v) || v < 1) throw new QuantityError('RULE', `${k} must be a positive integer`);
+  for (const [k, v] of [
+    ['minBase', r.minBase],
+    ['stepBase', r.stepBase],
+  ] as const) {
+    if (!Number.isSafeInteger(v) || v < 1)
+      throw new QuantityError('RULE', `${k} must be a positive integer`);
   }
-  if (r.maxPerBuyerBase !== undefined && r.maxPerBuyerBase < r.minBase) throw new QuantityError('RULE', 'maxPerBuyer below min');
-  if (r.maxPerHouseholdBase !== undefined && r.maxPerHouseholdBase < r.minBase) throw new QuantityError('RULE', 'maxPerHousehold below min');
+  if (r.maxPerBuyerBase !== undefined && r.maxPerBuyerBase < r.minBase)
+    throw new QuantityError('RULE', 'maxPerBuyer below min');
+  if (r.maxPerHouseholdBase !== undefined && r.maxPerHouseholdBase < r.minBase)
+    throw new QuantityError('RULE', 'maxPerHousehold below min');
 }
 
 export function checkQuantity(r: QuantityRule, q: Quantity): void {
-  if (!Number.isSafeInteger(q.base) || q.base <= 0) throw new QuantityError('QUANTITY', 'quantity must be a positive integer');
+  if (!Number.isSafeInteger(q.base) || q.base <= 0)
+    throw new QuantityError('QUANTITY', 'quantity must be a positive integer');
   if (q.uom !== r.uom.code) throw new QuantityError('UOM', `this pool is priced per ${r.uom.code}`);
-  if (q.base < r.minBase) throw new QuantityError('MIN', `minimum is ${r.minBase} ${r.uom.baseLabel}`);
-  if ((q.base - r.minBase) % r.stepBase !== 0) throw new QuantityError('STEP', `quantity must go up in steps of ${r.stepBase} ${r.uom.baseLabel}`);
-  if (r.maxPerBuyerBase !== undefined && q.base > r.maxPerBuyerBase) throw new QuantityError('MAX_BUYER', `maximum per buyer is ${r.maxPerBuyerBase} ${r.uom.baseLabel}`);
+  if (q.base < r.minBase)
+    throw new QuantityError('MIN', `minimum is ${r.minBase} ${r.uom.baseLabel}`);
+  if ((q.base - r.minBase) % r.stepBase !== 0)
+    throw new QuantityError(
+      'STEP',
+      `quantity must go up in steps of ${r.stepBase} ${r.uom.baseLabel}`,
+    );
+  if (r.maxPerBuyerBase !== undefined && q.base > r.maxPerBuyerBase)
+    throw new QuantityError(
+      'MAX_BUYER',
+      `maximum per buyer is ${r.maxPerBuyerBase} ${r.uom.baseLabel}`,
+    );
 }
 
 /** How a quantity counts toward the Wave Drop — chosen per pool. */

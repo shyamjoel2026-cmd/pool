@@ -13,14 +13,18 @@ export interface PickupSlot {
 
 export class SlotError extends Error {
   override name = 'SlotError';
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message);
   }
 }
 
 export function createSlot(s: Omit<PickupSlot, 'booked'>): PickupSlot {
   if (s.endsAt <= s.startsAt) throw new SlotError('BAD_TIME', 'slot must end after it starts');
-  if (!Number.isSafeInteger(s.capacity) || s.capacity <= 0) throw new SlotError('BAD_CAPACITY', 'capacity must be a positive integer');
+  if (!Number.isSafeInteger(s.capacity) || s.capacity <= 0)
+    throw new SlotError('BAD_CAPACITY', 'capacity must be a positive integer');
   return { ...s, booked: 0 };
 }
 
@@ -36,7 +40,11 @@ export function releaseSlot(slot: PickupSlot): PickupSlot {
 }
 
 /** Slots in an area that still have room, earliest first. */
-export function availableSlots(slots: readonly PickupSlot[], areaKey: string, now: number): PickupSlot[] {
+export function availableSlots(
+  slots: readonly PickupSlot[],
+  areaKey: string,
+  now: number,
+): PickupSlot[] {
   return slots
     .filter((s) => s.areaKey === areaKey && s.startsAt > now && s.booked < s.capacity)
     .sort((a, b) => a.startsAt - b.startsAt || a.id.localeCompare(b.id));

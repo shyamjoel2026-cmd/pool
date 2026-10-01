@@ -51,7 +51,9 @@ describe('quantity rules are set per pool (no product assumptions)', () => {
   });
   it('rejects broken rules', () => {
     expect(() => validateQuantityRule({ uom: UOM.kg, minBase: 0, stepBase: 250 })).toThrow();
-    expect(() => validateQuantityRule({ uom: UOM.kg, minBase: 1000, stepBase: 250, maxPerBuyerBase: 500 })).toThrow();
+    expect(() =>
+      validateQuantityRule({ uom: UOM.kg, minBase: 1000, stepBase: 250, maxPerBuyerBase: 500 }),
+    ).toThrow();
   });
   it('wave counting mode is chosen per pool', () => {
     expect(waveCount(qty(UOM.kg, 1500), UOM.kg, 'per_order')).toBe(1);
@@ -60,37 +62,86 @@ describe('quantity rules are set per pool (no product assumptions)', () => {
 });
 
 describe('pricing — the POOL team sets the buyer price per pool (founder decision)', () => {
-  const decision = (buyer: number, bidId = 'b1'): PriceDecision => ({ poolId: 'p', bidId, buyerPrice: money('INR', buyer), decidedBy: 'team:priya', decidedAt: 1 });
+  const decision = (buyer: number, bidId = 'b1'): PriceDecision => ({
+    poolId: 'p',
+    bidId,
+    buyerPrice: money('INR', buyer),
+    decidedBy: 'team:priya',
+    decidedAt: 1,
+  });
   it('seller ₹40,000, team price ₹43,000 → POOL margin ₹3,000', () => {
-    expect(checkPriceDecision(INDIA_POLICY, money('INR', 40_000_00), decision(43_000_00)).minor).toBe(3_000_00);
+    expect(
+      checkPriceDecision(INDIA_POLICY, money('INR', 40_000_00), decision(43_000_00)).minor,
+    ).toBe(3_000_00);
   });
   it('different pools can have different margins — no fixed fee', () => {
-    expect(checkPriceDecision(INDIA_POLICY, money('INR', 800_00), decision(860_00)).minor).toBe(60_00);
-    expect(checkPriceDecision(INDIA_POLICY, money('INR', 40_000_00), decision(41_200_00)).minor).toBe(1_200_00);
+    expect(checkPriceDecision(INDIA_POLICY, money('INR', 800_00), decision(860_00)).minor).toBe(
+      60_00,
+    );
+    expect(
+      checkPriceDecision(INDIA_POLICY, money('INR', 40_000_00), decision(41_200_00)).minor,
+    ).toBe(1_200_00);
   });
   it('below the seller price is refused unless the founder switches POOL-funded discounts on', () => {
-    expect(() => checkPriceDecision(INDIA_POLICY, money('INR', 40_000_00), decision(39_000_00))).toThrow(/below the seller price/);
-    expect(checkPriceDecision({ ...INDIA_POLICY, allowBelowSellerPrice: true }, money('INR', 40_000_00), decision(39_000_00)).minor).toBe(-1_000_00);
+    expect(() =>
+      checkPriceDecision(INDIA_POLICY, money('INR', 40_000_00), decision(39_000_00)),
+    ).toThrow(/below the seller price/);
+    expect(
+      checkPriceDecision(
+        { ...INDIA_POLICY, allowBelowSellerPrice: true },
+        money('INR', 40_000_00),
+        decision(39_000_00),
+      ).minor,
+    ).toBe(-1_000_00);
   });
   it('offers cannot be published until the team has priced every awarded bid', () => {
     expect(() =>
-      makeOffers(INDIA_POLICY, UOM.piece, [{ memberId: 'm', bidId: 'b9', sellerId: 's', sellerPrice: money('INR', 1_00), qty: qty(UOM.piece, 1) }], new Map()),
+      makeOffers(
+        INDIA_POLICY,
+        UOM.piece,
+        [
+          {
+            memberId: 'm',
+            bidId: 'b9',
+            sellerId: 's',
+            sellerPrice: money('INR', 1_00),
+            qty: qty(UOM.piece, 1),
+          },
+        ],
+        new Map(),
+      ),
     ).toThrow(/has not set a buyer price/);
   });
   it('offers carry totals, margin and an honest comparison (information, never a block)', () => {
     const [o] = makeOffers(
       INDIA_POLICY,
       UOM.kg,
-      [{ memberId: 'm1', bidId: 'b1', sellerId: 's1', sellerPrice: money('INR', 800_00), qty: qty(UOM.kg, 1000), outsideBest: money('INR', 880_00) }],
+      [
+        {
+          memberId: 'm1',
+          bidId: 'b1',
+          sellerId: 's1',
+          sellerPrice: money('INR', 800_00),
+          qty: qty(UOM.kg, 1000),
+          outsideBest: money('INR', 880_00),
+        },
+      ],
       new Map([['b1', decision(860_00)]]),
     );
     expect(o!.buyerTotal.minor).toBe(860_00);
     expect(o!.sellerTotal.minor).toBe(800_00);
     expect(o!.marginTotal.minor).toBe(60_00);
-    expect(o!.comparison).toMatchObject({ known: true, cheaperThanOutside: true, meetsRecommendedSaving: false });
+    expect(o!.comparison).toMatchObject({
+      known: true,
+      cheaperThanOutside: true,
+      meetsRecommendedSaving: false,
+    });
   });
   it('comparison works in the US too', () => {
-    expect(compareToOutside(US_POLICY, money('USD', 899_00), money('USD', 999_00))).toMatchObject({ cheaperThanOutside: true, meetsRecommendedSaving: true });
+    expect(compareToOutside(US_POLICY, money('USD', 899_00), money('USD', 999_00))).toMatchObject({
+      cheaperThanOutside: true,
+      meetsRecommendedSaving: true,
+    });
     expect(compareToOutside(US_POLICY, money('USD', 899_00), undefined)).toEqual({ known: false });
   });
 });

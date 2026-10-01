@@ -26,10 +26,14 @@ export class WaveDropError extends Error {
 export function validateSlabs(slabs: readonly Slab[], maxPerUnitMinor: number): void {
   let prev = 0;
   for (const s of slabs) {
-    if (!Number.isSafeInteger(s.fromUnit) || s.fromUnit < 1) throw new WaveDropError('fromUnit must be a positive integer');
-    if (s.fromUnit <= prev) throw new WaveDropError('slabs must be sorted by strictly increasing fromUnit');
-    if (!Number.isSafeInteger(s.perUnitMinor) || s.perUnitMinor < 0) throw new WaveDropError('perUnitMinor must be a non-negative integer');
-    if (s.perUnitMinor > maxPerUnitMinor) throw new WaveDropError(`slab ${s.perUnitMinor} exceeds cap ${maxPerUnitMinor}`);
+    if (!Number.isSafeInteger(s.fromUnit) || s.fromUnit < 1)
+      throw new WaveDropError('fromUnit must be a positive integer');
+    if (s.fromUnit <= prev)
+      throw new WaveDropError('slabs must be sorted by strictly increasing fromUnit');
+    if (!Number.isSafeInteger(s.perUnitMinor) || s.perUnitMinor < 0)
+      throw new WaveDropError('perUnitMinor must be a non-negative integer');
+    if (s.perUnitMinor > maxPerUnitMinor)
+      throw new WaveDropError(`slab ${s.perUnitMinor} exceeds cap ${maxPerUnitMinor}`);
     prev = s.fromUnit;
   }
 }
@@ -82,7 +86,11 @@ export interface WaveCloseResult {
  * into the pot (from the seller deposit) so a seller never gains by failing an order.
  * Invariant (tested): sum(refunds) = pot  and  releaseToSeller + pot = heldFromSettled + sellerPenalty.
  */
-export function closeWave(currency: Currency, slabs: readonly Slab[], orders: readonly WaveOrder[]): WaveCloseResult {
+export function closeWave(
+  currency: Currency,
+  slabs: readonly Slab[],
+  orders: readonly WaveOrder[],
+): WaveCloseResult {
   const hold = holdPerUnit(slabs);
   const settled = orders.filter((o) => o.outcome === 'settled');
   const cancelledBySeller = orders.filter((o) => o.outcome === 'seller_cancelled');
@@ -99,12 +107,22 @@ export function closeWave(currency: Currency, slabs: readonly Slab[], orders: re
   const refunds =
     settled.length === 0 || pot.minor === 0
       ? settled.map((o) => ({ orderId: o.orderId, amount: money(currency, 0) }))
-      : allocate(pot, settled.map((o) => o.count)).map((amount, i) => ({ orderId: settled[i]!.orderId, amount }));
+      : allocate(
+          pot,
+          settled.map((o) => o.count),
+        ).map((amount, i) => ({ orderId: settled[i]!.orderId, amount }));
 
   const heldFromSettled = money(currency, hold * settledUnits);
   const sellerPenalty = money(currency, penalty);
   const releaseToSeller = sub(money(currency, heldFromSettled.minor + sellerPenalty.minor), pot);
-  if (releaseToSeller.minor < 0) throw new WaveDropError('pot exceeds held money — slabs above hold');
-  if (sum(currency, refunds.map((r) => r.amount)).minor !== pot.minor) throw new MoneyError('refunds do not sum to pot');
+  if (releaseToSeller.minor < 0)
+    throw new WaveDropError('pot exceeds held money — slabs above hold');
+  if (
+    sum(
+      currency,
+      refunds.map((r) => r.amount),
+    ).minor !== pot.minor
+  )
+    throw new MoneyError('refunds do not sum to pot');
   return { currency, settledUnits, pot, refunds, heldFromSettled, sellerPenalty, releaseToSeller };
 }

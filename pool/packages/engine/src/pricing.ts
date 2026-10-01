@@ -23,7 +23,10 @@ export interface PriceDecision {
 
 export class PricingError extends Error {
   override name = 'PricingError';
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -34,7 +37,10 @@ export function checkPriceDecision(policy: Policy, sellerPrice: Money, d: PriceD
   if (d.buyerPrice.minor <= 0) throw new PricingError('PRICE', 'buyer price must be positive');
   const margin = sub(d.buyerPrice, sellerPrice);
   if (margin.minor < 0 && !policy.allowBelowSellerPrice) {
-    throw new PricingError('BELOW_SELLER_PRICE', 'buyer price is below the seller price (POOL-funded discounts are switched off)');
+    throw new PricingError(
+      'BELOW_SELLER_PRICE',
+      'buyer price is below the seller price (POOL-funded discounts are switched off)',
+    );
   }
   return margin;
 }
@@ -77,9 +83,18 @@ export function makeOffers(
 ): Offer[] {
   return inputs.map((i) => {
     const d = decisions.get(i.bidId);
-    if (!d) throw new PricingError('PRICE_NOT_SET', `the team has not set a buyer price for bid ${i.bidId}`);
-    if (d.bidId !== i.bidId || (i.poolId !== undefined && d.poolId !== i.poolId)) throw new PricingError('DECISION_IDENTITY', 'price decision does not belong to this assignment');
-    if (!d.decidedBy.trim() || !Number.isSafeInteger(d.decidedAt)) throw new PricingError('DECISION_AUDIT', 'price decision needs an actor and UTC timestamp');
+    if (!d)
+      throw new PricingError(
+        'PRICE_NOT_SET',
+        `the team has not set a buyer price for bid ${i.bidId}`,
+      );
+    if (d.bidId !== i.bidId || (i.poolId !== undefined && d.poolId !== i.poolId))
+      throw new PricingError(
+        'DECISION_IDENTITY',
+        'price decision does not belong to this assignment',
+      );
+    if (!d.decidedBy.trim() || !Number.isSafeInteger(d.decidedAt))
+      throw new PricingError('DECISION_AUDIT', 'price decision needs an actor and UTC timestamp');
     checkPriceDecision(policy, i.sellerPrice, d);
     const sellerTotal = lineTotal(i.sellerPrice, i.qty, uom);
     const buyerTotal = lineTotal(d.buyerPrice, i.qty, uom);

@@ -23,7 +23,11 @@ export type Checklist = Readonly<Record<string, boolean>>;
 
 export type VerifyResult =
   | { ok: true; code: StoredCode }
-  | { ok: false; code: StoredCode; reason: 'WRONG_CODE' | 'EXPIRED' | 'LOCKED' | 'ALREADY_USED' | 'CHECKLIST_INCOMPLETE' };
+  | {
+      ok: false;
+      code: StoredCode;
+      reason: 'WRONG_CODE' | 'EXPIRED' | 'LOCKED' | 'ALREADY_USED' | 'CHECKLIST_INCOMPLETE';
+    };
 
 function hmac(secret: string, orderId: string, code: string): string {
   return createHmac('sha256', secret).update(`${orderId}:${code}`).digest('hex');
@@ -39,20 +43,46 @@ export function issueCode(
   maxAttempts = 5,
 ): { plain: string; stored: StoredCode } {
   if (secret.length < 32) throw new Error('code secret must be at least 32 characters');
-  if (![4,6].includes(digits) || !Number.isSafeInteger(expiresAt) || !Number.isSafeInteger(maxAttempts) || maxAttempts < 1) throw new Error('invalid code policy');
-  if (!Number.isSafeInteger(entropy) || entropy < 0 || entropy >= 10 ** digits) throw new Error('caller must supply cryptographically generated integer entropy');
+  if (
+    ![4, 6].includes(digits) ||
+    !Number.isSafeInteger(expiresAt) ||
+    !Number.isSafeInteger(maxAttempts) ||
+    maxAttempts < 1
+  )
+    throw new Error('invalid code policy');
+  if (!Number.isSafeInteger(entropy) || entropy < 0 || entropy >= 10 ** digits)
+    throw new Error('caller must supply cryptographically generated integer entropy');
   const plain = String(entropy).padStart(digits, '0');
-  return { plain, stored: { orderId, digits, hash: hmac(secret, orderId, plain), expiresAt, attempts: 0, maxAttempts, requiredChecklist } };
+  return {
+    plain,
+    stored: {
+      orderId,
+      digits,
+      hash: hmac(secret, orderId, plain),
+      expiresAt,
+      attempts: 0,
+      maxAttempts,
+      requiredChecklist,
+    },
+  };
 }
 
-export function verifyCode(secret: string, stored: StoredCode, attempt: string, now: number, checklist: Checklist = {}): VerifyResult {
+export function verifyCode(
+  secret: string,
+  stored: StoredCode,
+  attempt: string,
+  now: number,
+  checklist: Checklist = {},
+): VerifyResult {
   if (stored.usedAt !== undefined) return { ok: false, code: stored, reason: 'ALREADY_USED' };
   if (now > stored.expiresAt) return { ok: false, code: stored, reason: 'EXPIRED' };
   if (stored.attempts >= stored.maxAttempts) return { ok: false, code: stored, reason: 'LOCKED' };
-  if (!stored.requiredChecklist.every((k) => checklist[k] === true)) return { ok: false, code: stored, reason: 'CHECKLIST_INCOMPLETE' };
+  if (!stored.requiredChecklist.every((k) => checklist[k] === true))
+    return { ok: false, code: stored, reason: 'CHECKLIST_INCOMPLETE' };
   const expected = Buffer.from(stored.hash, 'hex');
   const actual = Buffer.from(hmac(secret, stored.orderId, attempt.trim()), 'hex');
   const match = expected.length === actual.length && timingSafeEqual(expected, actual);
-  if (!match) return { ok: false, code: { ...stored, attempts: stored.attempts + 1 }, reason: 'WRONG_CODE' };
+  if (!match)
+    return { ok: false, code: { ...stored, attempts: stored.attempts + 1 }, reason: 'WRONG_CODE' };
   return { ok: true, code: { ...stored, usedAt: now } };
 }

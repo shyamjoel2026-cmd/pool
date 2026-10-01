@@ -30,7 +30,20 @@ const pickupProfile = PROFILES.store_pickup!;
 
 describe('splitOrder — team-priced (blueprint v2.2 bridge example: seller ₹40,000 → buyer ₹43,000)', () => {
   it('every line to the paisa', () => {
-    const s = splitOrder(INDIA_POLICY, { buyerTotal: money('INR', 43_000_00), sellerTotal: money('INR', 40_000_00), indiaTax: { hsnCode: '9999', gstRateBps: 1800, sellerStateCode: '36', deliveryStateCode: '36', poolStateCode: '36', supplyKind: 'MOVEMENT_OF_GOODS' }, profile: installProfile, waveHoldMinor: 0 });
+    const s = splitOrder(INDIA_POLICY, {
+      buyerTotal: money('INR', 43_000_00),
+      sellerTotal: money('INR', 40_000_00),
+      indiaTax: {
+        hsnCode: '9999',
+        gstRateBps: 1800,
+        sellerStateCode: '36',
+        deliveryStateCode: '36',
+        poolStateCode: '36',
+        supplyKind: 'MOVEMENT_OF_GOODS',
+      },
+      profile: installProfile,
+      waveHoldMinor: 0,
+    });
     expect(s.margin.minor).toBe(3_000_00);
     expect(s.gstInMargin.minor).toBe(457_63); // 18/118 of ₹3,000 (v2.2: ≈ ₹458)
     expect(s.tcs.minor).toBe(182_20); // 0.5% of ₹36,440.68 taxable (v2.2: ₹182)
@@ -39,13 +52,32 @@ describe('splitOrder — team-priced (blueprint v2.2 bridge example: seller ₹4
     expect(s.releaseOnHandover.minor).toBe(40_000_00 - 182_20 - 43_00 - 4_000_00);
   });
   it('a 0% GST product (fresh produce) and a pickup profile with no holds', () => {
-    const s = splitOrder(INDIA_POLICY, { buyerTotal: money('INR', 860_00), sellerTotal: money('INR', 800_00), indiaTax: { hsnCode: '9999', gstRateBps: 0, sellerStateCode: '36', deliveryStateCode: '36', poolStateCode: '36', supplyKind: 'MOVEMENT_OF_GOODS' }, profile: pickupProfile, waveHoldMinor: 0 });
+    const s = splitOrder(INDIA_POLICY, {
+      buyerTotal: money('INR', 860_00),
+      sellerTotal: money('INR', 800_00),
+      indiaTax: {
+        hsnCode: '9999',
+        gstRateBps: 0,
+        sellerStateCode: '36',
+        deliveryStateCode: '36',
+        poolStateCode: '36',
+        supplyKind: 'MOVEMENT_OF_GOODS',
+      },
+      profile: pickupProfile,
+      waveHoldMinor: 0,
+    });
     expect(s.tcs.minor).toBe(0); // exempt supplies excluded from net taxable supplies
     expect(s.holds).toEqual([]);
     expect(s.releaseOnHandover.minor).toBe(800_00 - 86);
   });
   it('US: no GST/TCS/TDS', () => {
-    const s = splitOrder(US_POLICY, { buyerTotal: money('USD', 899_00), sellerTotal: money('USD', 850_00), goodsTaxBps: 0, profile: PROFILES.home_delivery!, waveHoldMinor: 0 });
+    const s = splitOrder(US_POLICY, {
+      buyerTotal: money('USD', 899_00),
+      sellerTotal: money('USD', 850_00),
+      goodsTaxBps: 0,
+      profile: PROFILES.home_delivery!,
+      waveHoldMinor: 0,
+    });
     expect(s.gstInMargin.minor + s.tcs.minor + s.tds.minor).toBe(0);
     expect(s.releaseOnHandover.minor).toBe(850_00);
   });
@@ -58,10 +90,32 @@ describe('splitOrder — team-priced (blueprint v2.2 bridge example: seller ₹4
         fc.array(fc.integer({ min: 0, max: 2500 }), { maxLength: 3 }), // any holds
         fc.integer({ min: 0, max: 500 }), // wave hold bps
         (seller, marginBps, gst, holdBps, waveBps) => {
-          const profile: FulfilmentProfile = { ...PROFILES.home_delivery!, holds: holdBps.map((bps, i) => ({ key: `h${i}`, bps, releaseAfterDays: 3 })) };
+          const profile: FulfilmentProfile = {
+            ...PROFILES.home_delivery!,
+            holds: holdBps.map((bps, i) => ({ key: `h${i}`, bps, releaseAfterDays: 3 })),
+          };
           const buyer = seller + Math.floor((seller * marginBps) / 10_000);
-          const s = splitOrder(INDIA_POLICY, { buyerTotal: money('INR', buyer), sellerTotal: money('INR', seller), indiaTax: { hsnCode: '9999', gstRateBps: gst, sellerStateCode: '36', deliveryStateCode: '36', poolStateCode: '36', supplyKind: 'MOVEMENT_OF_GOODS' }, profile, waveHoldMinor: Math.floor((seller * waveBps) / 10_000) });
-          const parts = s.margin.minor + s.tcs.minor + s.tds.minor + s.waveHold.minor + s.releaseOnHandover.minor + s.holds.reduce((a, h) => a + h.amount.minor, 0);
+          const s = splitOrder(INDIA_POLICY, {
+            buyerTotal: money('INR', buyer),
+            sellerTotal: money('INR', seller),
+            indiaTax: {
+              hsnCode: '9999',
+              gstRateBps: gst,
+              sellerStateCode: '36',
+              deliveryStateCode: '36',
+              poolStateCode: '36',
+              supplyKind: 'MOVEMENT_OF_GOODS',
+            },
+            profile,
+            waveHoldMinor: Math.floor((seller * waveBps) / 10_000),
+          });
+          const parts =
+            s.margin.minor +
+            s.tcs.minor +
+            s.tds.minor +
+            s.waveHold.minor +
+            s.releaseOnHandover.minor +
+            s.holds.reduce((a, h) => a + h.amount.minor, 0);
           expect(parts).toBe(buyer);
           expect(s.releaseOnHandover.minor).toBeGreaterThanOrEqual(0);
         },
@@ -77,7 +131,20 @@ function order(profile: FulfilmentProfile, over: Partial<Order> = {}): Order {
     buyerId: 'buyer_1',
     sellerId: 'seller_1',
     profile,
-    split: splitOrder(INDIA_POLICY, { buyerTotal: money('INR', 43_000_00), sellerTotal: money('INR', 40_000_00), indiaTax: { hsnCode: '9999', gstRateBps: 1800, sellerStateCode: '36', deliveryStateCode: '36', poolStateCode: '36', supplyKind: 'MOVEMENT_OF_GOODS' }, profile, waveHoldMinor: 0 }),
+    split: splitOrder(INDIA_POLICY, {
+      buyerTotal: money('INR', 43_000_00),
+      sellerTotal: money('INR', 40_000_00),
+      indiaTax: {
+        hsnCode: '9999',
+        gstRateBps: 1800,
+        sellerStateCode: '36',
+        deliveryStateCode: '36',
+        poolStateCode: '36',
+        supplyKind: 'MOVEMENT_OF_GOODS',
+      },
+      profile,
+      waveHoldMinor: 0,
+    }),
     promisedBy: T0 + 3 * DAY,
     returnCost: money('INR', 500_00),
     status: 'AWAITING_PAYMENT',
@@ -92,7 +159,8 @@ function order(profile: FulfilmentProfile, over: Partial<Order> = {}): Order {
 const paid = (p: FulfilmentProfile) => markPaid(order(p), T0).order;
 function readyForHandover(p: FulfilmentProfile): Order {
   let o = paid(p);
-  for (const s of p.steps.filter((x) => !x.afterHandover)) o = completeStep(o, s.key, `${s.key}-proof`, 'seller_1', T0).order;
+  for (const s of p.steps.filter((x) => !x.afterHandover))
+    o = completeStep(o, s.key, `${s.key}-proof`, 'seller_1', T0).order;
   return o;
 }
 
@@ -110,17 +178,31 @@ describe('fulfilment follows the profile data', () => {
   it('handover needs every pre-handover step, then releases the seller amount', () => {
     expect(() => handOver(paid(installProfile), 'code-ok', T0)).toThrow(/first/);
     const { events } = handOver(readyForHandover(installProfile), 'code-ok', T0 + DAY);
-    expect(events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({ reason: 'HANDOVER_CODE' });
+    expect(events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({
+      reason: 'HANDOVER_CODE',
+    });
   });
   it('an after-handover step (installation here) releases its hold; otherwise it releases on timeout or deferral cap', () => {
     const handed = handOver(readyForHandover(installProfile), 'code-ok', T0).order;
     const installed = completeStep(handed, 'installed', 'JOB-77', 'brand', T0 + DAY);
-    expect(installed.events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({ amount: money('INR', 4_000_00) });
+    expect(installed.events.find((e) => e.type === 'PAYOUT_RELEASE')).toMatchObject({
+      amount: money('INR', 4_000_00),
+    });
     expect(holdsDue(handed)).toEqual([{ key: 'installation', dueAt: T0 + 5 * DAY }]);
-    expect(releaseDueHolds(handed, T0 + 4 * DAY).events.filter(e=>e.type!=='ORDER_SNAPSHOT')).toEqual([]);
-    expect(releaseDueHolds(handed, T0 + 5 * DAY).events.filter(e=>e.type==='PAYOUT_RELEASE')).toHaveLength(1);
-    expect(releaseDueHolds({ ...handed, openIssue: true }, T0 + 9 * DAY).events.filter(e=>e.type!=='ORDER_SNAPSHOT')).toEqual([]);
-    expect(holdsDue(deferHold(handed, 'installation', T0 + 90 * DAY, T0).order)).toEqual([{ key: 'installation', dueAt: T0 + 45 * DAY }]);
+    expect(
+      releaseDueHolds(handed, T0 + 4 * DAY).events.filter((e) => e.type !== 'ORDER_SNAPSHOT'),
+    ).toEqual([]);
+    expect(
+      releaseDueHolds(handed, T0 + 5 * DAY).events.filter((e) => e.type === 'PAYOUT_RELEASE'),
+    ).toHaveLength(1);
+    expect(
+      releaseDueHolds({ ...handed, openIssue: true }, T0 + 9 * DAY).events.filter(
+        (e) => e.type !== 'ORDER_SNAPSHOT',
+      ),
+    ).toEqual([]);
+    expect(holdsDue(deferHold(handed, 'installation', T0 + 90 * DAY, T0).order)).toEqual([
+      { key: 'installation', dueAt: T0 + 45 * DAY },
+    ]);
   });
   it('a pickup profile has a short return window and no holds', () => {
     const handed = handOver(readyForHandover(pickupProfile), 'code-ok', T0).order;
@@ -130,8 +212,14 @@ describe('fulfilment follows the profile data', () => {
   it('late credit comes from the profile; none if the profile sets 0', () => {
     const lateProfile = { ...PROFILES.home_delivery!, lateCreditMinor: 200_00 };
     const late = handOver(readyForHandover(lateProfile), 'code-ok', T0 + 4 * DAY).events;
-    expect(late.find((e) => e.type === 'LATE_CREDIT')).toMatchObject({ amount: money('INR', 200_00) });
-    expect(handOver(readyForHandover(PROFILES.home_delivery!), 'code-ok', T0 + 4 * DAY).events.some((e) => e.type === 'LATE_CREDIT')).toBe(false);
+    expect(late.find((e) => e.type === 'LATE_CREDIT')).toMatchObject({
+      amount: money('INR', 200_00),
+    });
+    expect(
+      handOver(readyForHandover(PROFILES.home_delivery!), 'code-ok', T0 + 4 * DAY).events.some(
+        (e) => e.type === 'LATE_CREDIT',
+      ),
+    ).toBe(false);
   });
   it('settles only after the profile return window with no open issue', () => {
     const handed = handOver(readyForHandover(installProfile), 'code-ok', T0).order;
@@ -147,17 +235,23 @@ describe('cancellation symmetry (E-Commerce Rules 2020, Rule 4)', () => {
     expect(r).toMatchObject({ amount: money('INR', 43_000_00) });
   });
   it('after dispatch: buyer pays at most the disclosed return cost', () => {
-    const r = buyerCancels(readyForHandover(installProfile), T0).events.find((e) => e.type === 'REFUND');
+    const r = buyerCancels(readyForHandover(installProfile), T0).events.find(
+      (e) => e.type === 'REFUND',
+    );
     expect(r).toMatchObject({ amount: money('INR', 42_500_00) });
   });
   it('seller cancels: full refund plus the same amount as compensation', () => {
     const ev = sellerCancels(paid(installProfile), T0).events;
     expect(ev.find((e) => e.type === 'REFUND')).toMatchObject({ amount: money('INR', 43_000_00) });
-    expect(ev.find((e) => e.type === 'SELLER_CHARGE')).toMatchObject({ amount: money('INR', 500_00) });
+    expect(ev.find((e) => e.type === 'SELLER_CHARGE')).toMatchObject({
+      amount: money('INR', 500_00),
+    });
   });
   it('defective/late return after handover: full refund', () => {
     const handed = handOver(readyForHandover(installProfile), 'code-ok', T0).order;
-    expect(returnOrder(handed, 'DEFECTIVE', T0).events.find((e) => e.type === 'REFUND')).toMatchObject({ amount: money('INR', 43_000_00) });
+    expect(
+      returnOrder(handed, 'DEFECTIVE', T0).events.find((e) => e.type === 'REFUND'),
+    ).toMatchObject({ amount: money('INR', 43_000_00) });
   });
   it('seller default: backup seller-price gap is charged to the defaulting seller, buyer price unchanged', () => {
     expect(backupCostGap(money('INR', 40_000_00), money('INR', 40_600_00)).minor).toBe(600_00);
@@ -165,10 +259,31 @@ describe('cancellation symmetry (E-Commerce Rules 2020, Rule 4)', () => {
   });
   it('money events have stable idempotency keys', () => {
     const o = readyForHandover(installProfile);
-    const k = (evs: ReturnType<typeof handOver>['events']) => evs.flatMap((e) => ('idempotencyKey' in e ? [e.idempotencyKey] : []));
+    const k = (evs: ReturnType<typeof handOver>['events']) =>
+      evs.flatMap((e) => ('idempotencyKey' in e ? [e.idempotencyKey] : []));
     expect(k(handOver(o, 'c', T0).events)).toEqual(k(handOver(o, 'c', T0).events));
   });
 });
 
 // Real deterministic verification replaces the former arbitrary proof-string bypass.
-function handOver(o:Order,_legacyLabel:string,now:number){const secret='test-secret-32-characters-minimum-value';const c=issueCode(secret,o.id,o.profile.codeDigits,now+1000,1234,o.profile.handoverChecklist);return engineHandOver(o,{secret,stored:c.stored,attempt:c.plain,checklist:Object.fromEntries(o.profile.handoverChecklist.map(k=>[k,true]))},now);}
+function handOver(o: Order, _legacyLabel: string, now: number) {
+  const secret = 'test-secret-32-characters-minimum-value';
+  const c = issueCode(
+    secret,
+    o.id,
+    o.profile.codeDigits,
+    now + 1000,
+    1234,
+    o.profile.handoverChecklist,
+  );
+  return engineHandOver(
+    o,
+    {
+      secret,
+      stored: c.stored,
+      attempt: c.plain,
+      checklist: Object.fromEntries(o.profile.handoverChecklist.map((k) => [k, true])),
+    },
+    now,
+  );
+}

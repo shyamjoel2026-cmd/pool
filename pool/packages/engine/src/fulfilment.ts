@@ -48,7 +48,10 @@ export interface FulfilmentProfile {
 
 export class FulfilmentError extends Error {
   override name = 'FulfilmentError';
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -56,26 +59,40 @@ export class FulfilmentError extends Error {
 export function validateProfile(p: FulfilmentProfile): void {
   const keys = new Set<string>();
   for (const s of p.steps) {
-    if (!s.key.trim() || !s.proof.trim()) throw new FulfilmentError('STEP', 'every step needs a key and a proof');
+    if (!s.key.trim() || !s.proof.trim())
+      throw new FulfilmentError('STEP', 'every step needs a key and a proof');
     if (keys.has(s.key)) throw new FulfilmentError('STEP', `duplicate step ${s.key}`);
     keys.add(s.key);
-    if (s.releasesHold && !s.afterHandover) throw new FulfilmentError('STEP', 'only after-handover steps can release holds');
-    if (s.releasesHold && !p.holds.some((h) => h.key === s.releasesHold)) throw new FulfilmentError('STEP', `unknown hold ${s.releasesHold}`);
+    if (s.releasesHold && !s.afterHandover)
+      throw new FulfilmentError('STEP', 'only after-handover steps can release holds');
+    if (s.releasesHold && !p.holds.some((h) => h.key === s.releasesHold))
+      throw new FulfilmentError('STEP', `unknown hold ${s.releasesHold}`);
   }
   const holdKeys = new Set<string>();
   let holdBps = 0;
   for (const h of p.holds) {
-    if (!Number.isSafeInteger(h.releaseAfterDays) || h.releaseAfterDays < 0 || (h.deferredMaxDays !== undefined && (!Number.isSafeInteger(h.deferredMaxDays) || h.deferredMaxDays < h.releaseAfterDays))) throw new FulfilmentError('HOLD', 'invalid hold duration');
+    if (
+      !Number.isSafeInteger(h.releaseAfterDays) ||
+      h.releaseAfterDays < 0 ||
+      (h.deferredMaxDays !== undefined &&
+        (!Number.isSafeInteger(h.deferredMaxDays) || h.deferredMaxDays < h.releaseAfterDays))
+    )
+      throw new FulfilmentError('HOLD', 'invalid hold duration');
     if (holdKeys.has(h.key)) throw new FulfilmentError('HOLD', `duplicate hold ${h.key}`);
     holdKeys.add(h.key);
-    if (!Number.isSafeInteger(h.bps) || h.bps < 0) throw new FulfilmentError('HOLD', 'hold bps must be a non-negative integer');
+    if (!Number.isSafeInteger(h.bps) || h.bps < 0)
+      throw new FulfilmentError('HOLD', 'hold bps must be a non-negative integer');
     holdBps += h.bps;
   }
   if (holdBps > 10_000) throw new FulfilmentError('HOLD', 'holds exceed 100%');
-  if (p.modes.length === 0) throw new FulfilmentError('MODES', 'at least one delivery mode is required');
-  if (!Number.isSafeInteger(p.returnWindowDays) || p.returnWindowDays < 0) throw new FulfilmentError('WINDOW', 'returnWindowDays must be ≥ 0');
-  if (!Number.isSafeInteger(p.lateCreditMinor) || p.lateCreditMinor < 0) throw new FulfilmentError('LATE', 'lateCreditMinor must be ≥ 0');
+  if (p.modes.length === 0)
+    throw new FulfilmentError('MODES', 'at least one delivery mode is required');
+  if (!Number.isSafeInteger(p.returnWindowDays) || p.returnWindowDays < 0)
+    throw new FulfilmentError('WINDOW', 'returnWindowDays must be ≥ 0');
+  if (!Number.isSafeInteger(p.lateCreditMinor) || p.lateCreditMinor < 0)
+    throw new FulfilmentError('LATE', 'lateCreditMinor must be ≥ 0');
 }
 
-export const stepsBeforeHandover = (p: FulfilmentProfile) => p.steps.filter((s) => !s.afterHandover);
+export const stepsBeforeHandover = (p: FulfilmentProfile) =>
+  p.steps.filter((s) => !s.afterHandover);
 export const stepsAfterHandover = (p: FulfilmentProfile) => p.steps.filter((s) => s.afterHandover);

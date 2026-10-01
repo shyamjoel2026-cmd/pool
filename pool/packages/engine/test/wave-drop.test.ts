@@ -21,7 +21,11 @@ describe('slab pot — matches POOL_WORKING_MODEL_v3.md §5 table', () => {
   ];
   it.each(cases)('N=%i → pot ₹%i, ≈ ₹%i each', (n, potRupees, eachRupees) => {
     expect(potFor(SLABS, n)).toBe(potRupees * 100);
-    const orders = Array.from({ length: n }, (_, i) => ({ orderId: `o${i}`, count: 1, outcome: 'settled' as const }));
+    const orders = Array.from({ length: n }, (_, i) => ({
+      orderId: `o${i}`,
+      count: 1,
+      outcome: 'settled' as const,
+    }));
     const r = closeWave('INR', SLABS, orders);
     expect(r.pot.minor).toBe(potRupees * 100);
     const avgRupees = r.refunds.reduce((a, x) => a + x.amount.minor, 0) / n / 100;
@@ -43,9 +47,17 @@ describe('slab pot invariants (property)', () => {
     .uniqueArray(fc.integer({ min: 1, max: 80 }), { minLength: 0, maxLength: 5 })
     .chain((starts) => {
       const sorted = [...starts].sort((a, b) => a - b);
-      return fc.tuple(fc.constant(sorted), fc.array(fc.integer({ min: 0, max: 2000_00 }), { minLength: sorted.length, maxLength: sorted.length }));
+      return fc.tuple(
+        fc.constant(sorted),
+        fc.array(fc.integer({ min: 0, max: 2000_00 }), {
+          minLength: sorted.length,
+          maxLength: sorted.length,
+        }),
+      );
     })
-    .map(([starts, amounts]) => starts.map((fromUnit, i) => ({ fromUnit, perUnitMinor: amounts[i]! })));
+    .map(([starts, amounts]) =>
+      starts.map((fromUnit, i) => ({ fromUnit, perUnitMinor: amounts[i]! })),
+    );
 
   it('every extra settled unit never lowers the seller profit when slabs ≤ margin', () => {
     fc.assert(
@@ -58,17 +70,26 @@ describe('slab pot invariants (property)', () => {
   });
 
   it('refunds sum to the pot and holds are fully accounted for', () => {
-    const outcome = fc.constantFrom('settled', 'seller_cancelled', 'buyer_cancelled', 'returned') as fc.Arbitrary<
-      'settled' | 'seller_cancelled' | 'buyer_cancelled' | 'returned'
-    >;
+    const outcome = fc.constantFrom(
+      'settled',
+      'seller_cancelled',
+      'buyer_cancelled',
+      'returned',
+    ) as fc.Arbitrary<'settled' | 'seller_cancelled' | 'buyer_cancelled' | 'returned'>;
     fc.assert(
-      fc.property(slabsArb, fc.array(fc.tuple(fc.integer({ min: 1, max: 3 }), outcome), { maxLength: 120 }), (slabs, raw) => {
-        const orders = raw.map(([count, o], i) => ({ orderId: `o${i}`, count, outcome: o }));
-        const r = closeWave('INR', slabs, orders);
-        expect(r.refunds.reduce((a, x) => a + x.amount.minor, 0)).toBe(r.pot.minor);
-        expect(r.releaseToSeller.minor + r.pot.minor).toBe(r.heldFromSettled.minor + r.sellerPenalty.minor);
-        expect(r.releaseToSeller.minor).toBeGreaterThanOrEqual(0);
-      }),
+      fc.property(
+        slabsArb,
+        fc.array(fc.tuple(fc.integer({ min: 1, max: 3 }), outcome), { maxLength: 120 }),
+        (slabs, raw) => {
+          const orders = raw.map(([count, o], i) => ({ orderId: `o${i}`, count, outcome: o }));
+          const r = closeWave('INR', slabs, orders);
+          expect(r.refunds.reduce((a, x) => a + x.amount.minor, 0)).toBe(r.pot.minor);
+          expect(r.releaseToSeller.minor + r.pot.minor).toBe(
+            r.heldFromSettled.minor + r.sellerPenalty.minor,
+          );
+          expect(r.releaseToSeller.minor).toBeGreaterThanOrEqual(0);
+        },
+      ),
     );
   });
 });
@@ -76,7 +97,11 @@ describe('slab pot invariants (property)', () => {
 describe('seller-cancelled orders still pay their slab', () => {
   it('penalty equals the slabs those units would have added', () => {
     const orders = [
-      ...Array.from({ length: 24 }, (_, i) => ({ orderId: `s${i}`, count: 1, outcome: 'settled' as const })),
+      ...Array.from({ length: 24 }, (_, i) => ({
+        orderId: `s${i}`,
+        count: 1,
+        outcome: 'settled' as const,
+      })),
       { orderId: 'x1', count: 1, outcome: 'seller_cancelled' as const },
     ];
     const r = closeWave('INR', SLABS, orders);
@@ -87,7 +112,15 @@ describe('seller-cancelled orders still pay their slab', () => {
 
 describe('validateSlabs', () => {
   it('rejects unsorted, zero-start and over-cap slabs', () => {
-    expect(() => validateSlabs([{ fromUnit: 5, perUnitMinor: 1 }, { fromUnit: 5, perUnitMinor: 2 }], 100)).toThrow();
+    expect(() =>
+      validateSlabs(
+        [
+          { fromUnit: 5, perUnitMinor: 1 },
+          { fromUnit: 5, perUnitMinor: 2 },
+        ],
+        100,
+      ),
+    ).toThrow();
     expect(() => validateSlabs([{ fromUnit: 0, perUnitMinor: 1 }], 100)).toThrow();
     expect(() => validateSlabs([{ fromUnit: 1, perUnitMinor: 101 }], 100)).toThrow();
     expect(() => validateSlabs(SLABS, 1000_00)).not.toThrow();

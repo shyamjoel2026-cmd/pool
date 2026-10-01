@@ -21,7 +21,12 @@ export const PROFILES: Record<string, FulfilmentProfile> = {
     modes: ['home_delivery', 'courier'],
     steps: [
       { key: 'seller_confirmed', proof: 'confirmation', afterHandover: false },
-      { key: 'dispatched', proof: 'photo_or_awb', afterHandover: false, returnCostAppliesAfter: true },
+      {
+        key: 'dispatched',
+        proof: 'photo_or_awb',
+        afterHandover: false,
+        returnCostAppliesAfter: true,
+      },
     ],
     handoverChecklist: ['right_item', 'no_damage'],
     codeDigits: 6,
