@@ -1,0 +1,517 @@
+/**
+ * SAMPLE DATA. Brands, shops, people and prices are invented for the demo and labelled as such in the app.
+ * Units, delivery profiles, GST rates and HSN codes are data (engine presets.ts), never code paths.
+ */
+import { makeGstin } from '../lib/gstin';
+import { mulberry32 } from '../lib/rand';
+import { rs } from '../lib/money';
+import type { CategoryId, OutsideQuote, Product, Profile, Seller, Uom } from './types';
+
+export const UOMS: Record<string, Uom> = {
+  piece: { code: 'piece', baseScale: 1, baseLabel: 'piece', label: 'piece', plural: 'pieces' },
+  kg: { code: 'kg', baseScale: 1000, baseLabel: 'g', label: 'kg', plural: 'kg' },
+  litre: { code: 'litre', baseScale: 1000, baseLabel: 'ml', label: 'litre', plural: 'litres' },
+  bag: { code: 'bag', baseScale: 1, baseLabel: 'bag', label: 'bag', plural: 'bags' },
+  tin: { code: 'tin', baseScale: 1, baseLabel: 'tin', label: 'tin', plural: 'tins' },
+  set: { code: 'set', baseScale: 1, baseLabel: 'set', label: 'set', plural: 'sets' },
+  visit: { code: 'visit', baseScale: 1, baseLabel: 'visit', label: 'visit', plural: 'visits' },
+};
+
+export const CATEGORIES: Array<{ id: CategoryId; label: string; hint: string }> = [
+  { id: 'electronics', label: 'TVs & electronics', hint: 'TVs, audio, monitors' },
+  { id: 'appliances', label: 'Appliances', hint: 'ACs, fridges, washers' },
+  { id: 'groceries', label: 'Groceries', hint: 'Rice, oil, staples' },
+  { id: 'meat', label: 'Meat & fish', hint: 'Sunday pools, pickup' },
+  { id: 'laptops', label: 'Laptops', hint: 'Student & work' },
+  { id: 'home', label: 'Home & move-in', hint: 'Fans, geysers, purifiers' },
+  { id: 'books', label: 'Books & school', hint: 'Textbook sets' },
+  { id: 'building', label: 'Building materials', hint: 'Cement, steel' },
+  { id: 'services', label: 'Services', hint: 'Cleaning, repairs' },
+];
+
+const checklist = {
+  right_item: { key: 'right_item', label: 'Right model and variant' },
+  no_damage: { key: 'no_damage', label: 'No damage to box or product' },
+  serial_matches: { key: 'serial_matches', label: 'Serial number matches the invoice' },
+  right_quantity: { key: 'right_quantity', label: 'Right weight or quantity' },
+  work_done: { key: 'work_done', label: 'Work done as agreed' },
+};
+
+/** Engine presets.ts, with labels. Late credit (₹200) and return costs are GUESSES from the 30 Sep review. */
+export const PROFILES: Profile[] = [
+  {
+    id: 'home_delivery',
+    label: 'Home delivery',
+    modes: ['home_delivery', 'courier'],
+    steps: [
+      { key: 'seller_confirmed', label: 'Seller confirmed', proof: 'Confirmation', afterHandover: false },
+      { key: 'dispatched', label: 'Dispatched', proof: 'Dispatch photo or AWB', afterHandover: false, returnCostAppliesAfter: true },
+    ],
+    checklist: [checklist.right_item, checklist.no_damage],
+    codeDigits: 6,
+    holds: [],
+    returnWindowDays: 7,
+    lateCreditPaise: rs(200),
+    returnCostPaise: rs(150),
+  },
+  {
+    id: 'store_pickup',
+    label: 'Pick up at the store with a code',
+    modes: ['store_pickup'],
+    steps: [
+      { key: 'seller_confirmed', label: 'Seller confirmed', proof: 'Confirmation', afterHandover: false },
+      { key: 'ready_for_pickup', label: 'Ready for pickup', proof: 'Photo of packed order', afterHandover: false },
+    ],
+    checklist: [checklist.right_item, checklist.right_quantity],
+    codeDigits: 4,
+    holds: [],
+    returnWindowDays: 1,
+    lateCreditPaise: 0,
+    returnCostPaise: 0,
+  },
+  {
+    id: 'delivery_with_installation',
+    label: 'Delivery + installation',
+    modes: ['home_delivery'],
+    steps: [
+      { key: 'seller_confirmed', label: 'Seller confirmed', proof: 'Confirmation', afterHandover: false },
+      { key: 'dispatched', label: 'Dispatched', proof: 'Dispatch photo', afterHandover: false, returnCostAppliesAfter: true },
+      { key: 'installed', label: 'Installed', proof: 'Brand installation job number', afterHandover: true, releasesHold: 'installation' },
+    ],
+    checklist: [checklist.right_item, checklist.no_damage, checklist.serial_matches],
+    codeDigits: 6,
+    holds: [{ key: 'installation', label: 'Installation hold', bps: 1000, releaseAfterDays: 5, deferredMaxDays: 45 }],
+    returnWindowDays: 7,
+    lateCreditPaise: rs(200),
+    returnCostPaise: rs(1200),
+  },
+  {
+    id: 'service_visit',
+    label: 'Service at your place',
+    modes: ['service_visit'],
+    steps: [{ key: 'seller_confirmed', label: 'Visit confirmed', proof: 'Confirmation with time slot', afterHandover: false }],
+    checklist: [checklist.work_done],
+    codeDigits: 4,
+    holds: [],
+    returnWindowDays: 3,
+    lateCreditPaise: rs(200),
+    returnCostPaise: 0,
+  },
+];
+
+const r = mulberry32(20261001);
+function history(best: number, spreadPct: number): number[] {
+  // 30 days of outside best prices (paise), drifting, with today's best as the last point and at least one day at the 30-day low.
+  const out: number[] = [];
+  let p = best * (1 + spreadPct / 100);
+  for (let i = 0; i < 29; i++) {
+    p = p * (1 + (r() - 0.55) * 0.02);
+    p = Math.max(best * 0.985, Math.min(best * (1 + (spreadPct * 1.4) / 100), p));
+    out.push(Math.round(p / 100) * 100);
+  }
+  out.push(best);
+  return out;
+}
+
+function q(id: string, source: string, kind: OutsideQuote['kind'], price: number, delivery: string, installation: string, warranty: string, returns: string, checkedAgoMin: number, cardOffer?: OutsideQuote['cardOffer']): OutsideQuote {
+  return { id, source, kind, pricePaise: rs(price), delivery, installation, warranty, returns, checkedAgoMin, cardOffer };
+}
+
+const hdfc10 = (cap: number) => ({ bank: 'HDFC Bank', cardType: 'credit' as const, bps: 1000, capPaise: rs(cap), label: `HDFC credit card · 10% off up to ₹${cap.toLocaleString('en-IN')}` });
+const sbi10 = (cap: number) => ({ bank: 'SBI Card', cardType: 'credit' as const, bps: 1000, capPaise: rs(cap), label: `SBI credit card · 10% off up to ₹${cap.toLocaleString('en-IN')}` });
+
+export const PRODUCTS: Product[] = [
+  {
+    id: 'p-tv',
+    title: 'Vistaar 55″ 4K QLED Google TV (VQ55-26)',
+    short: 'Vistaar 55″ QLED TV',
+    brand: 'Vistaar',
+    model: 'VQ55-26',
+    category: 'electronics',
+    art: 'tv',
+    uom: 'piece',
+    hsn: '8528 72',
+    gstBps: 1800,
+    specs: [
+      { label: 'Screen', value: '55 inch', evidence: 'link' },
+      { label: 'Panel', value: 'QLED, 4K UHD (3840 × 2160)', evidence: 'link' },
+      { label: 'Model', value: 'VQ55-26 (2026)', evidence: 'link' },
+      { label: 'Smart OS', value: 'Google TV', evidence: 'expert' },
+      { label: 'Refresh rate', value: '120 Hz', evidence: 'unconfirmed' },
+      { label: 'Ports', value: '3 × HDMI 2.1, 2 × USB', evidence: 'expert' },
+    ],
+    warranty: '1 year comprehensive + 1 year on panel (brand)',
+    outside: [
+      q('o-tv-amz', 'Amazon', 'online', 45990, 'Fri · free', 'Free, by brand (2–4 days)', '1 yr + 1 yr panel', 'Replacement only · 10 days', 38, hdfc10(1500)),
+      q('o-tv-fk', 'Flipkart', 'online', 46490, '2 days · free', 'Free, by brand', '1 yr + 1 yr panel', 'Replacement only · 7 days', 41, sbi10(1750)),
+      q('o-tv-croma', 'Croma', 'store', 47990, 'Pickup today · Inorbit', '₹0 (brand)', '1 yr + 1 yr panel', 'Store policy', 55),
+      q('o-tv-brand', 'Vistaar store', 'brand', 49990, '3–5 days', 'Free', '1 yr + 1 yr panel', '7 days', 120),
+    ],
+    priceHistory: history(rs(45990), 3.5),
+    link: { store: 'amazon.in', url: 'https://www.amazon.in/Vistaar-QLED-Google-VQ55-26/dp/B0DSIM5526', idLabel: 'ASIN', idValue: 'B0DSIM5526' },
+    lookalike: 'Flipkart lists a look-alike “VQ55-26F” (same panel, different stand and remote). POOL treats it as a different model so nobody gets the wrong TV.',
+    barcode: '8 901234 556026',
+  },
+  {
+    id: 'p-ac',
+    title: 'CoolBreeze 1.5 Ton 5-Star Inverter Split AC (CB-185X)',
+    short: 'CoolBreeze 1.5 T AC',
+    brand: 'CoolBreeze',
+    model: 'CB-185X',
+    category: 'appliances',
+    art: 'ac',
+    uom: 'piece',
+    hsn: '8415',
+    gstBps: 1800,
+    specs: [
+      { label: 'Capacity', value: '1.5 ton', evidence: 'link' },
+      { label: 'Energy rating', value: '5-star (BEE 2026)', evidence: 'page' },
+      { label: 'Compressor', value: 'Inverter, copper coil', evidence: 'page' },
+      { label: 'Model', value: 'CB-185X', evidence: 'link' },
+    ],
+    warranty: '1 yr product · 10 yr compressor (brand)',
+    outside: [
+      q('o-ac-amz', 'Amazon', 'online', 42990, '3 days', 'Free standard installation', '1 yr + 10 yr compressor', 'Replacement only', 50),
+      q('o-ac-fk', 'Flipkart', 'online', 43490, '2 days', 'Free', '1 yr + 10 yr compressor', 'Replacement only', 47),
+      q('o-ac-croma', 'Croma', 'store', 44490, 'Next day', '₹1,500 extra (copper pipe extra)', '1 yr + 10 yr compressor', 'Store policy', 64),
+    ],
+    priceHistory: history(rs(42990), 5),
+    link: { store: 'flipkart.com', url: 'https://www.flipkart.com/coolbreeze-1-5-ton-5-star-inverter-split-ac/p/itmSIM185X?pid=ACNSIM185X', idLabel: 'Flipkart id', idValue: 'ACNSIM185X' },
+    barcode: '8 901234 185005',
+  },
+  {
+    id: 'p-washer',
+    title: 'AquaWave 8 kg Front Load Washing Machine (AW8-FL)',
+    short: 'AquaWave 8 kg washer',
+    brand: 'AquaWave',
+    model: 'AW8-FL',
+    category: 'appliances',
+    art: 'washer',
+    uom: 'piece',
+    hsn: '8450',
+    gstBps: 1800,
+    specs: [
+      { label: 'Capacity', value: '8 kg', evidence: 'link' },
+      { label: 'Type', value: 'Front load, inverter motor', evidence: 'page' },
+      { label: 'Model', value: 'AW8-FL', evidence: 'link' },
+    ],
+    warranty: '2 yr product · 10 yr motor (brand)',
+    outside: [
+      q('o-wm-amz', 'Amazon', 'online', 31990, '2 days', 'Free (brand)', '2 yr + 10 yr motor', 'Replacement only', 120),
+      q('o-wm-rd', 'Reliance Digital', 'store', 32490, 'Next day', 'Free', '2 yr + 10 yr motor', 'Store policy', 140),
+    ],
+    priceHistory: history(rs(31990), 3),
+  },
+  {
+    id: 'p-fridge',
+    title: 'FrostLine 253 L Frost-Free Double Door Refrigerator (FL253)',
+    short: 'FrostLine 253 L fridge',
+    brand: 'FrostLine',
+    model: 'FL253',
+    category: 'appliances',
+    art: 'fridge',
+    uom: 'piece',
+    hsn: '8418',
+    gstBps: 1800,
+    specs: [
+      { label: 'Capacity', value: '253 litres', evidence: 'link' },
+      { label: 'Type', value: 'Frost-free, double door, 3-star', evidence: 'page' },
+      { label: 'Model', value: 'FL253', evidence: 'link' },
+    ],
+    warranty: '1 yr product · 10 yr compressor',
+    outside: [
+      q('o-fr-amz', 'Amazon', 'online', 26490, 'Tomorrow', 'Demo by brand', '1 yr + 10 yr', 'Replacement only', 32, hdfc10(1250)),
+      q('o-fr-fk', 'Flipkart', 'online', 25990, '2 days', 'Demo by brand', '1 yr + 10 yr', 'Replacement only', 29, sbi10(1500)),
+      q('o-fr-rd', 'Reliance Digital', 'store', 26990, 'Pickup today', 'Demo by brand', '1 yr + 10 yr', 'Store policy', 70),
+    ],
+    priceHistory: history(rs(25990), 4),
+    barcode: '8 901234 253007',
+  },
+  {
+    id: 'p-mixer',
+    title: 'SpinMaster 750 W Mixer Grinder, 3 jars (SM750)',
+    short: 'SpinMaster 750 W mixer',
+    brand: 'SpinMaster',
+    model: 'SM750',
+    category: 'appliances',
+    art: 'mixer',
+    uom: 'piece',
+    hsn: '8509',
+    gstBps: 1800,
+    specs: [
+      { label: 'Motor', value: '750 W', evidence: 'link' },
+      { label: 'Jars', value: '3 stainless steel jars', evidence: 'page' },
+    ],
+    warranty: '2 yr product · 5 yr motor',
+    outside: [
+      q('o-mx-amz', 'Amazon', 'online', 3299, 'Tomorrow', '—', '2 yr + 5 yr motor', '10 days', 22),
+      q('o-mx-fk', 'Flipkart', 'online', 3349, '2 days', '—', '2 yr + 5 yr motor', '7 days', 25),
+    ],
+    priceHistory: history(rs(3299), 6),
+  },
+  {
+    id: 'p-rice',
+    title: 'Sona Masoori raw rice, 26 kg bag (new crop)',
+    short: 'Sona Masoori rice, 26 kg',
+    category: 'groceries',
+    art: 'rice',
+    uom: 'bag',
+    hsn: '1006',
+    gstBps: 0,
+    specs: [
+      { label: 'Variety', value: 'Sona Masoori, raw (new crop)', evidence: 'expert' },
+      { label: 'Pack', value: '26 kg bag', evidence: 'expert' },
+      { label: 'Origin', value: 'Nalgonda / Miryalaguda mills', evidence: 'expert' },
+    ],
+    warranty: 'Replacement if damp, infested or short-weight',
+    outside: [
+      q('o-rc-kirana', 'Local kirana (delivered)', 'local', 1690, 'Same day', '—', '—', 'Exchange at shop', 90),
+      q('o-rc-online', 'Online grocery app', 'online', 1749, 'Tomorrow', '—', '—', 'Return at door', 85),
+    ],
+    priceHistory: history(rs(1690), 4),
+  },
+  {
+    id: 'p-oil',
+    title: 'Cold-pressed groundnut oil, 15 L tin',
+    short: 'Groundnut oil, 15 L tin',
+    category: 'groceries',
+    art: 'oil',
+    uom: 'tin',
+    hsn: '1508',
+    gstBps: 500,
+    specs: [
+      { label: 'Type', value: 'Cold-pressed (wood-pressed) groundnut oil', evidence: 'expert' },
+      { label: 'Pack', value: '15 litre tin, FSSAI licensed mill', evidence: 'expert' },
+    ],
+    warranty: 'Replacement if leaking or short',
+    outside: [
+      q('o-oil-fk', 'Flipkart', 'online', 2890, '3 days', '—', '—', '7 days', 40, sbi10(300)),
+      q('o-oil-amz', 'Amazon', 'online', 2950, '2 days', '—', '—', '7 days', 45),
+      q('o-oil-local', 'Local oil mill outlet', 'local', 2980, 'Pickup', '—', '—', 'Exchange', 200),
+    ],
+    priceHistory: history(rs(2890), 3),
+  },
+  {
+    id: 'p-mutton',
+    title: 'Mutton, fresh goat (Sunday cut)',
+    short: 'Fresh mutton',
+    category: 'meat',
+    art: 'mutton',
+    uom: 'kg',
+    hsn: '0204',
+    gstBps: 0,
+    specs: [
+      { label: 'Meat', value: 'Fresh goat, cut on Sunday morning', evidence: 'expert' },
+      { label: 'Cuts', value: 'Curry cut or boneless (choose)', evidence: 'expert' },
+    ],
+    warranty: 'Freshness checked at pickup; replace on the spot',
+    options: [{ key: 'cut', label: 'Cut', values: [{ id: 'curry', label: 'Curry cut' }, { id: 'boneless', label: 'Boneless' }] }],
+    outside: [
+      q('o-mt-shop', 'Neighbourhood meat shop', 'local', 1000, 'Pickup · queue', '—', '—', '—', 300),
+      q('o-mt-app', 'Online meat app', 'online', 1149, '90 min', '—', '—', 'Replace if not fresh', 60),
+    ],
+    priceHistory: history(rs(1000), 6),
+  },
+  {
+    id: 'p-cement',
+    title: 'OPC 53 grade cement, 50 kg bag',
+    short: 'OPC 53 cement bag',
+    category: 'building',
+    art: 'cement',
+    uom: 'bag',
+    hsn: '2523',
+    gstBps: 1800,
+    specs: [
+      { label: 'Grade', value: 'OPC 53 (IS 12269)', evidence: 'expert' },
+      { label: 'Pack', value: '50 kg bag, max 30 days from manufacture', evidence: 'expert' },
+    ],
+    warranty: 'BIS-marked; manufacture date on every bag',
+    outside: [
+      q('o-cm-dealer', 'Local cement dealer', 'local', 390, '2 days · site delivery', '—', '—', '—', 300),
+      q('o-cm-b2b', 'Online B2B marketplace', 'online', 410, '3 days', '—', '—', '—', 300),
+    ],
+    priceHistory: history(rs(390), 4),
+  },
+  {
+    id: 'p-books',
+    title: 'NCERT Class 10 complete textbook set (English medium, 2026–27)',
+    short: 'NCERT Class 10 set',
+    category: 'books',
+    art: 'books',
+    uom: 'set',
+    hsn: '4901',
+    gstBps: 0,
+    specs: [
+      { label: 'Set', value: 'All 9 NCERT textbooks, Class 10, English medium', evidence: 'expert' },
+      { label: 'Edition', value: '2026–27 reprint', evidence: 'unconfirmed' },
+    ],
+    warranty: 'Replace any misprinted or missing book',
+    outside: [
+      q('o-bk-shop', 'Bookshop, Koti', 'store', 1450, 'Pickup', '—', '—', 'Exchange', 400),
+      q('o-bk-online', 'Online bookstore', 'online', 1520, '4 days', '—', '—', '10 days', 300),
+    ],
+    priceHistory: history(rs(1450), 2),
+  },
+  {
+    id: 'p-clean',
+    title: 'Full-home deep cleaning, 3 BHK (5–6 hours, team of 3)',
+    short: '3 BHK deep cleaning',
+    category: 'services',
+    art: 'cleaning',
+    uom: 'visit',
+    hsn: 'SAC 998533',
+    gstBps: 1800,
+    specs: [
+      { label: 'Scope', value: 'Kitchen, bathrooms, floors, windows, fans', evidence: 'expert' },
+      { label: 'Team', value: '3 trained staff, 5–6 hours', evidence: 'expert' },
+    ],
+    warranty: 'Re-clean free within 48 hours if not satisfied',
+    outside: [
+      q('o-cl-app', 'Home-services app', 'online', 5499, 'Slots in 2 days', '—', '—', 'Re-clean', 60),
+      q('o-cl-local', 'Local cleaning agency', 'local', 4800, 'This week', '—', '—', '—', 200),
+    ],
+    priceHistory: history(rs(4800), 8),
+  },
+  {
+    id: 'p-laptop',
+    title: 'Nimbus N14 student laptop — 14″, Ryzen 5, 16 GB, 512 GB SSD',
+    short: 'Nimbus N14 laptop',
+    brand: 'Nimbus',
+    model: 'N14-R5-16',
+    category: 'laptops',
+    art: 'laptop',
+    uom: 'piece',
+    hsn: '8471',
+    gstBps: 1800,
+    specs: [
+      { label: 'Processor', value: 'Ryzen 5 (2026)', evidence: 'link' },
+      { label: 'Memory', value: '16 GB RAM, 512 GB SSD', evidence: 'link' },
+      { label: 'Display', value: '14″ FHD+ IPS', evidence: 'page' },
+    ],
+    warranty: '1 yr brand + optional accidental damage',
+    options: [{ key: 'colour', label: 'Colour', values: [{ id: 'silver', label: 'Silver' }, { id: 'graphite', label: 'Graphite' }] }],
+    outside: [
+      q('o-lp-amz', 'Amazon', 'online', 52990, 'Tomorrow', '—', '1 yr', 'Replacement · 10 days', 30, hdfc10(3000)),
+      q('o-lp-fk', 'Flipkart', 'online', 51990, '2 days', '—', '1 yr', 'Replacement · 7 days', 33),
+      q('o-lp-brand', 'Nimbus student store (college ID)', 'brand', 49990, '5 days', '—', '1 yr + 1 yr ADP', '7 days', 95),
+    ],
+    priceHistory: history(rs(49990), 4),
+  },
+  {
+    id: 'p-fan',
+    title: 'AeroLite BLDC ceiling fan, 1200 mm, 28 W, with remote',
+    short: 'AeroLite BLDC fan',
+    brand: 'AeroLite',
+    model: 'AL-1200B',
+    category: 'home',
+    art: 'fan',
+    uom: 'piece',
+    hsn: '8414',
+    gstBps: 1800,
+    specs: [
+      { label: 'Sweep', value: '1200 mm', evidence: 'link' },
+      { label: 'Power', value: '28 W BLDC, 5-star', evidence: 'page' },
+    ],
+    warranty: '3 yr (brand)',
+    outside: [
+      q('o-fan-amz', 'Amazon', 'online', 3190, 'Tomorrow', '₹250 extra per fan', '3 yr', '10 days', 33),
+      q('o-fan-local', 'Electrical shop, Kondapur', 'local', 3350, 'Same day', 'Included', '3 yr', 'Exchange', 240),
+    ],
+    priceHistory: history(rs(3190), 5),
+    barcode: '8 901234 120058',
+  },
+  {
+    id: 'p-purifier',
+    title: 'PureAir P4 HEPA H13 air purifier, 400 m³/h',
+    short: 'PureAir P4 purifier',
+    brand: 'PureAir',
+    model: 'P4',
+    category: 'appliances',
+    art: 'purifier',
+    uom: 'piece',
+    hsn: '8421',
+    gstBps: 1800,
+    specs: [
+      { label: 'Filter', value: 'True HEPA H13', evidence: 'page' },
+      { label: 'CADR', value: '400 m³/h', evidence: 'page' },
+    ],
+    warranty: '1 yr',
+    outside: [q('o-pu-amz', 'Amazon', 'online', 12990, '2 days', '—', '1 yr', '10 days', 300)],
+    priceHistory: history(rs(12990), 4),
+  },
+  {
+    id: 'p-geyser',
+    title: 'HeatSafe 15 L storage geyser, 5-star',
+    short: 'HeatSafe 15 L geyser',
+    brand: 'HeatSafe',
+    model: 'HS15',
+    category: 'home',
+    art: 'geyser',
+    uom: 'piece',
+    hsn: '8516',
+    gstBps: 1800,
+    specs: [{ label: 'Capacity', value: '15 L, 5-star, glass-lined tank', evidence: 'page' }],
+    warranty: '2 yr product · 7 yr tank',
+    outside: [q('o-gy-amz', 'Amazon', 'online', 8490, '2 days', '₹600 extra', '2 yr + 7 yr tank', '10 days', 50)],
+    priceHistory: history(rs(8490), 4),
+  },
+  {
+    id: 'p-chimney',
+    title: 'SmokeOff 60 cm auto-clean kitchen chimney',
+    short: 'SmokeOff 60 cm chimney',
+    brand: 'SmokeOff',
+    model: 'SO-60AC',
+    category: 'home',
+    art: 'chimney',
+    uom: 'piece',
+    hsn: '8414',
+    gstBps: 1800,
+    specs: [{ label: 'Size', value: '60 cm, 1200 m³/h, filterless auto-clean', evidence: 'page' }],
+    warranty: '2 yr product · 5 yr motor',
+    outside: [q('o-ch-amz', 'Amazon', 'online', 13990, '3 days', 'Free (brand)', '2 yr + 5 yr motor', 'Replacement', 70)],
+    priceHistory: history(rs(13990), 4),
+  },
+  {
+    id: 'p-ro',
+    title: 'ClearSip RO + UV water purifier, 8 L',
+    short: 'ClearSip RO purifier',
+    brand: 'ClearSip',
+    model: 'CS8',
+    category: 'home',
+    art: 'waterpurifier',
+    uom: 'piece',
+    hsn: '8421',
+    gstBps: 1800,
+    specs: [{ label: 'Tech', value: 'RO + UV + mineral, 8 L tank', evidence: 'page' }],
+    warranty: '1 yr',
+    outside: [q('o-ro-amz', 'Amazon', 'online', 11490, '2 days', 'Free (brand)', '1 yr', 'Replacement', 70)],
+    priceHistory: history(rs(11490), 4),
+  },
+];
+
+function seller(p: Omit<Seller, 'gstin' | 'state'> & { state?: string }): Seller {
+  const states: Record<string, string> = { '36': 'Telangana', '29': 'Karnataka', '37': 'Andhra Pradesh', '33': 'Tamil Nadu' };
+  return { ...p, gstin: makeGstin(p.stateCode, p.pan), state: p.state ?? states[p.stateCode] ?? p.stateCode };
+}
+
+const HYD_WEST = ['500032', '500084', '500081', '500089', '500019', '500075', '500033', '500072', '500049'];
+
+export const SELLERS: Seller[] = [
+  seller({ id: 's-lakshmi', name: 'Lakshmi Home Appliances', owner: 'K. Srinivas Rao', kind: 'dealer', area: 'Kukatpally', city: 'Hyderabad', stateCode: '36', pan: 'AAKFL4721M', categories: ['electronics', 'appliances', 'home'], verified: true, rating: 4.7, ratingCount: 268, settledOrders: 312, onTimeBps: 9600, cancelBps: 80, issuesResolvedBps: 9800, since: 'Mar 2026', returnTerms: 'Replacement for dead-on-arrival after brand check · 7-day return window', depositPaise: rs(150000), bank: { name: 'HDFC Bank', ifsc: 'HDFC0001234', last4: '4417' }, pincodes: HYD_WEST, phoneMasked: '+91 98490 •••62', hours: '10 AM – 9 PM, all days', team: [{ name: 'K. Srinivas Rao', role: 'Owner' }, { name: 'Ramesh', role: 'Dispatch' }, { name: 'Salim', role: 'Delivery' }] }),
+  seller({ id: 's-deccan', name: 'Deccan Digital', owner: 'A. Mohan', kind: 'dealer', area: 'Secunderabad', city: 'Hyderabad', stateCode: '36', pan: 'AAGFD3310K', categories: ['electronics', 'appliances'], verified: true, rating: 4.5, ratingCount: 151, settledOrders: 188, onTimeBps: 9300, cancelBps: 160, issuesResolvedBps: 9500, since: 'Apr 2026', returnTerms: 'Brand replacement policy', depositPaise: rs(100000), bank: { name: 'ICICI Bank', ifsc: 'ICIC0004410', last4: '0912' }, pincodes: HYD_WEST, phoneMasked: '+91 98660 •••18', hours: '10 AM – 8:30 PM', team: [] }),
+  seller({ id: 's-kaveri', name: 'Kaveri Electronics', owner: 'R. Gowda', kind: 'chain', area: 'Jayanagar', city: 'Bengaluru', stateCode: '29', pan: 'AABCK8812F', categories: ['electronics', 'appliances'], verified: true, rating: 4.6, ratingCount: 470, settledOrders: 540, onTimeBps: 9500, cancelBps: 100, issuesResolvedBps: 9700, since: 'Feb 2026', returnTerms: 'Brand replacement policy', depositPaise: rs(250000), bank: { name: 'Axis Bank', ifsc: 'UTIB0000123', last4: '7781' }, pincodes: HYD_WEST, phoneMasked: '+91 99000 •••45', hours: '10 AM – 9 PM', team: [] }),
+  seller({ id: 's-sairam', name: 'Sai Ram Electronics', owner: 'P. Sai Kumar', kind: 'dealer', area: 'Dilsukhnagar', city: 'Hyderabad', stateCode: '36', pan: 'ABPFS7781Q', categories: ['electronics', 'appliances'], verified: true, rating: 4.3, ratingCount: 80, settledOrders: 96, onTimeBps: 9000, cancelBps: 250, issuesResolvedBps: 9200, since: 'Jun 2026', returnTerms: 'Brand replacement policy', depositPaise: rs(75000), bank: { name: 'SBI', ifsc: 'SBIN0020076', last4: '3301' }, pincodes: HYD_WEST, phoneMasked: '+91 90000 •••07', hours: '10 AM – 9 PM', team: [] }),
+  seller({ id: 's-metro', name: 'Metro Appliance Hub', owner: 'S. Farooq', kind: 'dealer', area: 'Ameerpet', city: 'Hyderabad', stateCode: '36', pan: 'AAJFM5520R', categories: ['electronics', 'appliances', 'home'], verified: true, rating: 4.4, ratingCount: 190, settledOrders: 210, onTimeBps: 9400, cancelBps: 120, issuesResolvedBps: 9600, since: 'Apr 2026', returnTerms: 'Brand replacement policy', depositPaise: rs(100000), bank: { name: 'Kotak Bank', ifsc: 'KKBK0007461', last4: '2290' }, pincodes: HYD_WEST, phoneMasked: '+91 97010 •••33', hours: '11 AM – 9 PM', team: [] }),
+  seller({ id: 's-quickdeal', name: 'QuickDeal Traders', owner: 'M. Jain', kind: 'distributor', area: 'Begum Bazar', city: 'Hyderabad', stateCode: '36', pan: 'AAQFQ1209D', categories: ['electronics', 'appliances'], verified: true, ratingCount: 0, settledOrders: 0, onTimeBps: 0, cancelBps: 0, issuesResolvedBps: 0, since: 'Sep 2026', returnTerms: 'Brand replacement policy', depositPaise: rs(50000), bank: { name: 'Yes Bank', ifsc: 'YESB0000555', last4: '1189' }, pincodes: HYD_WEST, phoneMasked: '+91 95500 •••90', hours: '10 AM – 7 PM', team: [] }),
+  seller({ id: 's-branddesk', name: 'Vistaar Brand Desk (South)', owner: 'Vistaar India', kind: 'brand_desk', area: 'Guindy', city: 'Chennai', stateCode: '33', pan: 'AABCV4410H', categories: ['electronics'], verified: true, rating: 4.5, ratingCount: 60, settledOrders: 74, onTimeBps: 9100, cancelBps: 60, issuesResolvedBps: 9900, since: 'Aug 2026', returnTerms: 'Brand policy · direct service', depositPaise: rs(500000), bank: { name: 'Citibank', ifsc: 'CITI0000002', last4: '0005' }, pincodes: HYD_WEST, phoneMasked: '+91 44 •••• 1200', hours: 'Mon–Sat', team: [] }),
+  seller({ id: 's-coolair', name: 'CoolAir Solutions', owner: 'V. Reddy', kind: 'dealer', area: 'Begumpet', city: 'Hyderabad', stateCode: '36', pan: 'AAHFC6639L', categories: ['appliances'], verified: true, rating: 4.6, ratingCount: 210, settledOrders: 260, onTimeBps: 9500, cancelBps: 90, issuesResolvedBps: 9700, since: 'Mar 2026', returnTerms: 'Brand policy; installation by brand-certified team', depositPaise: rs(150000), bank: { name: 'HDFC Bank', ifsc: 'HDFC0000420', last4: '5528' }, pincodes: HYD_WEST, phoneMasked: '+91 98480 •••71', hours: '9 AM – 9 PM', team: [] }),
+  seller({ id: 's-annapurna', name: 'Annapurna Rice Traders', owner: 'N. Venkateshwarlu', kind: 'distributor', area: 'Miryalaguda', city: 'Nalgonda', stateCode: '36', pan: 'ABTFA2268P', categories: ['groceries'], verified: true, rating: 4.8, ratingCount: 980, settledOrders: 1240, onTimeBps: 9700, cancelBps: 40, issuesResolvedBps: 9900, since: 'Jan 2026', returnTerms: 'Replace damp, infested or short-weight bags at the door', depositPaise: rs(50000), bank: { name: 'Union Bank', ifsc: 'UBIN0560001', last4: '8812' }, pincodes: HYD_WEST, phoneMasked: '+91 94400 •••26', hours: '7 AM – 7 PM', team: [] }),
+  seller({ id: 's-godavari', name: 'Godavari Cold-Pressed Oils', owner: 'B. Satyanarayana', kind: 'distributor', area: 'Rajahmundry', city: 'East Godavari', stateCode: '37', pan: 'AAFFG9932C', categories: ['groceries'], verified: true, rating: 4.6, ratingCount: 340, settledOrders: 410, onTimeBps: 9400, cancelBps: 70, issuesResolvedBps: 9800, since: 'Feb 2026', returnTerms: 'Replace leaking or short tins', depositPaise: rs(40000), bank: { name: 'Andhra Bank (UBI)', ifsc: 'UBIN0800201', last4: '4402' }, pincodes: HYD_WEST, phoneMasked: '+91 93900 •••58', hours: '8 AM – 6 PM', team: [] }),
+  seller({ id: 's-freshcut', name: 'FreshCut Meat Centre', owner: 'Mohd. Irfan', kind: 'shop', area: 'Kondapur', city: 'Hyderabad', stateCode: '36', pan: 'ACXPI7712B', categories: ['meat'], verified: true, rating: 4.7, ratingCount: 620, settledOrders: 1890, onTimeBps: 9800, cancelBps: 30, issuesResolvedBps: 9900, since: 'Jan 2026', returnTerms: 'Freshness checked at pickup; replaced on the spot', depositPaise: rs(20000), bank: { name: 'SBI', ifsc: 'SBIN0011140', last4: '6630' }, pincodes: ['500084', '500032', '500081'], phoneMasked: '+91 99490 •••11', hours: 'Sun 6 AM – 1 PM, Tue–Sat 7 AM – 9 PM', team: [] }),
+  seller({ id: 's-vidya', name: 'Vidya Book House', owner: 'G. Ramakrishna', kind: 'shop', area: 'Koti', city: 'Hyderabad', stateCode: '36', pan: 'AFHPR2214N', categories: ['books'], verified: true, rating: 4.5, ratingCount: 210, settledOrders: 330, onTimeBps: 9600, cancelBps: 50, issuesResolvedBps: 9700, since: 'Jun 2026', returnTerms: 'Replace misprinted or missing books', depositPaise: rs(20000), bank: { name: 'Canara Bank', ifsc: 'CNRB0001234', last4: '0098' }, pincodes: ['500049', '500050', '500085'], phoneMasked: '+91 98482 •••40', hours: '9 AM – 9 PM', team: [] }),
+  seller({ id: 's-sparkle', name: 'SparkleHome Services', owner: 'T. Anitha', kind: 'service', area: 'Madhapur', city: 'Hyderabad', stateCode: '36', pan: 'AAMCS3381E', categories: ['services'], verified: true, rating: 4.6, ratingCount: 410, settledOrders: 520, onTimeBps: 9500, cancelBps: 90, issuesResolvedBps: 9700, since: 'Feb 2026', returnTerms: 'Free re-clean within 48 hours', depositPaise: rs(30000), bank: { name: 'ICICI Bank', ifsc: 'ICIC0001789', last4: '7730' }, pincodes: ['500032', '500084', '500081'], phoneMasked: '+91 90300 •••66', hours: '8 AM – 7 PM', team: [] }),
+  seller({ id: 's-buildmart', name: 'Deccan Building Supplies', owner: 'K. Narsimha', kind: 'distributor', area: 'Medchal', city: 'Hyderabad', stateCode: '36', pan: 'AAKFD7120G', categories: ['building'], verified: true, rating: 4.2, ratingCount: 70, settledOrders: 120, onTimeBps: 8800, cancelBps: 300, issuesResolvedBps: 9300, since: 'May 2026', returnTerms: 'Replace hardened or torn bags on delivery', depositPaise: rs(100000), bank: { name: 'SBI', ifsc: 'SBIN0012100', last4: '2201' }, pincodes: ['501401', '500100'], phoneMasked: '+91 98665 •••03', hours: '8 AM – 7 PM', team: [] }),
+  seller({ id: 's-cementdepot', name: 'Medchal Cement Depot', owner: 'S. Yadav', kind: 'distributor', area: 'Medchal', city: 'Hyderabad', stateCode: '36', pan: 'AAKFM6612A', categories: ['building'], verified: true, rating: 4.4, ratingCount: 95, settledOrders: 150, onTimeBps: 9200, cancelBps: 100, issuesResolvedBps: 9500, since: 'Jun 2026', returnTerms: 'Replace hardened or torn bags on delivery', depositPaise: rs(100000), bank: { name: 'HDFC Bank', ifsc: 'HDFC0007788', last4: '6623' }, pincodes: ['501401', '500100'], phoneMasked: '+91 97040 •••52', hours: '8 AM – 7 PM', team: [] }),
+  seller({ id: 's-campus', name: 'Campus Tech Store', owner: 'D. Pranav', kind: 'dealer', area: 'Kompally', city: 'Hyderabad', stateCode: '36', pan: 'AAJFC2290T', categories: ['laptops', 'electronics'], verified: true, rating: 4.5, ratingCount: 130, settledOrders: 170, onTimeBps: 9400, cancelBps: 110, issuesResolvedBps: 9600, since: 'May 2026', returnTerms: 'Brand replacement policy · 7 days', depositPaise: rs(100000), bank: { name: 'Axis Bank', ifsc: 'UTIB0002244', last4: '3348' }, pincodes: ['500100', '501401', '500055'], phoneMasked: '+91 95020 •••84', hours: '10 AM – 9 PM', team: [] }),
+  seller({ id: 's-homefit', name: 'HomeFit Electricals', owner: 'J. Prasad', kind: 'dealer', area: 'Kondapur', city: 'Hyderabad', stateCode: '36', pan: 'AAHFH5521K', categories: ['home', 'appliances'], verified: true, rating: 4.5, ratingCount: 160, settledOrders: 205, onTimeBps: 9500, cancelBps: 70, issuesResolvedBps: 9700, since: 'Apr 2026', returnTerms: 'Brand replacement; installation included', depositPaise: rs(75000), bank: { name: 'ICICI Bank', ifsc: 'ICIC0006655', last4: '4471' }, pincodes: HYD_WEST, phoneMasked: '+91 99630 •••28', hours: '10 AM – 9 PM', team: [] }),
+];

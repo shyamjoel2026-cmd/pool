@@ -8,6 +8,22 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-02 00:48 · Claude Code · Clickable POOL experience (simulated) added in `experience/`
+- Did: built a self-contained, clickable experience at `experience/` (Vite 8 + React 19 + Tailwind 4; package `@pool/experience`, own lockfile). It contains:
+  - a landing page;
+  - a buyer app (about 40 screens): find by link, scan or assistant; join or start a pool, with the starter choosing the close time; refundable booking; personal offer with accept or walk-away and the honest "outside is cheaper for you" case; pay now, by EMI or at the door, never cash; checklist then handover code; issues; GST invoice; Wave Drop; money and refunds; account, privacy and help; community move-in pools; Warranty Locker; WhatsApp voice-note join;
+  - a seller app (13 screens): demand; sealed lower-only bid with Wave Drop slabs and payout preview; orders with proof; code verification; payouts and holds; staff mode; forward demand;
+  - a POOL team console: awards, buyer pricing, exceptions and refunds, reconciliation, KYB review, risk, audit and rules;
+  - a 15-step investor walkthrough.
+  It sits outside `pool/` on purpose: everything is simulated in the browser (no backend, no real money or messages) and labelled "Simulated", so it must not live in the product monorepo (AGENTS.md: no mocked data paths in the product). Rules mirror `pool/packages/engine`: integer paise, half-up rounding, largest-remainder allocation, ranking and eligibility, the 15%-below-median flag, join-order award with backups, `splitOrder` (TCS 0.5%, TDS 0.1%, installation hold 10%, Wave hold), the Wave Drop slab pot, CGST/SGST vs IGST, and the GSTIN checksum. Spec: `experience/SPEC.md`.
+- Verified: in `experience/`, `pnpm typecheck` passed, `pnpm build` passed, and `pnpm test` passed 7 tests: money primitives, GST split, GSTIN checksum, order-split conservation, Wave Drop close invariants, and the seeded ledger tying out to ₹0.00. `pool/` was not touched.
+- Next:
+  - visual QA of every screen (phone and desktop, light and dark) via `pnpm shots`;
+  - an end-to-end click-through of the walkthrough;
+  - fill the Telugu and Hindi dictionaries (`src/lib/i18n-dict.ts`);
+  - publish a single-file preview (`pnpm build:demo`).
+- Open issues / blockers: the Telugu and Hindi strings are mostly not translated yet. Late credit (₹200) and return costs are the same GUESS placeholders as the engine. Sample brands, sellers and people only.
+
 ### 2026-10-01 23:35 · Codex · GitHub push completed
 - Did: configured `origin` as `https://github.com/shyamjoel2026-cmd/pool.git` and pushed `main` successfully.
 - Verified: local `main` tracks `origin/main`; `git ls-remote origin refs/heads/main` reports `a8e21c3f1adcc8ef5c81a68156986ce337721c9a`; worktree is clean.
