@@ -4,9 +4,9 @@
 
 | | |
 | --- | --- |
-| Version | 1.0 — 30 Sep 2026 |
+| Version | 1.1 — 1 Oct 2026 (India-first M1.5/M2 verification) |
 | Status | **The one blueprint.** Business rules come from `POOL_WORKING_MODEL_v3.md`, and the stack from `research/06_prototype_stack.md` and `research/08_hidden_gems.md`. Where they conflict, this file wins. Progress and decisions are logged in `POOL_PROJECT_STATE.md`. |
-| Goal | A **real working prototype** (India + USA) for 4 investor pitches (2 India, 2 USA). Money moves only in test mode, but every flow is real: real APIs, real webhooks, real AI, real messages, real sealed bids. No dummy dashboards. |
+| Goal | A **real working prototype**, built **India first** for the investor pitches. US implementation is parked by the founder's 30 Sep decision; existing US engine code remains compiling. Payments, webhooks, AI and messaging are later milestones; M2 verifies the local engine, database, accounting and durable workflows. |
 | Labels | **Rule** = product rule. **Decision** = tech choice. **Guess** = a number to confirm with evidence. |
 
 ---
@@ -21,14 +21,14 @@
 3. **Pools.** Buyers join an open pool or start one. **The starter chooses the closing time**; there is no default. The countdown is real, never resets and is logged.
 4. **Commitment.** The buyer places a small **refundable booking**.
    - India: charged, then refunded if they walk away. UPI Reserve Pay stays behind a flag until Razorpay confirms it.
-   - US: a Stripe manual-capture hold, extended up to 30 days where the card supports it.
-   - Dealers see only committed buyers, counted once per payer and per address, with at most 2 units per model per household.
+   - US payment work is parked.
+   - Dealers see only paid committed demand. Household/payer checks and quantity limits use per-pool data; there is no fixed product or household quantity cap.
 5. **Sealed bids.** Verified sellers bid privately. Each bid gives a **guaranteed all-in price per buyer**, valid even if only one buyer completes, plus optional Wave Drop slabs. Nobody sees another seller's bid, and every view of a bid is logged.
-6. **Winner.** There is one winning seller per pool, plus a backup. The published rule is: lowest all-in price among bids that meet the service minimums; ties go to the earlier delivery date, then the better settled rating. POOL's fee is never a factor.
+6. **Capacity awards (default A).** Earliest committed joiners get the best-ranked covering seller with capacity; awards may span several sellers, with backups per assignment. Bids must cover quantity, options, service requirements and buyer need-by dates. Ranking uses seller price, delivery and settled rating; the team then sets each assigned bid's buyer price.
 7. **Buyer decides.** "Accept ₹X" and "Walk away, refund my booking" get equal weight, with no shaming. A guaranteed price never goes up.
 8. **Money path, like Amazon/Flipkart.** The buyer pays through POOL's checkout, and the licensed PA holds the money.
    - India: Razorpay Orders + Route transfer with `on_hold=true`.
-   - US: Stripe Connect capture + transfer.
+   - US payments are parked.
    - The dealer is paid only after the **delivery/pickup code**, minus POOL's fee. POOL never holds buyer money in its own account.
 9. **Pricing, founder decision (30 Sep 2026). There is no fixed fee.**
    - The seller bids ITS own price (e.g. ₹40,000 for a TV the market sells at ₹45,000).
@@ -39,10 +39,11 @@
    - Legal record, as in v2.2: the seller invoices the buyer at the buyer price, and the difference is the seller's commission to POOL (with GST in India).
    - **Lawyer must review before any foreign investment closes:** FDI Press Note 2 says a marketplace "shall not influence the sale price".
 10. **Wave Drop (slab pot).**
-    - Each settled unit adds its slab to a pot, and the pot is split equally among settled buyers. The seller keeps each slab below its margin, so every extra sale stays profitable for it.
+    - **Separate pot per seller (founder, 1 Oct 2026).** Each seller's settled counted quantity adds its accepted slab to that seller's pot, shared equally among that seller's settled buyers. Count mode is pool data; held money and refunds conserve paise independently for each seller.
+    - Sellers must choose slabs below their actual available margin if they want every extra sale to remain profitable. POOL cannot verify a seller's undisclosed costs and does not promise universal seller profitability.
     - The largest slab is held from each payout until the pool closes. Seller-cancelled orders still pay their slab, from the seller's deposit.
     - The pot is paid as a partial refund to the original payment method. The screen shows real numbers only.
-11. **Proof-based tracking.** A status moves only with proof: seller confirms → dispatch photo → delivery/pickup code → serial photo + invoice → installation job number.
+11. **Proof-based tracking.** Required steps, proof types, handover checklist and holds come from the accepted fulfilment profile. Dispatch, serial photos and installation are examples, not universal requirements. Handover requires full captured payment and a valid order-bound code, and refuses an open issue.
 12b. **Universal products, founder correction (30 Sep 2026).** POOL is for ANY product, not the examples we discussed. The engine has no product-specific logic. Everything product-specific is data set per pool or product:
     - the category path;
     - the unit of measure (piece, kg, litre, metre, pack, dozen …), with a minimum, a step and optional per-buyer and per-household caps;
@@ -53,10 +54,10 @@
     - There is no assumed cap: most buyers take 1 kg of meat, and a school may take 40 benches.
 
 12a. **Engine completeness checklist** (added 30 Sep 2026 after a gap review; the engine must cover all of it):
-    1. Quantity units: `unit`, `kg`, `g`, stored as integer base units, e.g. grams.
+    1. Any unit of measure is data, stored as integer base quantities with configured scale, minimum, step and optional caps.
     2. Per-buyer options, e.g. cut or RAM, that must match what the bid covers.
     3. Seller capacity, and split awards: *proposed default A*: the earliest joiners get the winner's price, the rest get the backup's; each buyer sees their own price.
-    4. "No deal": if no valid bid beats the best outside price by max(₹1,000, 2%), or the US equivalent, all bookings are auto-refunded.
+    4. "No deal": no covering bid or an expired pricing deadline yields full booking refunds. Outside-price savings are advisory information for the team and never block its buyer price decision (30 Sep founder correction).
     5. Accept window: *proposed default B*: no reply means walk away, with a full refund; never a silent charge.
     6. Bids:
        - *proposed default C*: a seller can only lower a bid before close, never raise it;
@@ -64,13 +65,13 @@
        - a bid must stay valid through the accept window;
        - a bid more than 15% below the median bid is flagged for checks.
     7. Pickup/service time slots with capacity, by area and time (any product).
-    8. An open-box checklist (right model, no damage, serial matches) must pass before the code can be used.
+    8. The profile's handover checklist must pass before the code can be used; open-box/model/serial checks are optional profile data.
     9. Cancellation:
        - free before dispatch;
        - after dispatch, the buyer pays at most the disclosed return cost;
        - a seller who cancels pays the buyer the same amount (E-Commerce Rules 2020, Rule 4 symmetry).
     10. Seller default: the backup takes over at the **same** buyer price; any difference comes from the seller's deposit, then from POOL's reserve.
-    11. Installation hold: released on installation, or 5 days after delivery, or up to 45 days if the buyer defers installation.
+    11. Holds release on configured proof or profile-defined timeout; deferral is allowed only where the profile explicitly permits it, within its maximum. Five/45-day installation rules are example data.
     12. Late-delivery credit, paid from the seller's held money.
     13. A close time is never extended without every member opting in (logged).
     14. A pool matching key (product or grouping, region, area), so new buyers are shown existing pools.
@@ -98,7 +99,7 @@ AI assistants ── MCP ───────┘                   ├─ Sarva
   - DBOS runs durable workflows in it: pool close, bid window, accept window, payout hold until code, Wave Drop at close.
   - pgledger is the double-entry ledger.
   - pgvector plus tsvector/pg_trgm handle search and matching.
-- **Two regions from one codebase:** India data in AWS Mumbai (RBI 2018 payment-data localisation), US in us-east-1. Local development runs in Docker.
+- **Current build: India only.** Local development runs in Docker; India deployment is planned for AWS Mumbai. The diagram's US integrations and US region are parked roadmap items.
 - **Live updates** use Server-Sent Events through oRPC. No WebSockets.
 
 ---
@@ -169,8 +170,9 @@ It must work end to end in **both** India (INR / Razorpay test) and US (USD / St
 | # | Milestone | Done when |
 | --- | --- | --- |
 | M1 | Monorepo + **engine** (pool state machine, bid evaluation, guaranteed price, Wave Drop slab pot, fee split, code generation and verification) + money property tests | `pnpm test` is green, including fast-check money invariants |
+| M1.5 | India booking/checkout/taxes, need-by and pricing deadlines, funded seller recovery, replay/audit, abuse signals and India helpers | A1–A10 verified locally; 110 engine tests, explicit UNVERIFIED tax/checksum assumptions |
 | M2 | Postgres (Docker) + Drizzle schema + pgledger + DBOS workflows (pool close, payout hold) | An integration test closes a pool and posts balanced ledger entries |
-| M3 | Payments: Razorpay test (Orders, Route on_hold, release, refunds) + Stripe test (manual/extended capture, transfer, partial refund), with webhooks through Hookdeck | A real test-mode booking → capture → hold → release → Wave Drop refund, visible in both dashboards |
+| M3 | India payments: Razorpay test (Orders, Route on_hold, release, refunds), with verified webhooks. US/Stripe work is parked. **Not started; stop after M2.** | A real test-mode booking → capture → hold → release → Wave Drop refund, verified at the payment provider |
 | M4 | Product identification (URL parse, JSON-LD, Claude with evidence quotes) + matching (Voyage) | 20 real links identified; an eval reports accuracy |
 | M5 | Buyer web app (paste → compare → pool → pay → track → code), with UI quality gates | Playwright golden flow + axe clean + Lighthouse budget on a mid-range Android profile |
 | M6 | Seller app + ops console + WhatsApp notifications (Cloud API test number) + OTP (Twilio) | Two sellers bid; buyers get WhatsApp updates |
@@ -182,7 +184,7 @@ It must work end to end in **both** India (INR / Razorpay test) and US (USD / St
 
 - Keys live only in `pool/.env` (git-ignored), and are **test keys only**.
 - Claude never prints or commits them. `pool/.env.example` lists the variable names.
-- The app validates them at startup and fails fast if any is missing.
+- M2 validates DATABASE_URL and CODE_SECRET at startup; POSTGRES_PASSWORD configures Docker. Future integrations validate their own keys when their milestone is built; those keys are not required by M2.
 - Needed:
   - `ANTHROPIC_API_KEY`
   - `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET`
@@ -201,13 +203,13 @@ These are not needed for the demo; they must be done before live money.
 - Stripe live needs a US entity (e.g. Stripe Atlas).
 - TRAI DLT registration for India SMS; A2P 10DLC for US SMS.
 - Meta Business Verification.
-- E-Commerce Rules 2020 duties (grievance officer, seller disclosures, ranking disclosure); the E-Commerce Amendment Rules 2026 apply from 1 Jan 2027.
+- E-Commerce Rules 2020 duties (grievance officer, seller disclosures, ranking disclosure). **UNVERIFIED:** the inherited claim about E-Commerce Amendment Rules 2026 and a 1 Jan 2027 effective date has no verified official source in this work order; do not rely on it.
 - GST TCS 0.5% and TDS 0.1%.
 - DPDP consent notices.
 - A lawyer reviews the Wave Drop credit-note treatment and the cancellation policy.
 
 ## M1.5 / M2 audit checkpoint — 1 Oct 2026
 
-The implementation is not yet accepted as complete. See POOL_PROJECT_STATE.md §0 for exact evidence and unresolved defects. Current persisted names are assignments (awards), wave_pots (wave_drop_pots), plus units, fulfilment_profiles, price_decisions, offers, order_steps, handover_codes, idempotency_keys, aggregates, money_events, ledger_account_map and workflow_outbox. India-only persistence; existing US engine regression remains.
+Task A (A1–A10) and Task B (B1–B7) are implemented and their local checks pass: 110 engine tests, 16 real PostgreSQL/DBOS integration tests, all package typechecks exit 0. This is prototype verification, with tax/compliance assumptions explicitly UNVERIFIED in source and POOL_PROJECT_STATE.md §0. M3 has not started. Current persisted names are assignments (awards), wave_pots (wave_drop_pots), plus units, fulfilment_profiles, price_decisions, offers, order_steps, handover_codes, idempotency_keys, aggregates, money_events, ledger_account_map and workflow_outbox. India-only persistence; existing US engine regression remains.
 
-Unresolved product rule: capacity-split pools can have different seller Wave Drop slabs; whether pots are seller-specific or pool-wide needs a founder decision. The existing single-slab calculation does not resolve this. No implementation may silently choose how one seller subsidizes another.
+Founder confirmed 1 Oct 2026: capacity-split pools have a separate Wave Drop pot per seller. Each seller's slab pot is shared only among that seller's settled buyers. Settlement must use the accepted, persisted slabs and counted quantities for that seller.
