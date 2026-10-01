@@ -32,7 +32,10 @@ describe('allocate', () => {
       fc.property(
         fc.integer({ min: 0, max: 1e10 }),
         fc
-          .array(fc.integer({ min: 0, max: 1000 }), { minLength: 1, maxLength: 60 })
+          .array(fc.integer({ min: 0, max: 1000 }), {
+            minLength: 1,
+            maxLength: 60,
+          })
           .filter((w) => w.some((x) => x > 0)),
         (total, weights) => {
           const parts = allocate(money('INR', total), weights);

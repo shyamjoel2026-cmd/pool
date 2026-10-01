@@ -25,7 +25,9 @@ export function formatINR(value: Money): string {
   if (value.currency !== 'INR' || !Number.isSafeInteger(value.minor))
     throw new Error('INR paise required');
   const abs = BigInt(Math.abs(value.minor));
-  const rupees = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(abs / 100n);
+  const rupees = new Intl.NumberFormat('en-IN', {
+    maximumFractionDigits: 0,
+  }).format(abs / 100n);
   const paise = abs % 100n;
   return `${value.minor < 0 ? '-' : ''}₹${rupees}${paise === 0n ? '' : '.' + String(paise).padStart(2, '0')}`;
 }

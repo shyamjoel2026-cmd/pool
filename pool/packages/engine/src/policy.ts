@@ -68,11 +68,18 @@ export function policyFor(region: Region): Policy {
 }
 
 export function recommendedMinSaving(policy: Policy, outsideBest: Money): Money {
-  return max(money(outsideBest.currency, policy.recommendedMinSavingFloorMinor), percentOf(outsideBest, policy.recommendedMinSavingBps));
+  return max(
+    money(outsideBest.currency, policy.recommendedMinSavingFloorMinor),
+    percentOf(outsideBest, policy.recommendedMinSavingBps),
+  );
 }
 
 /** Information for the team and the buyer's honest comparison card. Never blocks a price. */
-export function compareToOutside(policy: Policy, buyerTotal: Money, outsideBest: Money | undefined) {
+export function compareToOutside(
+  policy: Policy,
+  buyerTotal: Money,
+  outsideBest: Money | undefined,
+) {
   if (!outsideBest) return { known: false as const };
   const saving = sub(outsideBest, buyerTotal);
   return {

@@ -38,7 +38,12 @@ function openPool(
     INDIA_POLICY,
     {
       id: 'p1',
-      bookingRule: { kind: 'FIXED', amountMinor: 100, minMinor: 100, maxMinor: 100 },
+      bookingRule: {
+        kind: 'FIXED',
+        amountMinor: 100,
+        minMinor: 100,
+        maxMinor: 100,
+      },
       checkoutPlan: 'PREPAY_FULL',
       hsnCode: '9999',
       gstRateBps: 1800,
@@ -94,7 +99,7 @@ describe('joining — rules come from the pool, not the product type', () => {
     expect(committedCount(p)).toBe(0);
     p = confirmBooking(p, 'a', NOW + 1, receipt('a')).value;
     expect(committedCount(p)).toBe(1);
-    expect(confirmBooking(p, 'a', NOW + 2).events).toEqual([]); // webhook replay is idempotent
+    expect(confirmBooking(p, 'a', NOW + 2, receipt('a')).events).toEqual([]); // same verified receipt replay is idempotent
   });
   it('household cap only when the pool sets one (here 2 kg)', () => {
     const p = join(
@@ -249,7 +254,11 @@ describe('close → award → decide', () => {
     p = decide(p, 'a', 'ACCEPTED', NOW + 2 * DAY + HOUR, 'oa').value;
     const r = expireOffers(p, p.acceptBy! + 1);
     expect(r.events.filter((e) => e.type === 'MEMBER_DECIDED')).toEqual([
-      expect.objectContaining({ memberId: 'b', decision: 'TIMED_OUT', refundBooking: true }),
+      expect.objectContaining({
+        memberId: 'b',
+        decision: 'TIMED_OUT',
+        refundBooking: true,
+      }),
     ]);
   });
 });

@@ -12,7 +12,10 @@ export interface TermRequirement {
   readonly value: TermValue | readonly TermValue[];
 }
 
-export function meetsTerms(terms: Terms, reqs: readonly TermRequirement[]): { ok: boolean; failed: TermRequirement[] } {
+export function meetsTerms(
+  terms: Terms,
+  reqs: readonly TermRequirement[],
+): { ok: boolean; failed: TermRequirement[] } {
   const failed = reqs.filter((r) => {
     const v = terms[r.key];
     if (v === undefined) return true;

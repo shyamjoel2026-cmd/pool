@@ -31,7 +31,10 @@ describe('handover codes follow the fulfilment profile', () => {
       reason: 'CHECKLIST_INCOMPLETE',
     });
     expect(
-      verifyCode(SECRET, stored, plain, NOW, { right_item: true, right_quantity: true }).ok,
+      verifyCode(SECRET, stored, plain, NOW, {
+        right_item: true,
+        right_quantity: true,
+      }).ok,
     ).toBe(true);
   });
   it('no checklist → code alone is enough', () => {
@@ -42,12 +45,18 @@ describe('handover codes follow the fulfilment profile', () => {
   it('single use, attempt lock, expiry, per-order binding, secret length', () => {
     const { plain, stored } = issueCode(SECRET, 'o1', 4, END, 1234, [], 3);
     const used = verifyCode(SECRET, stored, plain, NOW);
-    expect(verifyCode(SECRET, used.code, plain, NOW)).toMatchObject({ reason: 'ALREADY_USED' });
+    expect(verifyCode(SECRET, used.code, plain, NOW)).toMatchObject({
+      reason: 'ALREADY_USED',
+    });
     let s = stored;
     const wrong = plain === '0000' ? '1111' : '0000';
     for (let i = 0; i < 3; i++) s = verifyCode(SECRET, s, wrong, NOW).code;
-    expect(verifyCode(SECRET, s, plain, NOW)).toMatchObject({ reason: 'LOCKED' });
-    expect(verifyCode(SECRET, stored, plain, END + 1)).toMatchObject({ reason: 'EXPIRED' });
+    expect(verifyCode(SECRET, s, plain, NOW)).toMatchObject({
+      reason: 'LOCKED',
+    });
+    expect(verifyCode(SECRET, stored, plain, END + 1)).toMatchObject({
+      reason: 'EXPIRED',
+    });
     const other = issueCode(SECRET, 'o9', 4, END, 1234);
     expect(verifyCode(SECRET, other.stored, plain, NOW).ok).toBe(plain === other.plain);
     expect(() => issueCode('short', 'o1', 4, END, 1234)).toThrow(/32/);

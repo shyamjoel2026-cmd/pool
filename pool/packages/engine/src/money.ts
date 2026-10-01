@@ -27,7 +27,8 @@ export function money(currency: Currency, minor: number): Money {
 export const zero = (currency: Currency): Money => money(currency, 0);
 
 export function assertSameCurrency(a: Money, b: Money): void {
-  if (a.currency !== b.currency) throw new MoneyError(`currency mismatch: ${a.currency} vs ${b.currency}`);
+  if (a.currency !== b.currency)
+    throw new MoneyError(`currency mismatch: ${a.currency} vs ${b.currency}`);
 }
 
 export function add(a: Money, b: Money): Money {
@@ -65,7 +66,9 @@ export function divRoundHalfUp(numerator: number, denominator: number): number {
 function divideBigInt(numerator: bigint, denominator: bigint): number {
   const sign = numerator < 0n ? -1n : 1n;
   const absolute = numerator * sign;
-  const result = Number(sign * (absolute / denominator + (2n * (absolute % denominator) >= denominator ? 1n : 0n)));
+  const result = Number(
+    sign * (absolute / denominator + (2n * (absolute % denominator) >= denominator ? 1n : 0n)),
+  );
   assertSafe(result, 'rounded result');
   return result;
 }
@@ -111,7 +114,7 @@ export function allocate(total: Money, weights: readonly number[]): Money[] {
     remainders.push({ i, r: product % weightSum });
   });
   let left = total.minor - allocated;
-  remainders.sort((a, b) => a.r === b.r ? a.i - b.i : a.r > b.r ? -1 : 1);
+  remainders.sort((a, b) => (a.r === b.r ? a.i - b.i : a.r > b.r ? -1 : 1));
   for (const { i } of remainders) {
     if (left === 0) break;
     base[i] = (base[i] ?? 0) + 1;

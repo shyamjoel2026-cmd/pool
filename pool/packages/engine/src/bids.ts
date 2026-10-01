@@ -6,11 +6,10 @@ import { holdPerUnit, type Slab, validateSlabs } from './wave-drop.ts';
 
 export class BidError extends Error {
   override name = 'BidError';
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string;
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
   }
 }
 

@@ -54,12 +54,29 @@ export const PROFILES: Record<string, FulfilmentProfile> = {
     modes: ['home_delivery'],
     steps: [
       { key: 'seller_confirmed', proof: 'confirmation', afterHandover: false },
-      { key: 'dispatched', proof: 'photo', afterHandover: false, returnCostAppliesAfter: true },
-      { key: 'installed', proof: 'job_number', afterHandover: true, releasesHold: 'installation' },
+      {
+        key: 'dispatched',
+        proof: 'photo',
+        afterHandover: false,
+        returnCostAppliesAfter: true,
+      },
+      {
+        key: 'installed',
+        proof: 'job_number',
+        afterHandover: true,
+        releasesHold: 'installation',
+      },
     ],
     handoverChecklist: ['right_item', 'no_damage', 'serial_matches'],
     codeDigits: 6,
-    holds: [{ key: 'installation', bps: 1000, releaseAfterDays: 5, deferredMaxDays: 45 }],
+    holds: [
+      {
+        key: 'installation',
+        bps: 1000,
+        releaseAfterDays: 5,
+        deferredMaxDays: 45,
+      },
+    ],
     returnWindowDays: 7,
     lateCreditMinor: 0,
   },

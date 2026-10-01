@@ -74,6 +74,7 @@ export function verifyCode(
   now: number,
   checklist: Checklist = {},
 ): VerifyResult {
+  if (!Number.isSafeInteger(now)) throw new Error('integer UTC verification time required');
   if (stored.usedAt !== undefined) return { ok: false, code: stored, reason: 'ALREADY_USED' };
   if (now > stored.expiresAt) return { ok: false, code: stored, reason: 'EXPIRED' };
   if (stored.attempts >= stored.maxAttempts) return { ok: false, code: stored, reason: 'LOCKED' };
@@ -83,6 +84,10 @@ export function verifyCode(
   const actual = Buffer.from(hmac(secret, stored.orderId, attempt.trim()), 'hex');
   const match = expected.length === actual.length && timingSafeEqual(expected, actual);
   if (!match)
-    return { ok: false, code: { ...stored, attempts: stored.attempts + 1 }, reason: 'WRONG_CODE' };
+    return {
+      ok: false,
+      code: { ...stored, attempts: stored.attempts + 1 },
+      reason: 'WRONG_CODE',
+    };
   return { ok: true, code: { ...stored, usedAt: now } };
 }

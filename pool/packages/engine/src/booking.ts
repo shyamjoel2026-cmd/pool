@@ -32,7 +32,10 @@ export function bookingAmount(
   const amount = rule.kind === 'FIXED' ? rule.amountMinor : percentOf(estimate!, rule.bps).minor;
   return money(currency, Math.max(rule.minMinor, Math.min(rule.maxMinor, amount)));
 }
-export function refundBooking(booking: Booking): { booking: Booking; refund: Money } {
+export function refundBooking(booking: Booking): {
+  booking: Booking;
+  refund: Money;
+} {
   if (booking.disposition === 'APPLIED') throw new Error('booking already applied to an order');
   const refund = booking.disposition === 'HELD' ? booking.paid : money(booking.due.currency, 0);
   return { booking: { ...booking, disposition: 'REFUNDED' }, refund };

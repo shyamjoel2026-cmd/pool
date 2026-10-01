@@ -6,7 +6,9 @@ export interface IndiaTaxContext {
   sellerStateCode: string;
   deliveryStateCode: string;
   poolStateCode: string;
-  supplyKind: 'MOVEMENT_OF_GOODS';
+  supplyKind: 'MOVEMENT_OF_GOODS' | 'EXPLICIT_PLACE_OF_SUPPLY';
+  placeOfSupplyStateCode?: string;
+  taxTreatmentSource?: string;
   tcsApplicable?: boolean;
   tdsApplicable?: boolean;
 }
@@ -45,10 +47,17 @@ export function calculateIndiaTaxes(buyerTotal: Money, margin: Money, ctx: India
     throw new Error('non-negative INR totals required');
   for (const code of [ctx.sellerStateCode, ctx.deliveryStateCode, ctx.poolStateCode])
     validateStateCode(code);
-  if (ctx.supplyKind !== 'MOVEMENT_OF_GOODS')
+  let placeOfSupply = ctx.deliveryStateCode;
+  // Other products/services are supported by reviewed tax treatment DATA, never inferred from category names.
+  if (ctx.supplyKind === 'EXPLICIT_PLACE_OF_SUPPLY') {
+    if (!ctx.placeOfSupplyStateCode || !ctx.taxTreatmentSource?.trim())
+      throw new Error('explicit place of supply needs state and reviewed source');
+    validateStateCode(ctx.placeOfSupplyStateCode);
+    placeOfSupply = ctx.placeOfSupplyStateCode;
+  } else if (ctx.supplyKind !== 'MOVEMENT_OF_GOODS')
     throw new Error('unsupported place-of-supply treatment; configure it before use');
   if (
-    !/^\d{4,8}$/.test(ctx.hsnCode) ||
+    !/^(?:\d{4}|\d{6}|\d{8})$/.test(ctx.hsnCode) ||
     !Number.isSafeInteger(ctx.gstRateBps) ||
     ctx.gstRateBps < 0 ||
     ctx.gstRateBps > 10000
@@ -62,10 +71,10 @@ export function calculateIndiaTaxes(buyerTotal: Money, margin: Money, ctx: India
   const tds = ctx.tdsApplicable === false ? money('INR', 0) : percentOf(buyerTotal, 10);
   return {
     taxable: taxable!,
-    goods: splitTax(goodsTax!, ctx.sellerStateCode === ctx.deliveryStateCode),
+    goods: splitTax(goodsTax!, ctx.sellerStateCode === placeOfSupply),
     commissionNet: commissionNet!,
     commission: splitTax(commissionTax!, ctx.poolStateCode === ctx.sellerStateCode),
-    tcs: splitTax(tcs, ctx.sellerStateCode === ctx.deliveryStateCode),
+    tcs: splitTax(tcs, ctx.sellerStateCode === placeOfSupply),
     tds,
     sellerInvoiceNet: sub(buyerTotal, goodsTax!),
   };

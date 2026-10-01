@@ -9,6 +9,34 @@ const SLABS: Slab[] = [
   { fromUnit: 50, perUnitMinor: 1000_00 },
 ];
 
+it('rejects duplicate recipients and invalid counts before allocating money', () => {
+  const order = { orderId: 'o', count: 1, outcome: 'settled' as const };
+  expect(() => closeWave('INR', SLABS, [order, order])).toThrow(/duplicate/);
+  for (const count of [0, -1, 0.5, NaN, Infinity])
+    expect(() => closeWave('INR', SLABS, [{ ...order, count }])).toThrow(/count/);
+});
+
+it('interval pot calculation equals every per-unit contribution (property)', () => {
+  fc.assert(
+    fc.property(
+      fc.integer({ min: 0, max: 300 }),
+      fc.integer({ min: 0, max: 10000 }),
+      (count, amount) => {
+        const slabs = [
+          { fromUnit: 1, perUnitMinor: amount },
+          { fromUnit: 25, perUnitMinor: amount + 1 },
+        ];
+        const reference = Array.from({ length: count }, (_, i) => slabAt(slabs, i + 1)).reduce(
+          (a, b) => a + b,
+          0,
+        );
+        expect(potFor(slabs, count)).toBe(reference);
+      },
+    ),
+  );
+  expect(potFor([{ fromUnit: 1, perUnitMinor: 1 }], 1_000_000_000)).toBe(1_000_000_000);
+});
+
 describe('slab pot — matches POOL_WORKING_MODEL_v3.md §5 table', () => {
   const cases: Array<[number, number, number]> = [
     // settled units, pot ₹, each buyer ₹ (rounded)
@@ -44,7 +72,10 @@ describe('slab pot — matches POOL_WORKING_MODEL_v3.md §5 table', () => {
 
 describe('slab pot invariants (property)', () => {
   const slabsArb = fc
-    .uniqueArray(fc.integer({ min: 1, max: 80 }), { minLength: 0, maxLength: 5 })
+    .uniqueArray(fc.integer({ min: 1, max: 80 }), {
+      minLength: 0,
+      maxLength: 5,
+    })
     .chain((starts) => {
       const sorted = [...starts].sort((a, b) => a - b);
       return fc.tuple(
@@ -79,9 +110,15 @@ describe('slab pot invariants (property)', () => {
     fc.assert(
       fc.property(
         slabsArb,
-        fc.array(fc.tuple(fc.integer({ min: 1, max: 3 }), outcome), { maxLength: 120 }),
+        fc.array(fc.tuple(fc.integer({ min: 1, max: 3 }), outcome), {
+          maxLength: 120,
+        }),
         (slabs, raw) => {
-          const orders = raw.map(([count, o], i) => ({ orderId: `o${i}`, count, outcome: o }));
+          const orders = raw.map(([count, o], i) => ({
+            orderId: `o${i}`,
+            count,
+            outcome: o,
+          }));
           const r = closeWave('INR', slabs, orders);
           expect(r.refunds.reduce((a, x) => a + x.amount.minor, 0)).toBe(r.pot.minor);
           expect(r.releaseToSeller.minor + r.pot.minor).toBe(

@@ -92,7 +92,11 @@ describe('splitOrder — team-priced (blueprint v2.2 bridge example: seller ₹4
         (seller, marginBps, gst, holdBps, waveBps) => {
           const profile: FulfilmentProfile = {
             ...PROFILES.home_delivery!,
-            holds: holdBps.map((bps, i) => ({ key: `h${i}`, bps, releaseAfterDays: 3 })),
+            holds: holdBps.map((bps, i) => ({
+              key: `h${i}`,
+              bps,
+              releaseAfterDays: 3,
+            })),
           };
           const buyer = seller + Math.floor((seller * marginBps) / 10_000);
           const s = splitOrder(INDIA_POLICY, {
@@ -242,7 +246,9 @@ describe('cancellation symmetry (E-Commerce Rules 2020, Rule 4)', () => {
   });
   it('seller cancels: full refund plus the same amount as compensation', () => {
     const ev = sellerCancels(paid(installProfile), T0).events;
-    expect(ev.find((e) => e.type === 'REFUND')).toMatchObject({ amount: money('INR', 43_000_00) });
+    expect(ev.find((e) => e.type === 'REFUND')).toMatchObject({
+      amount: money('INR', 43_000_00),
+    });
     expect(ev.find((e) => e.type === 'SELLER_CHARGE')).toMatchObject({
       amount: money('INR', 500_00),
     });

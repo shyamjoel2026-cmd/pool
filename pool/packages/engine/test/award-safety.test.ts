@@ -42,7 +42,13 @@ it('every assignment meets the deadline (property)', () => {
       (days, needBy) => {
         const bids = days.map((d, i) => bid(String(i), d));
         const result = award(bids, [
-          { memberId: 'm', joinedAt: 1, qty: { uom: 'piece', base: 1 }, options: [], needBy },
+          {
+            memberId: 'm',
+            joinedAt: 1,
+            qty: { uom: 'piece', base: 1 },
+            options: [],
+            needBy,
+          },
         ]);
         for (const assignment of result.assignments)
           expect(bids.find((b) => b.id === assignment.bidId)!.deliverBy).toBeLessThanOrEqual(

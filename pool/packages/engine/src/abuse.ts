@@ -82,7 +82,11 @@ export function detectBidAbuse(
   policy: Policy,
   bids: readonly Bid[],
   nearBps: number,
-  winners: readonly { poolId: string; sellerId: string; participants: readonly string[] }[],
+  winners: readonly {
+    poolId: string;
+    sellerId: string;
+    participants: readonly string[];
+  }[],
 ): AbuseSignal[] {
   if (!Number.isSafeInteger(nearBps) || nearBps < 0 || nearBps > 10000)
     throw new Error('invalid similarity threshold');

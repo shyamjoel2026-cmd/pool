@@ -23,11 +23,10 @@ export interface PriceDecision {
 
 export class PricingError extends Error {
   override name = 'PricingError';
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string;
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
   }
 }
 

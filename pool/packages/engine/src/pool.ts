@@ -9,7 +9,7 @@ import {
 } from './booking.ts';
 import { money, type Money } from './money.ts';
 import { makeOffers, type Offer, type PriceDecision } from './pricing.ts';
-import { type Assignment, type Bid } from './bids.ts';
+import { type Assignment, type Bid, type PoolRequirements } from './bids.ts';
 import type { Policy, Region } from './policy.ts';
 import {
   checkQuantity,
@@ -21,11 +21,10 @@ import {
 
 export class PoolError extends Error {
   override name = 'PoolError';
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string;
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
   }
 }
 
@@ -86,6 +85,7 @@ export interface Pool {
   readonly pricingDeadline?: number;
   readonly assignments?: readonly Assignment[];
   readonly offers?: readonly Offer[];
+  readonly bidRequirements?: PoolRequirements;
 }
 
 export type PoolEvent =
@@ -116,8 +116,21 @@ export type PoolEvent =
       committedCount: number;
       at: number;
     }
-  | { type: 'MEMBER_LEFT'; poolId: string; memberId: string; refundBooking: true; at: number }
-  | { type: 'CLOSE_EXTENDED'; poolId: string; from: number; to: number; optIns: number; at: number }
+  | {
+      type: 'MEMBER_LEFT';
+      poolId: string;
+      memberId: string;
+      refundBooking: true;
+      at: number;
+    }
+  | {
+      type: 'CLOSE_EXTENDED';
+      poolId: string;
+      from: number;
+      to: number;
+      optIns: number;
+      at: number;
+    }
   | { type: 'POOL_CLOSED'; poolId: string; committedCount: number; at: number }
   | {
       type: 'POOL_AWARDED';
@@ -197,10 +210,22 @@ function createPoolCommand(
       'CLOSE_TOO_LATE',
       `a pool can stay open at most ${policy.maxPoolDays} days`,
     );
-  const pool: Pool = { ...input, region: policy.region, state: 'OPEN', members: [] };
+  const pool: Pool = {
+    ...input,
+    region: policy.region,
+    state: 'OPEN',
+    members: [],
+  };
   return {
     value: pool,
-    events: [{ type: 'POOL_CREATED', poolId: pool.id, closesAt: pool.closesAt, at: now }],
+    events: [
+      {
+        type: 'POOL_CREATED',
+        poolId: pool.id,
+        closesAt: pool.closesAt,
+        at: now,
+      },
+    ],
   };
 }
 
@@ -261,7 +286,12 @@ function joinCommand(
       throw new PoolError('PAYER_CAP', 'this payment account has reached the cap for this pool');
   }
   const due = bookingAmount(
-    pool.bookingRule ?? { kind: 'FIXED', amountMinor: 0, minMinor: 0, maxMinor: 0 },
+    pool.bookingRule ?? {
+      kind: 'FIXED',
+      amountMinor: 0,
+      minMinor: 0,
+      maxMinor: 0,
+    },
     policy.currency,
     estimate,
   );
@@ -286,6 +316,26 @@ function confirmBookingCommand(
 ): Result<Pool> {
   const m = pool.members.find((x) => x.memberId === memberId);
   if (!m) throw new PoolError('NO_MEMBER', 'unknown member');
+  if (pool.region === 'IN') {
+    if (
+      !receipt ||
+      !receipt.paymentRef.trim() ||
+      !Number.isSafeInteger(receipt.paidAt) ||
+      receipt.paidAt < m.joinedAt ||
+      receipt.paidAt > now ||
+      receipt.amount.currency !== m.booking?.due.currency ||
+      receipt.amount.minor !== m.booking?.due.minor
+    )
+      throw new PoolError('PAYMENT', 'valid booking receipt required');
+    if (
+      pool.members.some(
+        (other) => other.memberId !== memberId && other.booking?.paymentRef === receipt.paymentRef,
+      )
+    )
+      throw new PoolError('PAYMENT', 'receipt already belongs to another member');
+    if (m.booking?.paymentRef && m.booking.paymentRef !== receipt.paymentRef)
+      throw new PoolError('PAYMENT', 'receipt differs from recorded payment');
+  }
   if (m.status === 'COMMITTED') return { value: pool, events: [] }; // idempotent webhook replay
   if (m.status !== 'PENDING_BOOKING')
     throw new PoolError('BAD_STATE', `cannot confirm booking in status ${m.status}`);
@@ -332,7 +382,15 @@ function leaveCommand(pool: Pool, memberId: string, now: number): Result<Pool> {
   if (!m || !active(m)) throw new PoolError('BAD_STATE', 'member is not active');
   return {
     value: replaceMember(pool, memberId, { status: 'LEFT' }),
-    events: [{ type: 'MEMBER_LEFT', poolId: pool.id, memberId, refundBooking: true, at: now }],
+    events: [
+      {
+        type: 'MEMBER_LEFT',
+        poolId: pool.id,
+        memberId,
+        refundBooking: true,
+        at: now,
+      },
+    ],
   };
 }
 
@@ -346,7 +404,10 @@ export function optInToExtension(
   if (!Number.isSafeInteger(newClosesAt) || newClosesAt <= pool.closesAt)
     throw new PoolError('CLOSE', 'explicit later proposal required');
   return finish(
-    { value: replaceMember(pool, memberId, { extensionOptIn: newClosesAt }), events: [] },
+    {
+      value: replaceMember(pool, memberId, { extensionOptIn: newClosesAt }),
+      events: [],
+    },
     pool,
     now,
   );
@@ -401,7 +462,12 @@ function closeCommand(pool: Pool, now: number): Result<Pool> {
   return {
     value: next,
     events: [
-      { type: 'POOL_CLOSED', poolId: pool.id, committedCount: committedCount(next), at: now },
+      {
+        type: 'POOL_CLOSED',
+        poolId: pool.id,
+        committedCount: committedCount(next),
+        at: now,
+      },
     ],
   };
 }
@@ -436,7 +502,14 @@ function applyAwardCommand(
   if (offeredMemberIds.size === 0) {
     return {
       value: { ...pool, state: 'NO_DEAL', members },
-      events: [{ type: 'POOL_NO_DEAL', poolId: pool.id, refunds: committed.length, at: now }],
+      events: [
+        {
+          type: 'POOL_NO_DEAL',
+          poolId: pool.id,
+          refunds: committed.length,
+          at: now,
+        },
+      ],
     };
   }
   const acceptBy = now + policy.acceptWindowMinutes * 60_000;
@@ -512,6 +585,7 @@ function expireOffersCommand(pool: Pool, now: number): Result<Pool> {
 
 /** Complete immutable state is journalled with each command; replay is independent of current policy/code. */
 function finish(result: Result<Pool>, before: Pool | undefined, now: number): Result<Pool> {
+  if (!Number.isSafeInteger(now)) throw new PoolError('CLOCK', 'integer UTC time required');
   if (before === result.value && result.events.length === 0) return result;
   const events: PoolEvent[] = [...result.events];
   const members = result.value.members.map((m) => {
@@ -555,7 +629,18 @@ function finish(result: Result<Pool>, before: Pool | undefined, now: number): Re
     return booking ? { ...m, booking } : m;
   });
   const value = { ...result.value, members };
-  events.push({ type: 'POOL_SNAPSHOT', poolId: value.id, state: structuredClone(value), at: now });
+  if (
+    !before ||
+    before.closesAt !== value.closesAt ||
+    committedCount(before) !== committedCount(value)
+  )
+    events.push(...auditPool(value, now));
+  events.push({
+    type: 'POOL_SNAPSHOT',
+    poolId: value.id,
+    state: structuredClone(value),
+    at: now,
+  });
   return { value, events };
 }
 export function rebuildPool(events: readonly PoolEvent[]): Pool {
@@ -569,7 +654,13 @@ export function rebuildPool(events: readonly PoolEvent[]): Pool {
 }
 export function auditPool(pool: Pool, now: number): readonly PoolEvent[] {
   return [
-    { type: 'BUYER_AUDIT', poolId: pool.id, field: 'CLOSE_TIME', shown: pool.closesAt, at: now },
+    {
+      type: 'BUYER_AUDIT',
+      poolId: pool.id,
+      field: 'CLOSE_TIME',
+      shown: pool.closesAt,
+      at: now,
+    },
     {
       type: 'BUYER_AUDIT',
       poolId: pool.id,
@@ -623,10 +714,25 @@ export function publishOffers(
   if (pool.pricingDeadline !== undefined && now > pool.pricingDeadline)
     return applyAward(policy, pool, new Set(), now);
   const acceptBy = now + (pool.acceptWindowMinutes ?? policy.acceptWindowMinutes) * 60000;
+  const used = new Map<string, number>();
   for (const a of pool.assignments ?? []) {
     const bid = bids.find((b) => b.id === a.bidId);
     if (!bid || bid.poolId !== pool.id || bid.validUntil < acceptBy)
       throw new PoolError('VALIDITY', 'bid expires before actual accept deadline');
+    const member = pool.members.find((m) => m.memberId === a.memberId)!;
+    if (
+      bid.sellerId !== a.sellerId ||
+      bid.sellerPrice.minor !== a.sellerPrice.minor ||
+      bid.sellerPrice.currency !== a.sellerPrice.currency ||
+      bid.uom !== a.qty.uom ||
+      a.qty.base !== member.qty.base ||
+      bid.deliverBy > member.needBy ||
+      !member.options.every((x) => bid.optionsCovered.includes(x))
+    )
+      throw new PoolError('ASSIGNMENT', 'assignment differs from eligible bid/member');
+    used.set(bid.id, (used.get(bid.id) ?? 0) + a.qty.base);
+    if (used.get(bid.id)! > bid.capacityBase)
+      throw new PoolError('CAPACITY', 'assignments exceed bid capacity');
     if (decisions.get(a.bidId)?.poolId !== pool.id)
       throw new PoolError('PRICE', 'decision belongs to another pool');
   }
@@ -639,7 +745,10 @@ export function publishOffers(
   const ids = new Set(offers.map((o) => o.memberId));
   const members = pool.members.map((m) =>
     m.status === 'COMMITTED'
-      ? { ...m, status: ids.has(m.memberId) ? ('OFFERED' as const) : ('UNSERVED' as const) }
+      ? {
+          ...m,
+          status: ids.has(m.memberId) ? ('OFFERED' as const) : ('UNSERVED' as const),
+        }
       : m,
   );
   const value: Pool = { ...pool, state: 'AWARDED', offers, members, acceptBy };
@@ -667,8 +776,16 @@ export function expirePricing(policy: Policy, pool: Pool, now: number): Result<P
     throw new PoolError('STATE', 'pricing not due');
   return applyAward(policy, pool, new Set(), now);
 }
-export function cancelPool(pool: Pool, now: number): Result<Pool> {
-  if (pool.members.some((m) => m.status === 'ACCEPTED'))
+export function cancelPool(
+  pool: Pool,
+  now: number,
+  cancelledOrderIds: readonly string[] = [],
+): Result<Pool> {
+  if (
+    pool.members.some(
+      (m) => m.status === 'ACCEPTED' && !cancelledOrderIds.includes(m.booking?.orderId ?? ''),
+    )
+  )
     throw new PoolError('ORDERS', 'cancel accepted orders first, atomically in command layer');
   if (pool.state === 'CANCELLED' || pool.state === 'NO_DEAL') return { value: pool, events: [] };
   return finish(
@@ -676,10 +793,7 @@ export function cancelPool(pool: Pool, now: number): Result<Pool> {
       value: {
         ...pool,
         state: 'CANCELLED',
-        members: pool.members.map((m) => ({
-          ...m,
-          status: m.status === 'ACCEPTED' ? m.status : 'LEFT',
-        })),
+        members: pool.members.map((m) => ({ ...m, status: 'LEFT' })),
       },
       events: [{ type: 'POOL_CANCELLED', poolId: pool.id, at: now }],
     },

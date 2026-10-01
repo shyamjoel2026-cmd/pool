@@ -55,9 +55,18 @@ export function holdPerUnit(slabs: readonly Slab[]): number {
 
 /** Pot for N settled units. */
 export function potFor(slabs: readonly Slab[], settledUnits: number): number {
-  let total = 0;
-  for (let i = 1; i <= settledUnits; i++) total += slabAt(slabs, i);
-  return total;
+  validateSlabs(slabs, Number.MAX_SAFE_INTEGER);
+  if (!Number.isSafeInteger(settledUnits) || settledUnits < 0)
+    throw new WaveDropError('count must be a nonnegative safe integer');
+  let total = 0n;
+  for (let i = 0; i < slabs.length; i++) {
+    const slab = slabs[i]!;
+    const end = Math.min(settledUnits, (slabs[i + 1]?.fromUnit ?? settledUnits + 1) - 1);
+    if (end >= slab.fromUnit) total += BigInt(end - slab.fromUnit + 1) * BigInt(slab.perUnitMinor);
+  }
+  if (total > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new WaveDropError('pot exceeds safe integer paise');
+  return Number(total);
 }
 
 export interface WaveOrder {
@@ -91,6 +100,11 @@ export function closeWave(
   slabs: readonly Slab[],
   orders: readonly WaveOrder[],
 ): WaveCloseResult {
+  if (new Set(orders.map((o) => o.orderId)).size !== orders.length)
+    throw new WaveDropError('duplicate wave order');
+  for (const order of orders)
+    if (!order.orderId.trim() || !Number.isSafeInteger(order.count) || order.count < 1)
+      throw new WaveDropError('wave order requires a positive integer count');
   const hold = holdPerUnit(slabs);
   const settled = orders.filter((o) => o.outcome === 'settled');
   const cancelledBySeller = orders.filter((o) => o.outcome === 'seller_cancelled');
@@ -124,5 +138,13 @@ export function closeWave(
     ).minor !== pot.minor
   )
     throw new MoneyError('refunds do not sum to pot');
-  return { currency, settledUnits, pot, refunds, heldFromSettled, sellerPenalty, releaseToSeller };
+  return {
+    currency,
+    settledUnits,
+    pot,
+    refunds,
+    heldFromSettled,
+    sellerPenalty,
+    releaseToSeller,
+  };
 }

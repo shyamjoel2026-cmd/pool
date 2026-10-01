@@ -13,11 +13,10 @@ export interface PickupSlot {
 
 export class SlotError extends Error {
   override name = 'SlotError';
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string;
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
   }
 }
 

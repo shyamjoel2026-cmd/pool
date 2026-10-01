@@ -35,6 +35,8 @@ import {
   rebuildOrder,
   releaseDueHolds,
   returnOrder,
+  buyerCancels,
+  sellerCancels,
   executeSellerDefault,
   detectJoinAbuse,
   detectBidAbuse,
@@ -65,7 +67,12 @@ const create = () =>
       quantityRule: { uom: UOM.piece, minBase: 1, stepBase: 1 },
       fulfilmentProfileId: 'f',
       waveCountMode: 'per_order',
-      bookingRule: { kind: 'FIXED', amountMinor: 100, minMinor: 100, maxMinor: 100 },
+      bookingRule: {
+        kind: 'FIXED',
+        amountMinor: 100,
+        minMinor: 100,
+        maxMinor: 100,
+      },
       checkoutPlan: 'PREPAY_FULL',
       hsnCode: '9999',
       gstRateBps: 1800,
@@ -90,6 +97,62 @@ const bid: Bid = {
   validUntil: 5000000,
   submittedAt: 1,
 };
+it('a PA receipt cannot commit two members or be replaced on replay', () => {
+  let p = create().value;
+  for (const id of ['a', 'b'])
+    p = join(
+      INDIA_POLICY,
+      p,
+      {
+        memberId: id,
+        userId: id,
+        payerKey: id,
+        householdKey: id,
+        qty: qty(UOM.piece, 1),
+        options: [],
+        needBy: 5000000,
+      },
+      1,
+    ).value;
+  const receipt = {
+    amount: money('INR', 100),
+    paymentRef: 'same-pa-payment',
+    paidAt: 2,
+  };
+  p = confirmBooking(p, 'a', 2, receipt).value;
+  expect(() => confirmBooking(p, 'b', 2, receipt)).toThrow(/receipt/);
+  expect(() =>
+    confirmBooking(p, 'a', 2, {
+      ...receipt,
+      paymentRef: 'different-pa-payment',
+    }),
+  ).toThrow(/receipt/);
+  expect(confirmBooking(p, 'a', 2, receipt).events).toEqual([]);
+});
+it('booking receipt timestamps must be finite and cannot precede membership', () => {
+  const p = join(
+    INDIA_POLICY,
+    create().value,
+    {
+      memberId: 'a',
+      userId: 'a',
+      payerKey: 'a',
+      householdKey: 'a',
+      qty: qty(UOM.piece, 1),
+      options: [],
+      needBy: 5000000,
+    },
+    100,
+  ).value;
+  for (const paidAt of [NaN, Infinity, 99])
+    expect(() =>
+      confirmBooking(p, 'a', 101, {
+        amount: money('INR', 100),
+        paymentRef: 'receipt',
+        paidAt,
+      }),
+    ).toThrow();
+});
 function offered() {
   let r = create();
   const events: PoolEvent[] = [...r.events];
@@ -109,7 +172,11 @@ function offered() {
       1,
     );
     events.push(...r.events);
-    r = confirmBooking(r.value, id, 2, { amount: money('INR', 100), paymentRef: id, paidAt: 2 });
+    r = confirmBooking(r.value, id, 2, {
+      amount: money('INR', 100),
+      paymentRef: id,
+      paidAt: 2,
+    });
     events.push(...r.events);
   }
   r = close(r.value, 3600000);
@@ -220,7 +287,12 @@ it('booking replay is exact over different amounts (property)', () => {
         INDIA_POLICY,
         {
           ...first.value,
-          bookingRule: { kind: 'FIXED', amountMinor: amount, minMinor: amount, maxMinor: amount },
+          bookingRule: {
+            kind: 'FIXED',
+            amountMinor: amount,
+            minMinor: amount,
+            maxMinor: amount,
+          },
         },
         {
           memberId: 'm',
@@ -272,7 +344,11 @@ it('all nested tax parts and payout parts conserve paise (property)', () => {
         const s = splitOrder(INDIA_POLICY, {
           buyerTotal: money('INR', seller + margin),
           sellerTotal: money('INR', seller),
-          indiaTax: { ...tax, gstRateBps: rate, deliveryStateCode: inter ? '29' : '36' },
+          indiaTax: {
+            ...tax,
+            gstRateBps: rate,
+            deliveryStateCode: inter ? '29' : '36',
+          },
           profile: PROFILES.home_delivery!,
           waveHoldMinor: 0,
         });
@@ -312,17 +388,37 @@ function order(): Order {
     openIssue: false,
   };
 }
+it('a valid code with a weaker checklist or digit policy cannot release payment', () => {
+  const o = beginCheckout(order(), 'PREPAY_FULL', money('INR', 1100), 0).order,
+    secret = 'x'.repeat(32);
+  const c = issueCode(secret, o.id, 4, 1000, 1234, []);
+  expect(() => verifyAndHandOver(o, secret, c.stored, c.plain, {}, 1)).toThrow(/policy/);
+});
 it.each(['PREPAY_FULL', 'BALANCE_AT_HANDOVER'] as const)(
   '%s blocks code until exact digital balance is captured',
   (plan) => {
     let r = beginCheckout(order(), plan, money('INR', 100), 0);
     const secret = 'x'.repeat(32),
-      code = issueCode(secret, 'o', 4, 1000, 1234);
+      code = issueCode(
+        secret,
+        'o',
+        order().profile.codeDigits,
+        1000,
+        1234,
+        order().profile.handoverChecklist,
+      );
     expect(() => verifyAndHandOver(r.order, secret, code.stored, code.plain, {}, 1)).toThrow(
       /balance/,
     );
     r = collectBalance(r.order, money('INR', 1000), 'receipt', 'UPI', 2);
-    const h = verifyAndHandOver(r.order, secret, code.stored, code.plain, {}, 3);
+    const h = verifyAndHandOver(
+      r.order,
+      secret,
+      code.stored,
+      code.plain,
+      { right_item: true, no_damage: true },
+      3,
+    );
     expect(h.ok).toBe(true);
     if (h.ok) expect(rebuildOrder([...r.events, ...h.events])).toEqual(h.order);
   },
@@ -330,7 +426,7 @@ it.each(['PREPAY_FULL', 'BALANCE_AT_HANDOVER'] as const)(
 it('seller default preserves guaranteed buyer total and funding balances (property)', () => {
   fc.assert(
     fc.property(
-      fc.integer({ min: 1000, max: 100000 }),
+      fc.integer({ min: 100, max: 100000 }),
       fc.integer({ min: 0, max: 1000 }),
       (backupPrice, deposit) => {
         const o = { ...order(), status: 'PAID' as const };
@@ -346,6 +442,7 @@ it('seller default preserves guaranteed buyer total and funding balances (proper
             {
               order: o,
               backupBidId: 'backup',
+              backupSellerStateCode: '29',
               qty: qty(UOM.piece, 1),
               uom: UOM.piece,
               needBy: 5000000,
@@ -362,6 +459,18 @@ it('seller default preserves guaranteed buyer total and funding balances (proper
         );
         expect(r.assignments[0]!.order.split.buyerTotal).toEqual(o.split.buyerTotal);
         expect(r.fromDeposit.minor + r.fromReserve.minor).toBe(r.totalCharge.minor);
+        const split = r.assignments[0]!.order.split;
+        expect(
+          split.margin.minor +
+            split.tcs.minor +
+            split.tds.minor +
+            split.releaseOnHandover.minor +
+            split.waveHold.minor +
+            split.holds.reduce((n, h) => n + h.amount.minor, 0),
+        ).toBe(split.buyerTotal.minor + split.defaultFunding!.minor);
+        expect(
+          split.indiaTaxes!.commissionNet.minor + split.indiaTaxes!.commission.total.minor,
+        ).toBe(split.margin.minor);
       },
     ),
   );
@@ -370,7 +479,15 @@ it('missing backup capacity refunds and compensates the buyer', () => {
   const o = { ...order(), status: 'PAID' as const };
   const r = executeSellerDefault(
     's',
-    [{ order: o, qty: qty(UOM.piece, 1), uom: UOM.piece, needBy: 5000000, options: [] }],
+    [
+      {
+        order: o,
+        qty: qty(UOM.piece, 1),
+        uom: UOM.piece,
+        needBy: 5000000,
+        options: [],
+      },
+    ],
     [],
     new Map(),
     money('INR', 100),
@@ -387,10 +504,20 @@ it('India formatting and validation', () => {
   expect(formatINR(money('INR', 101))).toBe('₹1.01');
   expect(formatIST(Date.UTC(2026, 0, 1))).toContain('5:30');
   expect(() =>
-    validateAddress({ line1: '1', city: 'Hyderabad', pincode: '500001', stateCode: '36' }),
+    validateAddress({
+      line1: '1',
+      city: 'Hyderabad',
+      pincode: '500001',
+      stateCode: '36',
+    }),
   ).not.toThrow();
   expect(() =>
-    validateAddress({ line1: '1', city: 'x', pincode: '12345', stateCode: '99' }),
+    validateAddress({
+      line1: '1',
+      city: 'x',
+      pincode: '12345',
+      stateCode: '99',
+    }),
   ).toThrow();
   const prefix = '36ABCDE1234F1Z';
   expect(validateGSTIN(prefix + gstinCheckDigit(prefix))).toBe(true);
@@ -479,4 +606,63 @@ it('late publication refuses bids that expire before acceptance completes', () =
       3600000,
     ),
   ).toThrow(/expires/);
+});
+
+it('cancellation refunds only collected money and accounts for every paise (property)', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 0, max: 1100 }), fc.boolean(), (paid, seller) => {
+      const o = beginCheckout(order(), 'BALANCE_AT_HANDOVER', money('INR', paid), 0).order;
+      const r = seller ? sellerCancels(o, 1) : buyerCancels(o, 1);
+      const amount = (type: string) =>
+        r.events.reduce((n, e) => n + (e.type === type && 'amount' in e ? e.amount.minor : 0), 0);
+      expect(amount('REFUND') + amount('PAYOUT_RELEASE')).toBe(paid);
+      expect(amount('SELLER_CHARGE')).toBe(amount('COMPENSATION'));
+    }),
+  );
+});
+it('returned paid-out orders reverse all prior deductions before full refund (property)', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 0, max: 90 }), (credit) => {
+      let o = beginCheckout(
+        {
+          ...order(),
+          profile: { ...order().profile, lateCreditMinor: credit },
+          promisedBy: 0,
+        },
+        'PREPAY_FULL',
+        money('INR', 1100),
+        0,
+      ).order;
+      const secret = 'x'.repeat(32),
+        c = issueCode(secret, o.id, o.profile.codeDigits, 100, 1234, o.profile.handoverChecklist);
+      const h = verifyAndHandOver(
+        o,
+        secret,
+        c.stored,
+        c.plain,
+        { right_item: true, no_damage: true },
+        1,
+      );
+      if (!h.ok) throw new Error('code');
+      o = h.order;
+      const returned = returnOrder(o, 'DEFECTIVE', 2);
+      const additions = returned.events.reduce(
+        (n, e) =>
+          n +
+          (['PAYOUT_REVERSAL', 'ALLOCATION_REVERSAL', 'SELLER_CHARGE'].includes(e.type) &&
+          'amount' in e
+            ? e.amount.minor
+            : 0),
+        0,
+      );
+      const held =
+        1100 -
+        o.releasedMinor! -
+        o.lateCreditsMinor! -
+        o.split.margin.minor -
+        o.split.tcs.minor -
+        o.split.tds.minor;
+      expect(held + additions).toBe(1100);
+    }),
+  );
 });

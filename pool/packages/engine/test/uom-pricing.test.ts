@@ -34,7 +34,12 @@ describe('units of measure are data — any product', () => {
 
 describe('quantity rules are set per pool (no product assumptions)', () => {
   // e.g. a meat pool the team configured: min 500 g, steps of 250 g, max 2 kg per buyer
-  const rule: QuantityRule = { uom: UOM.kg, minBase: 500, stepBase: 250, maxPerBuyerBase: 2000 };
+  const rule: QuantityRule = {
+    uom: UOM.kg,
+    minBase: 500,
+    stepBase: 250,
+    maxPerBuyerBase: 2000,
+  };
   it('accepts valid quantities (most buyers pick 1 kg)', () => {
     expect(() => checkQuantity(rule, qty(UOM.kg, 1000))).not.toThrow();
     expect(() => checkQuantity(rule, qty(UOM.kg, 750))).not.toThrow();
@@ -52,7 +57,12 @@ describe('quantity rules are set per pool (no product assumptions)', () => {
   it('rejects broken rules', () => {
     expect(() => validateQuantityRule({ uom: UOM.kg, minBase: 0, stepBase: 250 })).toThrow();
     expect(() =>
-      validateQuantityRule({ uom: UOM.kg, minBase: 1000, stepBase: 250, maxPerBuyerBase: 500 }),
+      validateQuantityRule({
+        uom: UOM.kg,
+        minBase: 1000,
+        stepBase: 250,
+        maxPerBuyerBase: 500,
+      }),
     ).toThrow();
   });
   it('wave counting mode is chosen per pool', () => {

@@ -17,11 +17,10 @@ import { validateProfile, type FulfilmentProfile, stepsBeforeHandover } from './
 
 export class OrderError extends Error {
   override name = 'OrderError';
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string;
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
   }
 }
 
@@ -43,6 +42,9 @@ export interface Split {
   readonly waveHold: Money;
   readonly releaseOnHandover: Money;
   readonly indiaTaxes?: ReturnType<typeof calculateIndiaTaxes>;
+  readonly indiaTaxContext?: IndiaTaxContext;
+  /** Additional seller-default funding; never charged to the buyer. */
+  readonly defaultFunding?: Money;
 }
 
 export function splitOrder(
@@ -95,7 +97,10 @@ export function splitOrder(
     ...profile.holds.map((h) => h.bps),
     10000 - profile.holds.reduce((n, h) => n + h.bps, 0),
   ]);
-  const holds = profile.holds.map((h, i) => ({ key: h.key, amount: holdParts[i]! }));
+  const holds = profile.holds.map((h, i) => ({
+    key: h.key,
+    amount: holdParts[i]!,
+  }));
   if (!Number.isSafeInteger(input.waveHoldMinor) || input.waveHoldMinor < 0)
     throw new OrderError('WAVE', 'invalid wave hold');
   const waveHold = money(sellerTotal.currency, input.waveHoldMinor);
@@ -115,7 +120,7 @@ export function splitOrder(
     holds,
     waveHold,
     releaseOnHandover,
-    ...(indiaTaxes ? { indiaTaxes } : {}),
+    ...(indiaTaxes ? { indiaTaxes, indiaTaxContext: input.indiaTax! } : {}),
   };
 }
 
@@ -155,6 +160,8 @@ export interface Order {
   readonly checkoutPlan?: CheckoutPlan;
   readonly collectedMinor?: number;
   readonly paymentRefs?: readonly string[];
+  readonly releasedMinor?: number;
+  readonly lateCreditsMinor?: number;
 }
 
 export type OrderEvent =
@@ -166,8 +173,35 @@ export type OrderEvent =
       idempotencyKey: string;
       at: number;
     }
-  | { type: 'ORDER_STATUS'; orderId: string; from: OrderStatus; to: OrderStatus; at: number }
-  | { type: 'STEP_DONE'; orderId: string; step: string; proofRef: string; at: number }
+  | {
+      type: 'PAYOUT_REVERSAL';
+      orderId: string;
+      amount: Money;
+      idempotencyKey: string;
+      at: number;
+    }
+  | {
+      type: 'ALLOCATION_REVERSAL';
+      orderId: string;
+      account: 'margin' | 'tcs' | 'tds';
+      amount: Money;
+      idempotencyKey: string;
+      at: number;
+    }
+  | {
+      type: 'ORDER_STATUS';
+      orderId: string;
+      from: OrderStatus;
+      to: OrderStatus;
+      at: number;
+    }
+  | {
+      type: 'STEP_DONE';
+      orderId: string;
+      step: string;
+      proofRef: string;
+      at: number;
+    }
   | {
       type: 'PAYOUT_RELEASE';
       orderId: string;
@@ -176,7 +210,13 @@ export type OrderEvent =
       idempotencyKey: string;
       at: number;
     }
-  | { type: 'LATE_CREDIT'; orderId: string; amount: Money; idempotencyKey: string; at: number }
+  | {
+      type: 'LATE_CREDIT';
+      orderId: string;
+      amount: Money;
+      idempotencyKey: string;
+      at: number;
+    }
   | {
       type: 'REFUND';
       orderId: string;
@@ -291,14 +331,24 @@ function completeStepCommand(
  */
 function handOverCommand(
   o: Order,
-  proof: { secret: string; stored: StoredCode; attempt: string; checklist: Checklist },
+  proof: {
+    secret: string;
+    stored: StoredCode;
+    attempt: string;
+    checklist: Checklist;
+  },
   now: number,
 ): { order: Order; events: OrderEvent[] } {
   if (o.status !== 'PAID') throw new OrderError('BAD_STATE', `cannot hand over from ${o.status}`);
-  if (o.collectedMinor !== undefined && o.collectedMinor !== o.split.buyerTotal.minor)
+  if (o.collectedMinor !== o.split.buyerTotal.minor)
     throw new OrderError('BALANCE', 'balance unpaid');
   if (!proof || typeof proof !== 'object' || proof.stored.orderId !== o.id)
     throw new OrderError('PROOF_MISSING', 'handover needs an order-bound code');
+  if (
+    proof.stored.digits !== o.profile.codeDigits ||
+    o.profile.handoverChecklist.some((k) => !proof.stored.requiredChecklist.includes(k))
+  )
+    throw new OrderError('CODE_POLICY', 'code policy differs from order fulfilment requirements');
   const verification = verifyCode(proof.secret, proof.stored, proof.attempt, now, proof.checklist);
   if (!verification.ok) throw new OrderError('CODE', verification.reason);
   const codeVerificationRef = proof.stored.hash;
@@ -332,7 +382,12 @@ function handOverCommand(
       handedOverAt: now,
       steps: [
         ...moved.steps,
-        { key: 'handover', proofRef: codeVerificationRef, by: o.buyerId, at: now },
+        {
+          key: 'handover',
+          proofRef: codeVerificationRef,
+          by: o.buyerId,
+          at: now,
+        },
       ],
     },
     events,
@@ -382,7 +437,13 @@ function releaseDueHoldsCommand(o: Order, now: number): { order: Order; events: 
       at: now,
     };
   });
-  return { order: { ...o, holdsReleased: [...o.holdsReleased, ...due.map((d) => d.key)] }, events };
+  return {
+    order: {
+      ...o,
+      holdsReleased: [...o.holdsReleased, ...due.map((d) => d.key)],
+    },
+    events,
+  };
 }
 
 /** Settled = handed over, return window passed, no open issue. */
@@ -408,18 +469,25 @@ function buyerCancelsCommand(o: Order, now: number): { order: Order; events: Ord
   if (o.status !== 'AWAITING_PAYMENT' && o.status !== 'PAID')
     throw new OrderError('BAD_STATE', `cannot cancel from ${o.status}`);
   const costApplies = o.profile.steps.some((s) => s.returnCostAppliesAfter && isDone(o, s.key));
-  const charge = costApplies
-    ? min(o.returnCost, o.split.buyerTotal)
-    : money(o.split.buyerTotal.currency, 0);
+  const collected = money(o.split.buyerTotal.currency, o.collectedMinor ?? 0);
+  const charge = costApplies ? min(o.returnCost, collected) : money(o.split.buyerTotal.currency, 0);
   const { order, event } = status(o, 'CANCELLED_BY_BUYER', now);
   const events: OrderEvent[] = [event];
-  if (o.status === 'PAID')
+  events.push({
+    type: 'REFUND',
+    orderId: o.id,
+    amount: sub(collected, charge),
+    reason: 'BUYER_CANCELLED',
+    idempotencyKey: key(o.id, 'refund-cancel'),
+    at: now,
+  });
+  if (charge.minor > 0)
     events.push({
-      type: 'REFUND',
+      type: 'PAYOUT_RELEASE',
       orderId: o.id,
-      amount: sub(o.split.buyerTotal, charge),
-      reason: 'BUYER_CANCELLED',
-      idempotencyKey: key(o.id, 'refund-cancel'),
+      amount: charge,
+      reason: 'DISCLOSED_RETURN_COST',
+      idempotencyKey: key(o.id, 'return-cost'),
       at: now,
     });
   return { order, events };
@@ -427,7 +495,8 @@ function buyerCancelsCommand(o: Order, now: number): { order: Order; events: Ord
 
 /** Seller cancels: full refund to the buyer + compensation equal to the disclosed return cost, charged to the seller. */
 function sellerCancelsCommand(o: Order, now: number): { order: Order; events: OrderEvent[] } {
-  if (o.status !== 'PAID') throw new OrderError('BAD_STATE', `cannot cancel from ${o.status}`);
+  if (!['PAID', 'AWAITING_PAYMENT'].includes(o.status))
+    throw new OrderError('BAD_STATE', `cannot cancel from ${o.status}`);
   const { order, event } = status(o, 'CANCELLED_BY_SELLER', now);
   return {
     order,
@@ -436,7 +505,7 @@ function sellerCancelsCommand(o: Order, now: number): { order: Order; events: Or
       {
         type: 'REFUND',
         orderId: o.id,
-        amount: o.split.buyerTotal,
+        amount: money(o.split.buyerTotal.currency, o.collectedMinor ?? 0),
         reason: 'SELLER_CANCELLED',
         idempotencyKey: key(o.id, 'refund-seller-cancel'),
         at: now,
@@ -478,10 +547,38 @@ function returnOrderCommand(
   if (o.status !== 'HANDED_OVER')
     throw new OrderError('BAD_STATE', `cannot return from ${o.status}`);
   const { order, event } = status(o, 'RETURNED', now);
+  const reversals: OrderEvent[] = [
+    {
+      type: 'PAYOUT_REVERSAL',
+      orderId: o.id,
+      amount: money(o.split.buyerTotal.currency, o.releasedMinor ?? 0),
+      idempotencyKey: key(o.id, 'payout-reversal'),
+      at: now,
+    },
+  ];
+  for (const account of ['margin', 'tcs', 'tds'] as const)
+    reversals.push({
+      type: 'ALLOCATION_REVERSAL',
+      orderId: o.id,
+      account,
+      amount: o.split[account],
+      idempotencyKey: key(o.id, 'reverse-' + account),
+      at: now,
+    });
+  if (o.lateCreditsMinor)
+    reversals.push({
+      type: 'SELLER_CHARGE',
+      orderId: o.id,
+      amount: money(o.split.buyerTotal.currency, o.lateCreditsMinor),
+      reason: 'LATE_CREDIT_ON_RETURN',
+      idempotencyKey: key(o.id, 'return-late-credit'),
+      at: now,
+    });
   return {
     order,
     events: [
       event,
+      ...reversals,
       {
         type: 'REFUND',
         orderId: o.id,
@@ -498,15 +595,26 @@ function journal<T extends { order: Order; events?: OrderEvent[]; event?: OrderE
   result: T,
   now: number,
 ): T & { events: OrderEvent[] } {
+  if (!Number.isSafeInteger(now)) throw new OrderError('CLOCK', 'integer UTC time required');
+  const events = [...(result.event ? [result.event] : []), ...(result.events ?? [])];
+  const order = {
+    ...result.order,
+    releasedMinor:
+      (result.order.releasedMinor ?? 0) +
+      events.reduce((n, e) => n + (e.type === 'PAYOUT_RELEASE' ? e.amount.minor : 0), 0),
+    lateCreditsMinor:
+      (result.order.lateCreditsMinor ?? 0) +
+      events.reduce((n, e) => n + (e.type === 'LATE_CREDIT' ? e.amount.minor : 0), 0),
+  };
   return {
     ...result,
+    order,
     events: [
-      ...(result.event ? [result.event] : []),
-      ...(result.events ?? []),
+      ...events,
       {
         type: 'ORDER_SNAPSHOT',
-        orderId: result.order.id,
-        state: structuredClone(result.order),
+        orderId: order.id,
+        state: structuredClone(order),
         at: now,
       },
     ],

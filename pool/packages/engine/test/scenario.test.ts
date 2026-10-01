@@ -90,7 +90,12 @@ const cases: Case[] = [
     policy: INDIA_POLICY,
     categoryPath: ['food', 'meat'],
     uom: UOM.kg,
-    rule: { uom: UOM.kg, minBase: 500, stepBase: 250, maxPerHouseholdBase: 2000 },
+    rule: {
+      uom: UOM.kg,
+      minBase: 500,
+      stepBase: 250,
+      maxPerHouseholdBase: 2000,
+    },
     buyerQtyBase: 1000,
     profile: PROFILES.store_pickup!,
     goodsTaxBps: 0,
@@ -133,7 +138,12 @@ describe.each(cases)('end-to-end: $name', (c) => {
       P,
       {
         id: 'pool',
-        bookingRule: { kind: 'FIXED', amountMinor: 100, minMinor: 100, maxMinor: 100 },
+        bookingRule: {
+          kind: 'FIXED',
+          amountMinor: 100,
+          minMinor: 100,
+          maxMinor: 100,
+        },
         checkoutPlan: 'PREPAY_FULL',
         hsnCode: '9999',
         gstRateBps: c.goodsTaxBps,

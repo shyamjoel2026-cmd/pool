@@ -97,7 +97,11 @@ describe('rankBids — requirements are data (terms + modes), published order', 
     };
     const ranked = rankBids(
       [
-        bid({ id: 'unverified', sellerId: 's3', sellerPrice: money('INR', 30_000_00) }),
+        bid({
+          id: 'unverified',
+          sellerId: 's3',
+          sellerPrice: money('INR', 30_000_00),
+        }),
         bid({
           id: 'short-warranty',
           sellerId: 's1',
@@ -135,7 +139,11 @@ describe('rankBids — requirements are data (terms + modes), published order', 
     expect(rankBids([ok, noPickup], req, sellers).map((b) => b.id)).toEqual(['fresh']);
   });
   it('ties: earlier delivery, then better settled rating', () => {
-    const req = { deliverBy: CLOSE + 96 * HOUR, acceptableModes: [], terms: [] };
+    const req = {
+      deliverBy: CLOSE + 96 * HOUR,
+      acceptableModes: [],
+      terms: [],
+    };
     const ranked = rankBids(
       [bid({ id: 'a', sellerId: 's1' }), bid({ id: 'b', sellerId: 's2' })],
       req,

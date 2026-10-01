@@ -3,6 +3,7 @@ import { backupCostGap, sellerCancels, type Order, type OrderEvent } from './ord
 import { lineTotal, type Quantity, type UnitOfMeasure } from './uom.ts';
 import { type Bid } from './bids.ts';
 import { closeWave, type WaveOrder, type Slab } from './wave-drop.ts';
+import { calculateIndiaTaxes } from './india-tax.ts';
 export interface DefaultOrder {
   order: Order;
   backupBidId?: string;
@@ -10,6 +11,7 @@ export interface DefaultOrder {
   uom: UnitOfMeasure;
   needBy: number;
   options: readonly string[];
+  backupSellerStateCode?: string;
 }
 /** Remaining capacity includes commitments outside this default batch and is mandatory. */
 export function executeSellerDefault(
@@ -53,17 +55,37 @@ export function executeSellerDefault(
       const difference = backupTotal.minor - o.split.sellerTotal.minor;
       if (o.split.releaseOnHandover.minor + difference < 0)
         throw new Error('backup price insufficient for existing deductions');
+      if (o.split.buyerTotal.currency !== deposit.currency)
+        throw new Error('default funding currency mismatch');
+      const margin = money(deposit.currency, o.split.margin.minor + Math.max(0, -difference));
+      if (!o.split.indiaTaxContext || !item.backupSellerStateCode)
+        throw new Error('reviewed backup seller tax state required');
+      const indiaTaxContext = {
+        ...o.split.indiaTaxContext,
+        sellerStateCode: item.backupSellerStateCode,
+      };
+      const indiaTaxes = calculateIndiaTaxes(o.split.buyerTotal, margin, indiaTaxContext);
       const split = {
         ...o.split,
         sellerTotal: backupTotal,
-        margin: money(deposit.currency, o.split.margin.minor + Math.max(0, -difference)),
+        margin,
+        indiaTaxContext,
+        indiaTaxes,
+        gstInMargin: indiaTaxes.commission.total,
+        defaultFunding: sum(deposit.currency, [
+          o.split.defaultFunding ?? money(deposit.currency, 0),
+          gap,
+        ]),
         releaseOnHandover: money(deposit.currency, o.split.releaseOnHandover.minor + difference),
       };
-      assignments.push({
-        order: { ...o, split, sellerId: bid.sellerId, promisedBy: bid.deliverBy },
-        bidId: bid.id,
-        gap,
-      });
+      const reassigned = {
+        ...o,
+        split,
+        sellerId: bid.sellerId,
+        promisedBy: bid.deliverBy,
+        steps: [],
+      };
+      assignments.push({ order: reassigned, bidId: bid.id, gap });
       events.push({
         type: 'SELLER_CHARGE',
         orderId: o.id,
@@ -72,9 +94,13 @@ export function executeSellerDefault(
         idempotencyKey: o.id + ':default-gap',
         at: now,
       });
+      events.push({
+        type: 'ORDER_SNAPSHOT',
+        orderId: o.id,
+        state: reassigned,
+        at: now,
+      });
     } else {
-      if (o.status !== 'PAID')
-        throw new Error('unpaid default cancellation requires checkout refund accounting');
       const result = sellerCancels(o, now);
       cancelled.push(result.order);
       events.push(...result.events);
