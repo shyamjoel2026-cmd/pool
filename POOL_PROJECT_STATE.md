@@ -39,7 +39,7 @@
   - `pnpm shots` showed no runtime errors on 60 routes.
 - Next:
   - native-speaker review of the Telugu and Hindi copy;
-  - dark-theme visual pass;
+  - a full dark-theme pass (spot-checked so far: buyer home, offer, seller today, reconciliation; one fix made);
   - translate the seller app if sellers need it.
 - Open issues / blockers: the same GUESS placeholders as the engine (late credit, return costs). `pool/` was not touched.
 

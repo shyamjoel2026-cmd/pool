@@ -58,7 +58,7 @@ export function Home() {
           <h1 className="mt-0.5 text-[26px] font-bold leading-[1.12] tracking-[-0.02em]">{tr('Before you buy it,')}<br /><span className="text-[#7ff0e6]">{tr('POOL it.')}</span></h1>
         </div>
         {/* Smart bar */}
-        <div className="relative mt-4 rounded-[18px] bg-white p-1.5 text-ink shadow-[0_18px_40px_-18px_rgba(0,0,0,.6)]">
+        <div className="relative mt-4 rounded-[18px] bg-surface p-1.5 text-ink shadow-[0_18px_40px_-18px_rgba(0,0,0,.6)]">
           <button onClick={() => nav('/buyer/find')} className="flex h-12 w-full items-center gap-2.5 rounded-[13px] px-3 text-left text-[14.5px] text-ink-3">
             <Search className="h-5 w-5 text-ink-2" />
             {tr('Paste a link, search, or ask')}
