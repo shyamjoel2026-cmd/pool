@@ -74,7 +74,7 @@ export interface Pool {
   readonly waveCountMode: WaveCountMode;
   readonly createdBy: string;
   readonly createdAt: number;
-  /** Chosen by whoever started the pool. Never changed without every committed member opting in. */
+  /** Chosen by whoever started the pool. Never changed without every active member opting in. */
   readonly closesAt: number;
   readonly state: PoolState;
   readonly members: readonly Member[];
@@ -83,6 +83,15 @@ export interface Pool {
   readonly checkoutPlan?: CheckoutPlan;
   readonly hsnCode?: string;
   readonly gstRateBps?: number;
+  /** Reviewed supply treatment is pool data; checkout cannot invent withholding exemptions. */
+  readonly reviewedTaxTreatment?: Pick<
+    import('./india-tax.ts').IndiaTaxContext,
+    | 'supplyKind'
+    | 'placeOfSupplyStateCode'
+    | 'taxTreatmentSource'
+    | 'tcsApplicable'
+    | 'tdsApplicable'
+  >;
   readonly acceptWindowMinutes?: number;
   readonly minimumPoolMinutes?: number;
   readonly pricingDeadline?: number;
@@ -300,6 +309,8 @@ function joinCommand(
     policy.currency,
     estimate,
   );
+  if (policy.region === 'IN' && due.minor <= 0)
+    throw new PoolError('BOOKING', 'India committed demand requires a positive paid booking');
   const member: Member = {
     ...m,
     status: 'PENDING_BOOKING',
@@ -444,6 +455,8 @@ export function optInToExtension(
   requireOpen(pool, now);
   if (!Number.isSafeInteger(newClosesAt) || newClosesAt <= pool.closesAt)
     throw new PoolError('CLOSE', 'explicit later proposal required');
+  const member = pool.members.find((m) => m.memberId === memberId);
+  if (!member || !active(member)) throw new PoolError('MEMBER', 'only active members can consent');
   return finish(
     {
       value: replaceMember(pool, memberId, { extensionOptIn: newClosesAt }),
@@ -454,7 +467,7 @@ export function optInToExtension(
   );
 }
 
-/** Close time can only move later if EVERY committed member opted in (logged). Never earlier. */
+/** Close time can only move later if EVERY active member opted in (logged). Never earlier. */
 function extendCloseCommand(
   policy: Policy,
   pool: Pool,
@@ -466,12 +479,12 @@ function extendCloseCommand(
     throw new PoolError('NOT_LATER', 'close time can only be extended, never shortened');
   if (newClosesAt > pool.createdAt + policy.maxPoolDays * 86_400_000)
     throw new PoolError('CLOSE_TOO_LATE', 'beyond the maximum pool length');
-  const committed = pool.members.filter((m) => m.status === 'COMMITTED');
+  const committed = pool.members.filter(active);
   const optIns = committed.filter((m) => m.extensionOptIn === newClosesAt).length;
   if (optIns !== committed.length)
     throw new PoolError(
       'NEEDS_ALL_OPT_IN',
-      `${committed.length - optIns} committed members have not agreed`,
+      `${committed.length - optIns} active members have not agreed`,
     );
   return {
     value: {

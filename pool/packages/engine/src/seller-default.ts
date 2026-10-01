@@ -48,6 +48,8 @@ export function executeSellerDefault(
         b.deliverBy >= now &&
         b.deliverBy <= item.needBy &&
         b.uom === item.qty.uom &&
+        b.modes.some((mode) => o.profile.modes.includes(mode)) &&
+        (!o.waveTerms || JSON.stringify(b.slabs) === JSON.stringify(o.waveTerms.slabs)) &&
         item.options.every((x) => b.optionsCovered.includes(x)),
     );
     if (bid && (remaining.get(bid.id) ?? 0) >= item.qty.base) {
@@ -102,6 +104,12 @@ export function executeSellerDefault(
         split,
         sellerId: bid.sellerId,
         bidId: bid.id,
+        ...(o.waveTerms
+          ? {
+              waveTerms: { ...o.waveTerms, sellerId: bid.sellerId, bidId: bid.id },
+              waveDefaults: [...(o.waveDefaults ?? []), o.waveTerms],
+            }
+          : {}),
         promisedBy: bid.deliverBy,
         steps: [],
       };

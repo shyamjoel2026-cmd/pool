@@ -164,6 +164,19 @@ export interface Order {
   readonly lateCreditsMinor?: number;
   /** Accepted bid is persisted for capacity accounting; recovery changes it with an audit snapshot. */
   readonly bidId?: string;
+  /** Accepted Wave Drop terms; recovery preserves the slabs and records the former seller's liability. */
+  readonly waveTerms?: {
+    sellerId: string;
+    bidId: string;
+    slabs: readonly import('./wave-drop.ts').Slab[];
+    count: number;
+  };
+  readonly waveDefaults?: readonly {
+    sellerId: string;
+    bidId: string;
+    slabs: readonly import('./wave-drop.ts').Slab[];
+    count: number;
+  }[];
   /** Funded capital backing a replacement seller; return to these accounts on refund. */
   readonly defaultFundingSources?: readonly {
     id: string;
@@ -357,6 +370,7 @@ function handOverCommand(
   now: number,
 ): { order: Order; events: OrderEvent[] } {
   if (o.status !== 'PAID') throw new OrderError('BAD_STATE', `cannot hand over from ${o.status}`);
+  if (o.openIssue) throw new OrderError('ISSUE', 'resolve the open issue before handover payout');
   if (o.collectedMinor !== o.split.buyerTotal.minor)
     throw new OrderError('BALANCE', 'balance unpaid');
   if (!proof || typeof proof !== 'object' || proof.stored.orderId !== o.id)
@@ -420,6 +434,13 @@ function deferHoldCommand(o: Order, holdKey: string, until: number): Order {
     throw new OrderError('STATE', 'hold cannot be deferred');
   if (!o.profile.holds.some((h) => h.key === holdKey))
     throw new OrderError('UNKNOWN_HOLD', holdKey);
+  const rule = o.profile.holds.find((h) => h.key === holdKey)!;
+  if (
+    rule.deferredMaxDays === undefined ||
+    o.handedOverAt === undefined ||
+    until < o.handedOverAt + rule.releaseAfterDays * 86400000
+  )
+    throw new OrderError('HOLD', 'deferral must extend an explicitly deferrable hold');
   return { ...o, holdDeferrals: { ...o.holdDeferrals, [holdKey]: until } };
 }
 

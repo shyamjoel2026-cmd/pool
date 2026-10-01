@@ -56,9 +56,18 @@ export class FulfilmentError extends Error {
 }
 
 export function validateProfile(p: FulfilmentProfile): void {
+  if (
+    ![4, 6].includes(p.codeDigits) ||
+    new Set(p.handoverChecklist).size !== p.handoverChecklist.length ||
+    p.handoverChecklist.some((k) => !k.trim())
+  )
+    throw new FulfilmentError(
+      'CODE',
+      'valid code digits and unique nonempty checklist keys required',
+    );
   const keys = new Set<string>();
   for (const s of p.steps) {
-    if (!s.key.trim() || !s.proof.trim())
+    if (!s.key.trim() || s.key === 'handover' || !s.proof.trim())
       throw new FulfilmentError('STEP', 'every step needs a key and a proof');
     if (keys.has(s.key)) throw new FulfilmentError('STEP', `duplicate step ${s.key}`);
     keys.add(s.key);
@@ -70,6 +79,7 @@ export function validateProfile(p: FulfilmentProfile): void {
   const holdKeys = new Set<string>();
   let holdBps = 0;
   for (const h of p.holds) {
+    if (!h.key.trim()) throw new FulfilmentError('HOLD', 'nonempty hold key required');
     if (
       !Number.isSafeInteger(h.releaseAfterDays) ||
       h.releaseAfterDays < 0 ||

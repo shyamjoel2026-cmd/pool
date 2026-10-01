@@ -44,6 +44,8 @@ import {
   type Order,
   type Bid,
   type IndiaTaxContext,
+  optInToExtension,
+  extendClose,
 } from '../src/index.ts';
 const tax: IndiaTaxContext = {
   hsnCode: '9999',
@@ -53,6 +55,32 @@ const tax: IndiaTaxContext = {
   poolStateCode: '36',
   supplyKind: 'MOVEMENT_OF_GOODS',
 };
+
+it('unpaid active members must also consent to a closing-time extension; zero booking cannot create India demand', () => {
+  let pool = create().value;
+  const member = {
+    memberId: 'pending',
+    userId: 'pending',
+    householdKey: 'pending',
+    payerKey: 'pending',
+    qty: qty(UOM.piece, 1),
+    options: [],
+    needBy: 5000000,
+  };
+  expect(() =>
+    join(
+      INDIA_POLICY,
+      { ...pool, bookingRule: { kind: 'FIXED', amountMinor: 0, minMinor: 0, maxMinor: 0 } },
+      member,
+      1,
+    ),
+  ).toThrow(/positive paid booking/);
+  pool = join(INDIA_POLICY, pool, member, 1).value;
+  const later = pool.closesAt + 60000;
+  expect(() => extendClose(INDIA_POLICY, pool, later, 2)).toThrow(/have not agreed/);
+  pool = optInToExtension(pool, member.memberId, 2, later).value;
+  expect(extendClose(INDIA_POLICY, pool, later, 3).value.closesAt).toBe(later);
+});
 
 it('delayed booking receipt is captured and fully refunded, never committed (property)', () => {
   fc.assert(
@@ -406,6 +434,24 @@ it('all nested tax parts and payout parts conserve paise (property)', () => {
     ),
   );
 });
+it('explicit zero-rate TCS treatment is honoured and conserves paise (property)', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 10000, max: 100000000 }), fc.boolean(), (total, applicable) => {
+      const split = splitOrder(INDIA_POLICY, {
+        buyerTotal: money('INR', total),
+        sellerTotal: money('INR', total - 1000),
+        indiaTax: { ...tax, gstRateBps: 0, tcsApplicable: applicable },
+        profile: { ...PROFILES.home_delivery!, holds: [] },
+        waveHoldMinor: 0,
+      });
+      expect(split.indiaTaxes!.goods.total.minor).toBe(0);
+      expect(split.tcs.minor).toBe(applicable ? Number((BigInt(total) * 50n + 5000n) / 10000n) : 0);
+      expect(
+        split.margin.minor + split.tcs.minor + split.tds.minor + split.releaseOnHandover.minor,
+      ).toBe(total);
+    }),
+  );
+});
 function order(): Order {
   const profile = { ...PROFILES.home_delivery!, steps: [], holds: [] };
   return {
@@ -477,6 +523,8 @@ it('seller default preserves guaranteed buyer total and funding balances (proper
           id: 'backup',
           sellerId: 'backup',
           sellerPrice: money('INR', backupPrice),
+          // Recovery must honour the accepted fulfilment modes as well as price.
+          modes: o.profile.modes,
         };
         const r = executeSellerDefault(
           's',

@@ -188,3 +188,95 @@ it('default refuses duplicated orders and a backup whose delivery promise has pa
   expect(cancelled.cancelled).toHaveLength(1);
   expect(cancelled.compensation.minor).toBe(100);
 });
+
+it('separate seller pots conserve paise and cannot subsidize another seller (property)', () => {
+  fc.assert(
+    fc.property(
+      fc.array(
+        fc.record({
+          settled: fc.integer({ min: 0, max: 20 }),
+          cancelled: fc.integer({ min: 0, max: 20 }),
+          minor: fc.integer({ min: 0, max: 100000 }),
+        }),
+        { minLength: 1, maxLength: 5 },
+      ),
+      (groups) => {
+        const orders: e.SellerWaveOrder[] = groups.flatMap((group, index) => {
+          const sellerId = 'seller:' + index,
+            slabs = [{ fromUnit: 1, perUnitMinor: group.minor }];
+          return [
+            ...Array.from({ length: group.settled }, (_, i) => ({
+              orderId: sellerId + ':settled:' + i,
+              count: 1,
+              outcome: 'settled' as const,
+              sellerId,
+              slabs,
+            })),
+            ...Array.from({ length: group.cancelled }, (_, i) => ({
+              orderId: sellerId + ':cancelled:' + i,
+              count: 1,
+              outcome: 'seller_cancelled' as const,
+              sellerId,
+              slabs,
+            })),
+          ];
+        });
+        const combined = e.closeSellerWaves('INR', orders);
+        expect(
+          e.sum(
+            'INR',
+            combined.refunds.map((r) => r.amount),
+          ).minor,
+        ).toBe(combined.pot.minor);
+        expect(combined.pot.minor + combined.releaseToSeller.minor).toBe(
+          combined.heldFromSettled.minor + combined.sellerPenalty.minor,
+        );
+        for (const seller of combined.sellers) {
+          const alone = e.closeWave(
+            'INR',
+            seller.slabs,
+            orders
+              .filter((o) => o.sellerId === seller.sellerId)
+              .sort((a, b) => a.orderId.localeCompare(b.orderId)),
+          );
+          expect(seller.refunds).toEqual(alone.refunds);
+          expect(seller.pot).toEqual(alone.pot);
+        }
+        expect(e.closeSellerWaves('INR', [...orders].reverse())).toEqual(combined);
+      },
+    ),
+  );
+});
+
+it('profiles reject invalid code policy and reserved or empty proof/hold keys', () => {
+  const profile = original().profile;
+  const invalid = [
+    { ...profile, codeDigits: 5 },
+    { ...profile, handoverChecklist: ['damage', 'damage'] },
+    { ...profile, handoverChecklist: [''] },
+    { ...profile, holds: [{ ...profile.holds[0]!, key: '' }] },
+    { ...profile, steps: [{ key: 'handover', proof: 'photo', afterHandover: false }] },
+  ];
+  for (const candidate of invalid)
+    expect(() => e.validateProfile(candidate as e.FulfilmentProfile)).toThrow();
+});
+
+it('open issues block handover payouts and hold deferrals cannot move release earlier', () => {
+  const order = original(),
+    secret = 'x'.repeat(32),
+    code = e.issueCode(secret, order.id, 4, 20000, 1234);
+  const proof = { secret, stored: code.stored, attempt: code.plain, checklist: {} };
+  expect(() => e.handOver({ ...order, openIssue: true }, proof, 10)).toThrow(/open issue/);
+  const handed = e.handOver(order, proof, 10).order;
+  expect(() => e.deferHold(handed, 'quality', 10 + 2 * 86400000, 11)).toThrow(
+    /explicitly deferrable/,
+  );
+  const deferrable = {
+    ...handed,
+    profile: { ...handed.profile, holds: [{ ...handed.profile.holds[0]!, deferredMaxDays: 3 }] },
+  };
+  expect(() => e.deferHold(deferrable, 'quality', 10 + 3600000, 11)).toThrow(/extend/);
+  expect(
+    e.holdsDue(e.deferHold(deferrable, 'quality', 10 + 2 * 86400000, 11).order)[0]!.dueAt,
+  ).toBe(10 + 2 * 86400000);
+});

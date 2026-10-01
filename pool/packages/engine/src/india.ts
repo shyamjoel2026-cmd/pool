@@ -55,10 +55,12 @@ export function gstinCheckDigit(prefix: string): string {
   }
   return alphabet[(36 - (total % 36)) % 36]!;
 }
-export function validateGSTIN(value: string): boolean {
+export function validateGSTINFormat(value: string): boolean {
   return (
     /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value) &&
-    INDIA_STATE_CODES.has(value.slice(0, 2)) &&
-    gstinCheckDigit(value.slice(0, 14)) === value[14]
+    INDIA_STATE_CODES.has(value.slice(0, 2))
   );
+}
+export function validateGSTIN(value: string): boolean {
+  return validateGSTINFormat(value) && gstinCheckDigit(value.slice(0, 14)) === value[14];
 }

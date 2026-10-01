@@ -76,6 +76,46 @@ export interface WaveOrder {
   readonly outcome: 'settled' | 'seller_cancelled' | 'buyer_cancelled' | 'returned';
 }
 
+export interface SellerWaveOrder extends WaveOrder {
+  readonly sellerId: string;
+  readonly slabs: readonly Slab[];
+}
+
+/** Founder decision, 1 Oct 2026: separate seller pots; no cross-seller subsidies. */
+export function closeSellerWaves(currency: Currency, orders: readonly SellerWaveOrder[]) {
+  if (new Set(orders.map((o) => o.orderId)).size !== orders.length)
+    throw new WaveDropError('duplicate wave order');
+  const groups = new Map<string, SellerWaveOrder[]>();
+  for (const order of orders) {
+    if (!order.sellerId.trim()) throw new WaveDropError('wave seller required');
+    groups.set(order.sellerId, [...(groups.get(order.sellerId) ?? []), order]);
+  }
+  const sellers = [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([sellerId, group]) => {
+      const sorted = [...group].sort((a, b) => a.orderId.localeCompare(b.orderId));
+      const slabs = sorted[0]!.slabs;
+      if (sorted.some((o) => JSON.stringify(o.slabs) !== JSON.stringify(slabs)))
+        throw new WaveDropError('one seller pot requires consistent accepted slabs');
+      return { sellerId, slabs, orders: sorted, ...closeWave(currency, slabs, sorted) };
+    });
+  const total = (name: 'pot' | 'heldFromSettled' | 'sellerPenalty' | 'releaseToSeller') =>
+    sum(
+      currency,
+      sellers.map((s) => s[name]),
+    );
+  return {
+    currency,
+    sellers,
+    settledUnits: sellers.reduce((n, s) => n + s.settledUnits, 0),
+    pot: total('pot'),
+    heldFromSettled: total('heldFromSettled'),
+    sellerPenalty: total('sellerPenalty'),
+    releaseToSeller: total('releaseToSeller'),
+    refunds: sellers.flatMap((s) => s.refunds),
+  };
+}
+
 export interface WaveCloseResult {
   readonly currency: Currency;
   readonly settledUnits: number;

@@ -65,9 +65,9 @@ export function calculateIndiaTaxes(buyerTotal: Money, margin: Money, ctx: India
     throw new Error('HSN/rate must be supplied as valid data');
   const [taxable, goodsTax] = allocate(buyerTotal, [10000, ctx.gstRateBps]);
   const [commissionNet, commissionTax] = allocate(margin, [10000, 1800]);
-  // Exempt supplies are excluded from s52 net taxable supplies; explicit context can disable statutory deductions.
-  const tcs =
-    ctx.tcsApplicable === false || ctx.gstRateBps === 0 ? money('INR', 0) : percentOf(taxable!, 50);
+  // Applicability is reviewed data. A zero rate alone does not distinguish exempt and zero-rated supplies.
+  // UNVERIFIED: rate-only fallback is for legacy pure fixtures; persisted zero-rate checkout requires explicit review.
+  const tcs = (ctx.tcsApplicable ?? ctx.gstRateBps > 0) ? percentOf(taxable!, 50) : money('INR', 0);
   const tds = ctx.tdsApplicable === false ? money('INR', 0) : percentOf(buyerTotal, 10);
   return {
     taxable: taxable!,
