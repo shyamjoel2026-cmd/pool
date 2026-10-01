@@ -162,9 +162,26 @@ export interface Order {
   readonly paymentRefs?: readonly string[];
   readonly releasedMinor?: number;
   readonly lateCreditsMinor?: number;
+  /** Accepted bid is persisted for capacity accounting; recovery changes it with an audit snapshot. */
+  readonly bidId?: string;
+  /** Funded capital backing a replacement seller; return to these accounts on refund. */
+  readonly defaultFundingSources?: readonly {
+    id: string;
+    account: string;
+    amount: Money;
+  }[];
+  readonly defaultFundingReturned?: boolean;
 }
 
 export type OrderEvent =
+  | {
+      type: 'DEFAULT_FUNDING_RETURN';
+      orderId: string;
+      account: string;
+      amount: Money;
+      idempotencyKey: string;
+      at: number;
+    }
   | { type: 'ORDER_SNAPSHOT'; orderId: string; state: Order; at: number }
   | {
       type: 'CAPTURE' | 'COMPENSATION';
@@ -597,8 +614,31 @@ function journal<T extends { order: Order; events?: OrderEvent[]; event?: OrderE
 ): T & { events: OrderEvent[] } {
   if (!Number.isSafeInteger(now)) throw new OrderError('CLOCK', 'integer UTC time required');
   const events = [...(result.event ? [result.event] : []), ...(result.events ?? [])];
+  const refundTerminal = ['CANCELLED_BY_BUYER', 'CANCELLED_BY_SELLER', 'RETURNED'].includes(
+    result.order.status,
+  );
+  if (refundTerminal && !result.order.defaultFundingReturned) {
+    const sources = result.order.defaultFundingSources ?? [];
+    if (
+      sum(
+        result.order.split.buyerTotal.currency,
+        sources.map((s) => s.amount),
+      ).minor !== (result.order.split.defaultFunding?.minor ?? 0)
+    )
+      throw new OrderError('DEFAULT_FUNDING', 'funding provenance does not match funded principal');
+    for (const source of sources)
+      events.push({
+        type: 'DEFAULT_FUNDING_RETURN',
+        orderId: result.order.id,
+        account: source.account,
+        amount: source.amount,
+        idempotencyKey: key(result.order.id, 'return-default-funding:' + source.id),
+        at: now,
+      });
+  }
   const order = {
     ...result.order,
+    ...(refundTerminal ? { defaultFundingReturned: true } : {}),
     releasedMinor:
       (result.order.releasedMinor ?? 0) +
       events.reduce((n, e) => n + (e.type === 'PAYOUT_RELEASE' ? e.amount.minor : 0), 0),

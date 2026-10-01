@@ -27,6 +27,10 @@ export function executeSellerDefault(
 ) {
   if (deposit.currency !== reserve.currency || deposit.minor < 0 || reserve.minor < 0)
     throw new Error('invalid default funding');
+  money(deposit.currency, deposit.minor);
+  money(reserve.currency, reserve.minor);
+  if (!Number.isSafeInteger(now) || new Set(open.map((i) => i.order.id)).size !== open.length)
+    throw new Error('default requires unique orders and integer UTC time');
   const remaining = new Map(remainingCapacity);
   const events: OrderEvent[] = [];
   const assignments: { order: Order; bidId: string; gap: Money }[] = [];
@@ -41,6 +45,7 @@ export function executeSellerDefault(
         b.sellerId !== sellerId &&
         b.poolId === o.poolId &&
         b.validUntil >= now &&
+        b.deliverBy >= now &&
         b.deliverBy <= item.needBy &&
         b.uom === item.qty.uom &&
         item.options.every((x) => b.optionsCovered.includes(x)),
@@ -53,8 +58,6 @@ export function executeSellerDefault(
       );
       const backupTotal = lineTotal(bid.sellerPrice, item.qty, item.uom);
       const difference = backupTotal.minor - o.split.sellerTotal.minor;
-      if (o.split.releaseOnHandover.minor + difference < 0)
-        throw new Error('backup price insufficient for existing deductions');
       if (o.split.buyerTotal.currency !== deposit.currency)
         throw new Error('default funding currency mismatch');
       const margin = money(deposit.currency, o.split.margin.minor + Math.max(0, -difference));
@@ -65,23 +68,40 @@ export function executeSellerDefault(
         sellerStateCode: item.backupSellerStateCode,
       };
       const indiaTaxes = calculateIndiaTaxes(o.split.buyerTotal, margin, indiaTaxContext);
+      const holdParts = allocate(backupTotal, [
+        ...o.profile.holds.map((h) => h.bps),
+        10000 - o.profile.holds.reduce((n, h) => n + h.bps, 0),
+      ]);
+      const holds = o.profile.holds.map((h, i) => ({ key: h.key, amount: holdParts[i]! }));
+      const deductions = sum(deposit.currency, [
+        indiaTaxes.tcs.total,
+        indiaTaxes.tds,
+        o.split.waveHold,
+        ...holds.map((h) => h.amount),
+      ]);
+      const release = money(deposit.currency, backupTotal.minor - deductions.minor);
+      if (release.minor < 0) throw new Error('backup price insufficient for existing deductions');
       const split = {
         ...o.split,
         sellerTotal: backupTotal,
         margin,
         indiaTaxContext,
         indiaTaxes,
+        tcs: indiaTaxes.tcs.total,
+        tds: indiaTaxes.tds,
+        holds,
         gstInMargin: indiaTaxes.commission.total,
         defaultFunding: sum(deposit.currency, [
           o.split.defaultFunding ?? money(deposit.currency, 0),
           gap,
         ]),
-        releaseOnHandover: money(deposit.currency, o.split.releaseOnHandover.minor + difference),
+        releaseOnHandover: release,
       };
       const reassigned = {
         ...o,
         split,
         sellerId: bid.sellerId,
+        bidId: bid.id,
         promisedBy: bid.deliverBy,
         steps: [],
       };
@@ -91,7 +111,7 @@ export function executeSellerDefault(
         orderId: o.id,
         amount: gap,
         reason: 'BACKUP_COST_GAP',
-        idempotencyKey: o.id + ':default-gap',
+        idempotencyKey: o.id + ':default-gap:' + sellerId,
         at: now,
       });
       events.push({
