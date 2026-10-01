@@ -1,5 +1,5 @@
 import { randomUUID, randomInt, createHash } from 'node:crypto';
-import type { Pool as PgPool } from 'pg';
+import type { Pool as PgPool, PoolClient } from 'pg';
 import * as e from '@pool/engine';
 import { command, post, type Posting } from './store.ts';
 import { projectPool, projectOrder, poolPostings, orderPostings } from './index.ts';
@@ -33,6 +33,8 @@ export function saveSeller(
   );
 }
 export async function submitBid(db: PgPool, bid: e.Bid, key: string, now: number) {
+  if (!Number.isSafeInteger(bid.returnCostMinor) || bid.returnCostMinor! < 0)
+    throw new Error('bid requires disclosed return cost in paise');
   return command<e.Bid>(
     db,
     'bid:' + bid.poolId + ':' + bid.sellerId,
@@ -53,6 +55,7 @@ export async function submitBid(db: PgPool, bid: e.Bid, key: string, now: number
           [bid.poolId, bid.sellerId],
         )
       ).rows[0]?.data as e.Bid | undefined;
+      if (previous) await auditBidReads(c, [previous], bid.sellerId, 'bid-revision');
       e.acceptBid(
         {
           policy: e.INDIA_POLICY,
@@ -131,6 +134,7 @@ export function savePrice(db: PgPool, decision: e.PriceDecision, key: string) {
         e.Pool | undefined;
       if (!bid || bid.poolId !== d.poolId || p?.state !== 'PRICING')
         throw new Error('price decision requires assigned pool in PRICING');
+      await auditBidReads(c, [bid], d.decidedBy, 'team-pricing');
       e.checkPriceDecision(e.INDIA_POLICY, bid.sellerPrice, d);
       await c.query(
         'INSERT INTO price_decisions(id,pool_id,bid_id,buyer_price_minor,decided_by,data) VALUES($1,$2,$3,$4,$5,$6)',
@@ -232,6 +236,12 @@ export function publishPersistedOffers(db: PgPool, poolId: string, key: string, 
         [poolId],
       );
       const bids = await c.query('SELECT data FROM bids WHERE pool_id=$1', [poolId]);
+      await auditBidReads(
+        c,
+        bids.rows.map((r) => r.data),
+        'system:offer-publication',
+        'offer-publication',
+      );
       const decisions = new Map<string, e.PriceDecision>(
         rows.rows.map((r) => [r.data.bidId, r.data]),
       );
@@ -285,8 +295,22 @@ export function acceptCheckout(
       if (!p) throw new Error('pool missing');
       const r = e.decide(p, memberId, 'ACCEPTED', now, orderId);
       const offer = p.offers!.find((o) => o.memberId === memberId)!;
+      const member = p.members.find((m) => m.memberId === memberId)!;
+      if (
+        !member.deliveryAddress ||
+        tax.deliveryStateCode !== member.deliveryAddress.stateCode ||
+        tax.poolStateCode !== p.poolStateCode
+      )
+        throw new Error('checkout supply states differ from stored address/pool');
+      if (
+        !offer.returnCost ||
+        returnCost.currency !== offer.returnCost.currency ||
+        returnCost.minor !== offer.returnCost.minor
+      )
+        throw new Error('checkout return cost differs from disclosed offer');
       const bid = (await c.query('SELECT data FROM bids WHERE id=$1', [offer.bidId])).rows[0]
         ?.data as e.Bid | undefined;
+      if (bid) await auditBidReads(c, [bid], 'system:checkout', 'checkout-validation');
       const seller = (await c.query('SELECT state_code FROM sellers WHERE id=$1', [offer.sellerId]))
         .rows[0];
       if (
@@ -327,6 +351,7 @@ export function acceptCheckout(
           poolId,
           buyerId: memberId,
           sellerId: offer.sellerId,
+          bidId: offer.bidId,
           profile,
           split: e.splitOrder(e.INDIA_POLICY, {
             buyerTotal: offer.buyerTotal,
@@ -372,7 +397,14 @@ export function acceptCheckout(
     },
   );
 }
-export async function issueHandoverCode(db: PgPool, orderId: string, expiresAt: number) {
+export async function issueHandoverCode(
+  db: PgPool,
+  orderId: string,
+  expiresAt: number,
+  now = Date.now(),
+) {
+  if (!Number.isSafeInteger(now) || !Number.isSafeInteger(expiresAt) || expiresAt <= now)
+    throw new Error('code expiry must be after issuance');
   const c = await db.connect();
   try {
     await c.query('BEGIN');
@@ -380,18 +412,33 @@ export async function issueHandoverCode(db: PgPool, orderId: string, expiresAt: 
     const o = (await c.query('SELECT data FROM orders WHERE id=$1', [orderId])).rows[0]?.data as
       e.Order | undefined;
     if (!o) throw new Error('order missing');
-    const code = e.issueCode(
-      validateEnv().codeSecret,
-      orderId,
-      o.profile.codeDigits,
-      expiresAt,
-      randomInt(10 ** o.profile.codeDigits),
-      o.profile.handoverChecklist,
+    if (!['PAID', 'AWAITING_PAYMENT'].includes(o.status))
+      throw new Error('code issuance requires an open order');
+    const previous = (
+      await c.query('SELECT data FROM handover_codes WHERE order_id=$1 FOR UPDATE', [orderId])
+    ).rows[0]?.data as e.StoredCode | undefined;
+    if (previous && previous.usedAt === undefined && previous.expiresAt >= now)
+      throw new Error('an active handover code already exists');
+    const generate = () =>
+      e.issueCode(
+        validateEnv().codeSecret,
+        orderId,
+        o.profile.codeDigits,
+        expiresAt,
+        randomInt(10 ** o.profile.codeDigits),
+        o.profile.handoverChecklist,
+      );
+    let code = generate();
+    while (previous && code.stored.hash === previous.hash) code = generate();
+    await c.query(
+      'INSERT INTO handover_codes(id,order_id,hash,data) VALUES($1,$1,$2,$3) ON CONFLICT(id) DO UPDATE SET hash=excluded.hash,data=excluded.data',
+      [orderId, code.stored.hash, code.stored],
     );
-    await c.query('INSERT INTO handover_codes(id,order_id,hash,data) VALUES($1,$1,$2,$3)', [
+    await c.query('INSERT INTO audit_events(id,aggregate_id,event_type,data) VALUES($1,$2,$3,$4)', [
+      randomUUID(),
       orderId,
-      code.stored.hash,
-      code.stored,
+      'HANDOVER_CODE_ISSUED',
+      { type: 'HANDOVER_CODE_ISSUED', orderId, expiresAt, replaced: !!previous, at: now },
     ]);
     await c.query('COMMIT');
     return code.plain;
@@ -515,4 +562,15 @@ function fingerprint(value: unknown): string {
           '}'
         : (JSON.stringify(v) ?? 'null');
   return createHash('sha256').update(canonical(value)).digest('hex');
+}
+
+async function auditBidReads(c: PoolClient, bids: readonly e.Bid[], actor: string, reason: string) {
+  if (!actor.trim()) throw new Error('bid access requires an actor');
+  for (const bid of bids)
+    await c.query('INSERT INTO bid_access_log(id,bid_id,actor_id,data) VALUES($1,$2,$3,$4)', [
+      randomUUID(),
+      bid.id,
+      actor,
+      { reason },
+    ]);
 }

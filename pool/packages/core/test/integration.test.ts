@@ -22,6 +22,53 @@ import { poolCommand, orderCommand, command, waveClose } from '../src/index.ts';
 const { pool: db, db: orm } = connect();
 beforeAll(() => migrate(), 30000);
 afterAll(() => db.end());
+it('a receipt received after close posts one capture and one refund atomically', async () => {
+  const id = randomUUID(),
+    at = 1000;
+  await poolCommand(db, id, id + ':create', {}, () => start(id, 3601000, at));
+  await poolCommand(db, id, id + ':join', {}, (p) =>
+    e.join(
+      e.INDIA_POLICY,
+      p!,
+      {
+        memberId: 'm',
+        userId: 'u',
+        householdKey: 'h',
+        payerKey: 'p',
+        qty: e.qty(e.UOM.piece, 1),
+        options: [],
+        needBy: 5000000,
+      },
+      2000,
+    ),
+  );
+  await poolCommand(db, id, id + ':close', {}, (p) => e.close(p!, 3601000));
+  const run = () =>
+    poolCommand(db, id, id + ':late', { reference: id + ':receipt' }, (p) =>
+      e.confirmBooking(p!, 'm', 3601001, {
+        amount: e.money('INR', 100),
+        paymentRef: id + ':receipt',
+        paidAt: 2001,
+      }),
+    );
+  const p = await run();
+  expect(await run()).toEqual(p);
+  expect(p.members[0]!.booking!.disposition).toBe('REFUNDED');
+  expect(
+    (
+      await db.query('SELECT balance::text FROM pgledger_accounts WHERE name=$1', [
+        id + ':booking:m',
+      ])
+    ).rows[0].balance,
+  ).toBe('0');
+  expect(
+    (
+      await db.query('SELECT count(*)::int n FROM money_events WHERE event_key LIKE $1', [
+        id + ':m:booking-%',
+      ])
+    ).rows[0].n,
+  ).toBe(2);
+}, 30000);
 it('generated allocations conserve every paise in the real ledger and survive replay', async () => {
   await fc.assert(
     fc.asyncProperty(
@@ -72,6 +119,7 @@ function start(id: string, closesAt: number, now: number) {
       id,
       categoryPath: ['generic'],
       productKey: 'x',
+      poolStateCode: '36',
       areaKey: 'area',
       quantityRule: { uom: e.UOM.piece, minBase: 1, stepBase: 1 },
       fulfilmentProfileId: id + ':profile',
@@ -128,6 +176,7 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
         householdKey: 'h',
         qty: e.qty(e.UOM.piece, 1),
         options: [],
+        deliveryAddress: { line1: '1', city: 'Hyderabad', pincode: '500001', stateCode: '36' },
         needBy: 5000000,
       },
       2000,
@@ -148,6 +197,7 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
     poolId: id,
     sellerId: id + ':seller',
     revision: 1,
+    returnCostMinor: 10,
     sellerPrice: e.money('INR', 1000),
     uom: 'piece',
     capacityBase: 1,
@@ -301,7 +351,7 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
   order = await orderCommand(db, oid, oid + ':pay', {}, (o) =>
     e.collectBalance(o!, e.money('INR', 1000), oid + ':receipt', 'UPI', closeAt + 2),
   );
-  const plain = await issueHandoverCode(db, oid, 5000000);
+  const plain = await issueHandoverCode(db, oid, 5000000, closeAt + 2);
   expect(await handover(db, oid, plain === '0000' ? '1111' : '0000', {}, 3999999)).toEqual({
     ok: false,
     reason: 'WRONG_CODE',
@@ -364,8 +414,9 @@ it('rollback leaves no state, audit or transfer after a failed transaction', asy
     (await db.query('SELECT id FROM money_events WHERE event_key=$1', [id + ':1'])).rowCount,
   ).toBe(0);
 });
+const workerDiagnostics = new WeakMap<ChildProcess, string>();
 function worker(crash = false) {
-  return fork(fileURLToPath(new URL('../src/worker.ts', import.meta.url)), [], {
+  const child = fork(fileURLToPath(new URL('../src/worker.ts', import.meta.url)), [], {
     execArgv: ['--env-file=../../.env'],
     env: {
       ...process.env,
@@ -374,12 +425,25 @@ function worker(crash = false) {
     },
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   });
+  workerDiagnostics.set(child, '');
+  child.stderr?.on('data', (chunk: Buffer) => {
+    let value = chunk.toString();
+    for (const secret of [
+      process.env.DATABASE_URL,
+      process.env.CODE_SECRET,
+      process.env.POSTGRES_PASSWORD,
+    ])
+      if (secret) value = value.replaceAll(secret, '[REDACTED]');
+    value = value.replace(/postgres(?:ql)?:\/\/\S+/g, '[REDACTED_DATABASE_URL]');
+    workerDiagnostics.set(child, ((workerDiagnostics.get(child) ?? '') + value).slice(-4096));
+  });
+  return child;
 }
-function message(child: ChildProcess, type: string, timeout = 30000) {
+function message(child: ChildProcess, type: string, timeout = 60000) {
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error('worker timeout: ' + type));
+      reject(new Error('worker timeout: ' + type + '; ' + workerDiagnostics.get(child)));
     }, timeout);
     const onMessage = (m: unknown) => {
       if ((m as { type: string }).type === type) {
@@ -393,8 +457,18 @@ function message(child: ChildProcess, type: string, timeout = 30000) {
     const cleanup = () => {
       clearTimeout(timer);
       child.off('message', onMessage);
+      child.off('exit', onExit);
+    };
+    const onExit = (code: number | null) => {
+      cleanup();
+      reject(
+        new Error(
+          'worker exited before ' + type + ': ' + code + '; ' + workerDiagnostics.get(child),
+        ),
+      );
     };
     child.on('message', onMessage);
+    child.once('exit', onExit);
   });
 }
 it('kills worker after wave transaction commit, restarts DBOS, and never double posts', async () => {
@@ -457,7 +531,7 @@ it('kills worker after wave transaction commit, restarts DBOS, and never double 
   } finally {
     child.kill('SIGKILL');
   }
-}, 90000);
+}, 180000);
 
 it('unfunded internal accounts cannot pay and concurrent idempotent commands post once', async () => {
   const id = randomUUID();

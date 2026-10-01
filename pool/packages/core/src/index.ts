@@ -92,6 +92,8 @@ export function orderPostings(o: engine.Order, events: readonly engine.OrderEven
     const base = { minor: e.amount.minor, key: e.idempotencyKey };
     const held = o.id + ':held';
     switch (e.type) {
+      case 'DEFAULT_FUNDING_RETURN':
+        return [{ ...base, from: held, to: e.account }];
       case 'CAPTURE':
         return [{ ...base, from: 'external:buyers', to: held }];
       case 'PAYOUT_RELEASE':
@@ -100,7 +102,7 @@ export function orderPostings(o: engine.Order, events: readonly engine.OrderEven
       case 'LATE_CREDIT':
         return [{ ...base, from: held, to: 'external:buyers' }];
       case 'SELLER_CHARGE':
-        return [{ ...base, from: 'external:seller:' + o.sellerId, to: held }];
+        return [{ ...base, from: 'seller:' + o.sellerId + ':deposit', to: held }];
       case 'COMPENSATION':
         return [{ ...base, from: held, to: 'external:buyers' }];
       case 'PAYOUT_REVERSAL':
@@ -220,6 +222,9 @@ export function waveClose(
     async (c, state) => {
       const rows = await c.query('SELECT data FROM orders WHERE pool_id=$1 FOR UPDATE', [id]);
       const actual = new Map<string, engine.Order>(rows.rows.map((r) => [r.data.id, r.data]));
+      // Founder decision pending: do not silently invent cross-seller pot/subsidy semantics.
+      if (new Set([...actual.values()].map((o) => o.sellerId)).size > 1)
+        throw new Error('multi-seller Wave Drop settlement requires an explicit pot policy');
       if (
         new Set(orders.map((o) => o.orderId)).size !== orders.length ||
         actual.size !== orders.length
