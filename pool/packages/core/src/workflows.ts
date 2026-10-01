@@ -1,0 +1,130 @@
+import { DBOS } from '@dbos-inc/dbos-sdk';
+import { connect, validateEnv } from '@pool/db';
+import type { Slab, WaveOrder } from '@pool/engine';
+import {
+  closePool,
+  expirePoolPricing,
+  expirePoolOffers,
+  releaseOrderHolds,
+  waveClose,
+} from './index.ts';
+// API verified in installed 5.2.11 declarations and https://docs.dbos.dev/typescript/programming-guide
+async function waitUntil(at: number) {
+  const now = await DBOS.runStep(async () => Date.now(), { name: 'clock' });
+  await DBOS.sleep(Math.max(0, at - now));
+}
+async function withDb<T>(fn: (db: ReturnType<typeof connect>['pool']) => Promise<T>) {
+  const { pool } = connect();
+  try {
+    return await fn(pool);
+  } finally {
+    await pool.end();
+  }
+}
+export const poolCloseWorkflow = DBOS.registerWorkflow(
+  async (id: string, at: number) => {
+    await waitUntil(at);
+    return DBOS.runStep(() => withDb((db) => closePool(db, id, at)), {
+      name: 'close-pool',
+    });
+  },
+  { name: 'pool-close' },
+);
+export const pricingWorkflow = DBOS.registerWorkflow(
+  async (id: string, at: number) => {
+    await waitUntil(at + 1);
+    return DBOS.runStep(() => withDb((db) => expirePoolPricing(db, id, at + 1)), {
+      name: 'expire-pricing',
+    });
+  },
+  { name: 'pricing-deadline' },
+);
+export const acceptWorkflow = DBOS.registerWorkflow(
+  async (id: string, at: number) => {
+    await waitUntil(at + 1);
+    return DBOS.runStep(() => withDb((db) => expirePoolOffers(db, id, at + 1)), {
+      name: 'expire-offers',
+    });
+  },
+  { name: 'accept-expiry' },
+);
+export const holdWorkflow = DBOS.registerWorkflow(
+  async (id: string, at: number, generation: string = 'initial') => {
+    await waitUntil(at);
+    const executedAt = await DBOS.runStep(async () => Date.now(), { name: 'execution-clock' });
+    return DBOS.runStep(() => withDb((db) => releaseOrderHolds(db, id, executedAt, generation)), {
+      name: 'release-holds',
+    });
+  },
+  { name: 'hold-release' },
+);
+export const waveWorkflow = DBOS.registerWorkflow(
+  async (id: string, at: number, slabs: readonly Slab[], orders: readonly WaveOrder[]) => {
+    await waitUntil(at);
+    return DBOS.runStep(
+      async () => {
+        const result = await withDb((db) => waveClose(db, id, slabs, orders, at));
+        // Test-only process crash boundary AFTER business transaction commit, BEFORE DBOS records step completion.
+        if (process.env.POOL_TEST_CRASH_BOUNDARY === '1') {
+          process.send?.({ type: 'committed' });
+          await new Promise<void>(() => {});
+        }
+        return result;
+      },
+      { name: 'close-wave' },
+    );
+  },
+  { name: 'wave-close' },
+);
+export async function launchWorkflows() {
+  DBOS.setConfig({
+    name: 'pool-india',
+    applicationVersion: 'm2-v1',
+    systemDatabaseUrl: validateEnv().databaseUrl,
+    executorID: 'pool-local-worker',
+    enableOTLP: false,
+    tracingEnabled: false,
+    logLevel: 'error',
+  });
+  await DBOS.launch();
+}
+/** Outbox survives a crash between domain commit and DBOS submission. Stable workflow IDs deduplicate dispatch. */
+export async function dispatchOutbox(aggregateId?: string) {
+  return withDb(async (db) => {
+    const rows = await db.query(
+      "SELECT id,kind,due_at,data FROM workflow_outbox WHERE NOT dispatched AND ($1::text IS NULL OR data->>'aggregateId'=$1) ORDER BY due_at LIMIT 100",
+      [aggregateId ?? null],
+    );
+    for (const row of rows.rows) {
+      const id = row.data.aggregateId as string,
+        at = Number(row.due_at);
+      const options = { workflowID: row.id };
+      switch (row.kind) {
+        case 'close':
+          await DBOS.startWorkflow(poolCloseWorkflow, options)(id, at);
+          break;
+        case 'pricing':
+          await DBOS.startWorkflow(pricingWorkflow, options)(id, at);
+          break;
+        case 'accept':
+          await DBOS.startWorkflow(acceptWorkflow, options)(id, at);
+          break;
+        case 'hold':
+          await DBOS.startWorkflow(holdWorkflow, options)(id, at, row.id);
+          break;
+        case 'wave':
+          await DBOS.startWorkflow(waveWorkflow, options)(
+            id,
+            at,
+            row.data.payload.slabs,
+            row.data.payload.orders,
+          );
+          break;
+        default:
+          throw new Error('unknown durable workflow kind');
+      }
+      await db.query('UPDATE workflow_outbox SET dispatched=true WHERE id=$1', [row.id]);
+    }
+  });
+}
+export { DBOS };

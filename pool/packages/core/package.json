@@ -1,0 +1,26 @@
+{
+  "name": "@pool/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --env-file=../../.env test/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pool/db": "workspace:*",
+    "@pool/engine": "workspace:*",
+    "@dbos-inc/dbos-sdk": "5.2.11",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "@types/node": "26.6.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3",
+    "fast-check": "4.10.2"
+  }
+}
