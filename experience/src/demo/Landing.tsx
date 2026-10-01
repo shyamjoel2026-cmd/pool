@@ -29,7 +29,7 @@ export function Landing() {
   const sellers = new Set(s.pools.flatMap((p) => p.bids.map((b) => b.sellerId))).size;
   const k = opsKpis(s, t);
   return (
-    <div className="min-h-screen bg-bg text-ink">
+    <div className="pool-landing min-h-screen bg-bg text-ink">
       <Nav onTour={startTour} />
       <Hero onTour={startTour} households={households} pools={openPools.length} />
       <LiveStrip households={households} pools={openPools.length} sellers={sellers} saving={k.avgSaving} />
@@ -54,17 +54,17 @@ function Nav({ onTour }: { onTour: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="mx-auto mt-3 flex max-w-[1180px] items-center gap-3 rounded-[18px] px-3 py-2 text-white glass sm:mx-4 lg:mx-auto">
+      <div className="landing-nav mx-auto mt-3 flex max-w-[1180px] items-center gap-3 rounded-[18px] px-3 py-2 text-ink glass sm:mx-4 lg:mx-auto">
         <Link to="/" className="shrink-0"><Logo size={30} /></Link>
-        <nav className="ml-6 hidden items-center gap-1 text-[14px] text-white/75 md:flex">
-          {[['#how', tr('How it works')], ['#wave', tr('Wave Drop')], ['#doors', tr('Sellers & builders')], ['#investors', tr('Investors')]].map(([h, l]) => <a key={h} href={h} onClick={(e) => { e.preventDefault(); document.querySelector(h)?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-[10px] px-3 py-1.5 hover:bg-white/10 hover:text-white">{l}</a>)}
+        <nav className="ml-6 hidden items-center gap-1 text-[14px] text-ink-2 md:flex">
+          {[['#how', tr('How it works')], ['#wave', tr('Wave Drop')], ['#doors', tr('Sellers & builders')], ['#investors', tr('Investors')]].map(([h, l]) => <a key={h} href={h} onClick={(e) => { e.preventDefault(); document.querySelector(h)?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-[10px] px-3 py-1.5 hover:bg-white/10 hover:text-ink">{l}</a>)}
         </nav>
         <div className="ml-auto flex items-center gap-1.5">
           <div className="relative">
-            <button onClick={() => setOpen(!open)} className="flex h-9 items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] text-white/80 hover:bg-white/10" aria-label="Language"><Languages className="h-4 w-4" />{LANGS.find((l) => l.id === s.prefs.lang)!.native}</button>
+            <button onClick={() => setOpen(!open)} className="flex h-9 items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] text-ink-2 hover:bg-white/10" aria-label="Language"><Languages className="h-4 w-4" />{LANGS.find((l) => l.id === s.prefs.lang)!.native}</button>
             {open && <div className="absolute right-0 top-11 w-36 overflow-hidden rounded-[12px] bg-surface text-ink shadow-[var(--shadow-pop)]">{LANGS.map((l) => <button key={l.id} onClick={() => { setPrefs({ lang: l.id }); setOpen(false); }} className="block w-full px-3 py-2.5 text-left text-[14px] hover:bg-surface-2">{l.native}</button>)}</div>}
           </div>
-          <button onClick={onTour} className="hidden h-9 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold text-white/85 hover:bg-white/10 sm:flex"><Play className="h-3.5 w-3.5" />{tr('Walkthrough')}</button>
+          <button onClick={onTour} className="hidden h-9 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold text-ink-2 hover:bg-white/10 sm:flex"><Play className="h-3.5 w-3.5" />{tr('Walkthrough')}</button>
           <Link to="/buyer" className="flex h-9 items-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13.5px] font-semibold text-night">{tr('Open the app')}<ArrowRight className="h-4 w-4" /></Link>
         </div>
       </div>
@@ -73,31 +73,32 @@ function Nav({ onTour }: { onTour: () => void }) {
 }
 
 // ---------------------------------------------------------------- Hero with a live, honest story
-function Hero({ onTour, households, pools }: { onTour: () => void; households: number; pools: number }) {
+function Hero({ onTour }: { onTour: () => void; households: number; pools: number }) {
   const tr = useT();
   const nav = useNavigate();
   return (
-    <section className="aurora grain relative overflow-hidden pb-20 pt-28 text-white sm:pt-32">
+    <section className="landing-hero relative overflow-hidden pb-20 pt-28 text-ink sm:pt-32">
+      <div className="landing-orbits" aria-hidden="true"><i/><i/><i/><span>pool.</span></div>
       <div className="relative z-10 mx-auto grid max-w-[1180px] items-center gap-12 px-5 lg:grid-cols-[1.05fr_1fr]">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-white/85 glass"><span className="h-2 w-2 animate-pulse rounded-full bg-[#7ff0e6]" />{tr('{n} households pooling in {p} pools right now · Hyderabad', { n: households, p: pools })}</div>
+          <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-ink-2 glass"><span className="h-2 w-2 rounded-full bg-brand" />{tr('Interactive preview · Hyderabad · Sample data')}</div>
           <h1 className="display mt-6 text-[46px] sm:text-[64px] lg:text-[76px]">
             {tr('Before you buy it,')}<br /><span className="text-gradient">{tr('POOL it.')}</span>
           </h1>
-          <p className="mt-6 max-w-[540px] text-[17px] leading-relaxed text-white/70 sm:text-[19px]">{tr('Neighbours who want the same thing join one pool. Verified local sellers bid privately for all of you. You get a personal price, delivered and installed, and pay only if you say yes.')}</p>
+          <p className="mt-6 max-w-[540px] text-[17px] leading-relaxed text-ink-2 sm:text-[19px]">{tr('Neighbours who want the same thing join one pool. Verified local sellers bid privately for all of you. You get a personal price, delivered and installed, and pay only if you say yes.')}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <button onClick={() => nav('/buyer/find?link=tv')} className="group flex h-[54px] items-center gap-2 rounded-[16px] bg-white px-5 text-[15.5px] font-semibold text-night shadow-[0_20px_50px_-15px_rgba(127,240,230,.5)] transition hover:-translate-y-0.5"><ClipboardPaste className="h-5 w-5 text-brand" />{tr('Paste a product link')}<ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></button>
-            <button onClick={onTour} className="flex h-[54px] items-center gap-2 rounded-[16px] px-5 text-[15.5px] font-semibold text-white glass transition hover:bg-white/10"><Play className="h-4.5 w-4.5" />{tr('Walk the whole business · 15 steps')}</button>
+            <button onClick={() => nav('/buyer/find?link=tv')} className="landing-primary group flex h-[54px] items-center gap-2 rounded-[16px] bg-white px-5 text-[15.5px] font-semibold text-night shadow-[0_20px_50px_-15px_rgba(127,240,230,.5)] transition hover:-translate-y-0.5"><ClipboardPaste className="h-5 w-5 text-brand" />{tr('Paste a product link')}<ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></button>
+            <button onClick={onTour} className="landing-secondary flex h-[54px] items-center gap-2 rounded-[16px] px-5 text-[15.5px] font-semibold text-ink glass transition hover:bg-white/10"><Play className="h-4.5 w-4.5" />{tr('Walk the whole business · 15 steps')}</button>
           </div>
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-white/60">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#7ff0e6]" />{tr('Refundable booking')}</span>
-            <span className="flex items-center gap-1.5"><Lock className="h-4 w-4 text-[#7ff0e6]" />{tr('Money held until your code')}</span>
-            <span className="flex items-center gap-1.5"><Scale className="h-4 w-4 text-[#7ff0e6]" />{tr('We tell you when Amazon is cheaper')}</span>
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-ink-2">
+            <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-brand" />{tr('Refundable booking')}</span>
+            <span className="flex items-center gap-1.5"><Lock className="h-4 w-4 text-brand" />{tr('Money held until your code')}</span>
+            <span className="flex items-center gap-1.5"><Scale className="h-4 w-4 text-brand" />{tr('We tell you when Amazon is cheaper')}</span>
           </div>
         </div>
         <StoryCard />
       </div>
-      <a href="#how" onClick={(e) => { e.preventDefault(); document.querySelector('#how')?.scrollIntoView({ behavior: 'smooth' }); }} className="relative z-10 mx-auto mt-14 flex w-fit flex-col items-center gap-1 text-[12px] text-white/45"><span>{tr('See how it works')}</span><ChevronDown className="float-y h-4 w-4" /></a>
+      <a href="#how" onClick={(e) => { e.preventDefault(); document.querySelector('#how')?.scrollIntoView({ behavior: 'smooth' }); }} className="relative z-10 mx-auto mt-14 flex w-fit flex-col items-center gap-1 text-[12px] text-ink-3"><span>{tr('See how it works')}</span><ChevronDown className="float-y h-4 w-4" /></a>
     </section>
   );
 }
@@ -108,7 +109,7 @@ function StoryCard() {
   const t = useNow(1000);
   const tr = useT();
   const [step, setStep] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
   useEffect(() => {
     if (paused) return;
     const i = setInterval(() => setStep((x) => (x + 1) % 5), 3200);
@@ -125,12 +126,12 @@ function StoryCard() {
   const perBuyer = n ? Math.floor(pot / n) : 0;
   const steps = [tr('Paste'), tr('Pool'), tr('Bids'), tr('Offer'), tr('Wave')];
   return (
-    <div className="relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+    <div className="landing-story relative">
       <div className="absolute -inset-6 rounded-[40px] bg-gradient-to-br from-brand/30 via-transparent to-wave/30 blur-2xl" />
       <div className="relative overflow-hidden rounded-[28px] p-5 glass ring-glow sm:p-6">
         <div className="flex items-center justify-between">
           <div className="flex gap-1.5">{steps.map((l, i) => <button key={l} onClick={() => setStep(i)} className={cn('rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition', step === i ? 'bg-white text-night' : 'text-white/55 hover:text-white')}>{l}</button>)}</div>
-          <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-white/40">{tr('Live demo data')}</span>
+          <button onClick={()=>setPaused(!paused)} className="story-play" aria-label={paused?'Play story':'Pause story'}>{paused?<Play size={15}/>:<span aria-hidden="true">Ⅱ</span>}</button>
         </div>
         <div className="mt-5 min-h-[300px]">
           {step === 0 && (
@@ -139,7 +140,7 @@ function StoryCard() {
               <div className="flex gap-4">
                 <ProductArt art={product.art} size={92} rounded={20} />
                 <div className="min-w-0">
-                  <div className="text-[12px] font-semibold text-[#7ff0e6]">{tr('Exact model confirmed')} · {product.link?.idLabel} {product.link?.idValue}</div>
+                  <div className="text-[12px] font-semibold text-[#dceba7]">{tr('Exact model confirmed')} · {product.link?.idLabel} {product.link?.idValue}</div>
                   <div className="mt-1 text-[18px] font-bold leading-snug">{product.title}</div>
                   <div className="mt-2 text-[13px] text-white/60">{amazon.source}: <span className="num font-semibold text-white">{inr(amazon.pricePaise)}</span>{amazon.cardOffer && <> · {tr('with {b} card', { b: amazon.cardOffer.bank.split(' ')[0] })} <span className="num font-semibold text-white">{inr(withCard.price)}</span></>}</div>
                 </div>
@@ -157,7 +158,7 @@ function StoryCard() {
           )}
           {step === 2 && (
             <div key="s2" className="step-in">
-              <div className="flex items-center gap-2 text-[16px] font-semibold"><Lock className="h-5 w-5 text-[#7ff0e6]" />{tr('{n} sealed bids from verified sellers', { n: pool.bids.length })}</div>
+              <div className="flex items-center gap-2 text-[16px] font-semibold"><Lock className="h-5 w-5 text-[#dceba7]" />{tr('{n} sealed bids from verified sellers', { n: pool.bids.length })}</div>
               <div className="mt-5 grid grid-cols-3 gap-2.5">{pool.bids.map((b, i) => <div key={b.id} className="envelope-drop relative h-20 rounded-[14px] bg-white/[0.08]" style={{ animationDelay: `${i * 120}ms` }}><svg viewBox="0 0 40 26" className="absolute inset-0 h-full w-full p-3"><path d="M2 4 L20 15 L38 4" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="1.6" /></svg><span className="absolute bottom-2 left-3 text-[10.5px] text-white/45">{tr('Price hidden')}</span></div>)}</div>
               <div className="mt-5 text-[13px] text-white/60">{tr('Nobody sees another seller’s price. They can lower a bid before close, never raise it. Every view is logged.')}</div>
             </div>
@@ -169,7 +170,7 @@ function StoryCard() {
               <div className="mt-2 text-[14px] text-white/65">{tr('All-in: GST, delivery and installation. Guaranteed for 24 hours.')}</div>
               <div className="mt-5 grid grid-cols-2 gap-2.5">
                 <div className="rounded-[14px] bg-white/[0.08] p-3"><div className="text-[11.5px] text-white/50">{tr('Amazon with HDFC card')}</div><div className="num text-[18px] font-bold">{inr(withCard.price)}</div></div>
-                <div className="rounded-[14px] bg-[#7ff0e6]/15 p-3"><div className="text-[11.5px] text-[#7ff0e6]">{tr('You save')}</div><div className="num text-[18px] font-bold text-[#7ff0e6]">{inr(Math.max(0, withCard.price - examplePrice))}</div></div>
+                <div className="rounded-[14px] bg-[#dceba7]/15 p-3"><div className="text-[11.5px] text-[#dceba7]">{tr('You save')}</div><div className="num text-[18px] font-bold text-[#dceba7]">{inr(Math.max(0, withCard.price - examplePrice))}</div></div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2"><span className="rounded-[12px] border border-white/25 py-2.5 text-center text-[13.5px] font-semibold">{tr('Walk away')}</span><span className="rounded-[12px] bg-white py-2.5 text-center text-[13.5px] font-semibold text-night">{tr('Accept')}</span></div>
               <div className="mt-2 text-[11px] text-white/40">{tr('Example price: the TV pool is still open in the demo.')}</div>
@@ -178,14 +179,14 @@ function StoryCard() {
           {step === 4 && (
             <div key="s4" className="step-in">
               <div className="relative h-40 overflow-hidden rounded-[18px] bg-white/[0.06]">
-                <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[#0b9e97] to-[#7ff0e6]/60"><svg className="wave-move absolute -top-[10px] left-0 h-[12px] w-[200%]" viewBox="0 0 400 12" preserveAspectRatio="none"><path d="M0 6 Q25 0 50 6 T100 6 T150 6 T200 6 T250 6 T300 6 T350 6 T400 6 V12 H0Z" fill="#7ff0e6" opacity=".6" /></svg></div>
+                <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[#657448] to-[#dceba7]/60"><svg className="wave-move absolute -top-[10px] left-0 h-[12px] w-[200%]" viewBox="0 0 400 12" preserveAspectRatio="none"><path d="M0 6 Q25 0 50 6 T100 6 T150 6 T200 6 T250 6 T300 6 T350 6 T400 6 V12 H0Z" fill="#dceba7" opacity=".6" /></svg></div>
                 <div className="relative p-4"><div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">{tr('Wave Drop')}</div><div className="num mt-1 text-[40px] font-bold">{inr(perBuyer)}</div><div className="text-[13px] text-white/80">{tr('back to each buyer if all {n} complete', { n })}</div></div>
               </div>
               <div className="mt-4 text-[13px] text-white/60">{tr('Each completed purchase drops a slab the seller set into one pot ({pot} here). Split equally when every order is final. Real numbers, never a promise.', { pot: inr(pot) })}</div>
             </div>
           )}
         </div>
-        <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/10"><div key={step + (paused ? 'p' : '')} className="h-full rounded-full bg-[#7ff0e6]" style={{ width: paused ? `${(step + 1) * 20}%` : undefined, animation: paused ? undefined : 'grow 3.2s linear both' }} /></div>
+        <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/10"><div key={step + (paused ? 'p' : '')} className="h-full rounded-full bg-[#dceba7]" style={{ width: paused ? `${(step + 1) * 20}%` : undefined, animation: paused ? undefined : 'grow 3.2s linear both' }} /></div>
         <style>{'@keyframes grow{from{width:0}to{width:100%}}'}</style>
       </div>
     </div>
@@ -224,7 +225,7 @@ const Stat = ({ n, l, accent }: { n: string; l: string; accent?: boolean }) => <
 function SectionHead({ eyebrow, title, sub, center, dark }: { eyebrow: string; title: ReactNode; sub?: ReactNode; center?: boolean; dark?: boolean }) {
   return (
     <div className={cn('reveal max-w-[720px]', center && 'mx-auto text-center')}>
-      <div className={cn('eyebrow', dark ? 'text-[#7ff0e6]' : 'text-brand')}>{eyebrow}</div>
+      <div className={cn('eyebrow', dark ? 'text-[#dceba7]' : 'text-brand')}>{eyebrow}</div>
       <h2 className={cn('display mt-3 text-[34px] sm:text-[48px]', dark ? 'text-white' : 'text-ink')}>{title}</h2>
       {sub && <p className={cn('mt-4 text-[16.5px] leading-relaxed', dark ? 'text-white/65' : 'text-ink-2')}>{sub}</p>}
     </div>
@@ -306,9 +307,9 @@ function WaveSlider() {
         <SectionHead dark eyebrow={tr('The Wave Drop')} title={tr('The more neighbours complete, the less everyone pays.')} sub={tr('Sellers choose slabs up front, capped at 10% of their price, and the money is held from each payout, so the pot is always funded. Drag to see a real bid from the demo.')} />
         <div className="reveal rounded-[28px] p-6 glass ring-glow">
           <div className="flex items-center gap-3"><ProductArt art={product.art} size={48} /><div><div className="text-[14.5px] font-bold">{product.short}</div><div className="text-[12.5px] text-white/55">{tr('{s}’s bid', { s: s.sellers.find((x) => x.id === bid.sellerId)?.name ?? '' })} · {inr(bid.pricePaise)} · {slabs.map((sl) => tr('from #{u}: {a}', { u: sl.fromUnit, a: inr(sl.perUnitPaise) })).join(' · ')}</div></div></div>
-          <div className="mt-6 flex items-end justify-between"><div><div className="text-[12.5px] text-white/55">{tr('Completed purchases')}</div><div className="num text-[44px] font-bold leading-none">{n}</div></div><div className="text-right"><div className="text-[12.5px] text-white/55">{tr('Back to each buyer')}</div><div className="num text-[44px] font-bold leading-none text-[#7ff0e6]">{inr(per)}</div></div></div>
-          <input type="range" min={1} max={maxN} value={n} onChange={(e) => setN(Number(e.target.value))} className="mt-6 w-full accent-[#7ff0e6]" aria-label={tr('Completed purchases')} />
-          <div className="mt-5 flex h-24 items-end gap-1">{bars.map((x) => { const v = Math.floor(potFor(slabs, x) / x); return <div key={x} className={cn('flex-1 rounded-t-[4px] transition-colors', x <= n ? 'bg-[#7ff0e6]' : 'bg-white/15')} style={{ height: `${Math.max(3, (v / maxPer) * 100)}%` }} />; })}</div>
+          <div className="mt-6 flex items-end justify-between"><div><div className="text-[12.5px] text-white/55">{tr('Completed purchases')}</div><div className="num text-[44px] font-bold leading-none">{n}</div></div><div className="text-right"><div className="text-[12.5px] text-white/55">{tr('Back to each buyer')}</div><div className="num text-[44px] font-bold leading-none text-[#dceba7]">{inr(per)}</div></div></div>
+          <input type="range" min={1} max={maxN} value={n} onChange={(e) => setN(Number(e.target.value))} className="mt-6 w-full accent-[#dceba7]" aria-label={tr('Completed purchases')} />
+          <div className="mt-5 flex h-24 items-end gap-1">{bars.map((x) => { const v = Math.floor(potFor(slabs, x) / x); return <div key={x} className={cn('flex-1 rounded-t-[4px] transition-colors', x <= n ? 'bg-[#dceba7]' : 'bg-white/15')} style={{ height: `${Math.max(3, (v / maxPer) * 100)}%` }} />; })}</div>
           <div className="mt-5 grid grid-cols-3 gap-2 text-[12px]">
             <div className="rounded-[14px] bg-white/[0.07] p-3"><div className="text-white/55">{tr('Pot')}</div><div className="num text-[17px] font-bold">{inr(pot)}</div></div>
             <div className="rounded-[14px] bg-white/[0.07] p-3"><div className="text-white/55">{tr('Seller keeps on sale #{n}', { n })}</div><div className="num text-[17px] font-bold">{inr(marginal)}</div></div>
@@ -359,7 +360,7 @@ function Doors({ onTour }: { onTour: () => void }) {
   const tr = useT();
   const doors = [
     { to: '/buyer', icon: Heart, title: tr('For households'), body: tr('Paste a link, join a pool, get one honest offer. Pay by UPI, EMI or at the door, never cash.'), cta: tr('Open the buyer app'), cls: 'from-brand to-[#5b75ff]' },
-    { to: '/seller', icon: Store, title: tr('For local sellers'), body: tr('Bid on pre-paid demand in your pincodes. No listing fees, no ads, no buyer data until they accept. Clear payouts and holds.'), cta: tr('Open the seller app'), cls: 'from-[#0b9e97] to-[#34c9b8]' },
+    { to: '/seller', icon: Store, title: tr('For local sellers'), body: tr('Bid on pre-paid demand in your pincodes. No listing fees, no ads, no buyer data until they accept. Clear payouts and holds.'), cta: tr('Open the seller app'), cls: 'from-[#657448] to-[#34c9b8]' },
     { to: '/buyer/community', icon: Building2, title: tr('For communities & builders'), body: tr('Move-in pools for a new building: fans, geysers, purifiers, delivered in handover week, installed by brand teams.'), cta: tr('See Lakeview Heights'), cls: 'from-[#6447c9] to-[#8f75ff]' },
   ];
   return (
@@ -377,7 +378,7 @@ function Doors({ onTour }: { onTour: () => void }) {
           ))}
         </div>
         <div className="reveal mt-4 flex flex-col items-center justify-between gap-4 rounded-[28px] bg-night p-6 text-white sm:flex-row">
-          <div className="flex items-center gap-4"><div className="grid h-14 w-14 place-items-center rounded-[18px] bg-white/10"><Landmark className="h-7 w-7 text-[#7ff0e6]" /></div><div><div className="text-[19px] font-bold">{tr('The POOL team console')}</div><div className="text-[14px] text-white/60">{tr('Seller review, awards, pricing, refunds, risk and a ledger that ties out to the paisa.')}</div></div></div>
+          <div className="flex items-center gap-4"><div className="grid h-14 w-14 place-items-center rounded-[18px] bg-white/10"><Landmark className="h-7 w-7 text-[#dceba7]" /></div><div><div className="text-[19px] font-bold">{tr('The POOL team console')}</div><div className="text-[14px] text-white/60">{tr('Seller review, awards, pricing, refunds, risk and a ledger that ties out to the paisa.')}</div></div></div>
           <div className="flex gap-2"><Link to="/ops" className="rounded-[14px] bg-white px-4 py-3 text-[14px] font-semibold text-night">{tr('Open the console')}</Link><button onClick={onTour} className="rounded-[14px] px-4 py-3 text-[14px] font-semibold glass">{tr('Guided walkthrough')}</button></div>
         </div>
       </div>
@@ -414,9 +415,9 @@ function IndiaFirst() {
   const items = [
     { icon: Wallet, t: tr('UPI, cards, EMI, pay at door'), b: tr('Pay at the door by UPI or card after checking the box. Never cash, so every rupee can be held and refunded.') },
     { icon: Landmark, t: tr('GST done right'), b: tr('CGST + SGST or IGST by the seller’s state, invoices in your name, TCS and TDS deducted and shown to sellers as credits.') },
-    { icon: Mic, t: tr('Telugu, Hindi, English'), b: tr('Voice notes on WhatsApp, a voice assistant, and every screen in three languages, with Indian number formats.') },
+    { icon: Mic, t: tr('Telugu, Hindi, English'), b: tr('Buyer screens in three languages. Voice and WhatsApp journeys are simulated; seller and team screens are currently in English.') },
     { icon: MessageCircle, t: tr('WhatsApp-native'), b: tr('Neighbours without the app join by voice note and pay by UPI request. Same pool, same rules.') },
-    { icon: Lock, t: tr('DPDP Act ready'), b: tr('Consent, access, correction and erasure built in. Sellers never see names before acceptance.') },
+    { icon: Lock, t: tr('Privacy controls'), b: tr('Explore consent, access, correction and erasure on sample data. Production compliance still needs review.') },
     { icon: Globe, t: tr('Built to travel'), b: tr('Units, terms, taxes and fulfilment are data, not code. Rice by the kg, TVs with installation, cement by the bag.') },
   ];
   return (
@@ -461,7 +462,7 @@ function Investors({ onTour }: { onTour: () => void }) {
           <div className="reveal rounded-[24px] p-6 glass lg:col-span-2">
             <div className="flex items-center justify-between"><div className="text-[15px] font-bold">{tr('One TV order, to the paisa')}</div><span className="text-[11.5px] text-white/45">{tr('Walkthrough prices · engine maths')}</span></div>
             <div className="mt-4 divide-y divide-white/10">
-              {rows.map(([l, v, h], i) => <div key={i} className={cn('flex items-center justify-between py-2.5 text-[14px]', (i === 2 || i === 8) && 'font-bold')}><span className="text-white/80">{l}{h && <span className="ml-2 text-[11.5px] text-white/40">{h}</span>}</span><span className={cn('num', i === 2 ? 'text-[#7ff0e6]' : 'text-white')}>{inr(v, { exact: v % 100 !== 0 })}</span></div>)}
+              {rows.map(([l, v, h], i) => <div key={i} className={cn('flex items-center justify-between py-2.5 text-[14px]', (i === 2 || i === 8) && 'font-bold')}><span className="text-white/80">{l}{h && <span className="ml-2 text-[11.5px] text-white/40">{h}</span>}</span><span className={cn('num', i === 2 ? 'text-[#dceba7]' : 'text-white')}>{inr(v, { exact: v % 100 !== 0 })}</span></div>)}
             </div>
           </div>
           <div className="grid gap-4">
@@ -486,7 +487,7 @@ function Investors({ onTour }: { onTour: () => void }) {
     </section>
   );
 }
-const Metric = ({ l, v, accent }: { l: string; v: string; accent?: boolean }) => <div className="reveal rounded-[24px] p-5 glass"><div className="text-[12.5px] text-white/55">{l}</div><div className={cn('num display mt-1 text-[32px]', accent && 'text-[#7ff0e6]')}>{v}</div></div>;
+const Metric = ({ l, v, accent }: { l: string; v: string; accent?: boolean }) => <div className="reveal rounded-[24px] p-5 glass"><div className="text-[12.5px] text-white/55">{l}</div><div className={cn('num display mt-1 text-[32px]', accent && 'text-[#dceba7]')}>{v}</div></div>;
 
 // ---------------------------------------------------------------- FAQ & footer
 function Faq() {

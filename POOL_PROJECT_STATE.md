@@ -8,6 +8,12 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-02 03:00 · Codex · Experience palette and localhost QA
+- Did: Reworked the separate `experience/` preview's visual system from blue-heavy gradients to warm paper, charcoal and restrained olive tokens. Rebalanced the landing hero, navigation, buyer hero, sidebar promise, next-step cards and product art; reduced saturated illustration colour and kept semantic colours for status/money. Added a visible distinction between the localhost Vite preview (`:5173`) and the older Next preview (`:3000`) in the working notes. Kept Claude's simulation separate from `pool/` and corrected the booking success count to use the committed pool count.
+- Verified: `experience` `pnpm typecheck` passed, `pnpm test` passed 9/9, and `pnpm build` passed with Vite 8.3.1. Browser QA through `http://127.0.0.1:5173/#/` and `#/buyer` at desktop and 320px phone width showed the warm landing and buyer home, persistent payment success, refund path, seller demand, and sealed-bid confirmation. The exact browser screenshot was checked after HMR; no runtime error was observed. The older Next app remains on port 3000 and is a different app.
+- Next: Founder review of the localhost preview. Before a production claim, complete native Telugu/Hindi review, real product-link/API work, Razorpay test integration, and the M5 accessibility/performance gates against `pool/apps/web`.
+- Open issues / blockers: `experience/` is a browser simulation with sample data; payments, messages and deliveries do not move real money. The existing `pool pnpm test` still has the known DBOS durable-timer timeout; no backend code was changed in this palette pass.
+
 ### 2026-10-02 02:00 · Claude Code · Experience QA, translations, end-to-end walkthrough
 - Did:
   - Visual QA of 60 routes (phone and desktop) and fixed what it found:

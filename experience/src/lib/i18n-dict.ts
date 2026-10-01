@@ -4,6 +4,12 @@
  * Legal pages are binding in English (see the Language screen).
  */
 export const TE: Record<string, string> = {
+  "Privacy controls": "గోప్యత నియంత్రణలు",
+  "Explore consent, access, correction and erasure on sample data. Production compliance still needs review.": "ఉదాహరణ డేటాతో సమ్మతి, యాక్సెస్, సవరణ, తొలగింపు చూడండి. విడుదలకు ముందు నిబంధనల సమీక్ష అవసరం.",
+  "Buyer screens in three languages. Voice and WhatsApp journeys are simulated; seller and team screens are currently in English.": "కొనుగోలుదారుల స్క్రీన్లు మూడు భాషల్లో ఉన్నాయి. వాయిస్, WhatsApp ప్రయాణాలు ఉదాహరణలు; విక్రేత, టీమ్ స్క్రీన్లు ప్రస్తుతం ఇంగ్లీష్‌లో ఉన్నాయి.",
+  "Interactive preview · Hyderabad · Sample data": "ఇంటరాక్టివ్ ప్రివ్యూ · హైదరాబాద్ · ఉదాహరణ డేటా",
+  "Better together": "కలిసి మరింత మెరుగ్గా",
+  "Sample pools. Explore a complete buying journey.": "ఉదాహరణ పూల్స్. పూర్తి కొనుగోలు ప్రయాణాన్ని చూడండి.",
   "Call-back requested. POOL support will call you within 10 minutes (simulated).": "కాల్-బ్యాక్ అభ్యర్థించారు. POOL సపోర్ట్ 10 నిమిషాల్లో మీకు కాల్ చేస్తుంది (సిమ్యులేటెడ్).",
   "No deal · refunded": "డీల్ కుదరలేదు · రీఫండ్ అయింది",
   "Completed": "పూర్తైంది",
@@ -1306,6 +1312,12 @@ export const TE: Record<string, string> = {
 };
 
 export const HI: Record<string, string> = {
+  "Privacy controls": "गोपनीयता नियंत्रण",
+  "Explore consent, access, correction and erasure on sample data. Production compliance still needs review.": "नमूना डेटा पर सहमति, पहुँच, सुधार और मिटाने के विकल्प देखें। लॉन्च से पहले अनुपालन की समीक्षा अभी बाकी है।",
+  "Buyer screens in three languages. Voice and WhatsApp journeys are simulated; seller and team screens are currently in English.": "खरीदार की स्क्रीन तीन भाषाओं में हैं। वॉइस और WhatsApp के सफर सिम्युलेटेड हैं; विक्रेता और टीम की स्क्रीन अभी अंग्रेज़ी में हैं।",
+  "Interactive preview · Hyderabad · Sample data": "इंटरैक्टिव प्रीव्यू · हैदराबाद · उदाहरण डेटा",
+  "Better together": "साथ में बेहतर",
+  "Sample pools. Explore a complete buying journey.": "उदाहरण पूल। खरीदारी का पूरा सफ़र देखें।",
   "Call-back requested. POOL support will call you within 10 minutes (simulated).": "कॉल-बैक का अनुरोध हुआ। POOL सपोर्ट 10 मिनट में आपको कॉल करेगा (सिम्युलेटेड)।",
   "No deal · refunded": "सौदा नहीं · रिफ़ंड हुआ",
   "Completed": "पूरा हुआ",

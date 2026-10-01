@@ -27,7 +27,7 @@ export function Button({ variant = 'primary', size = 'md', full, loading, icon, 
     <button
       {...rest}
       disabled={disabled || loading}
-      className={cn('inline-flex select-none items-center justify-center font-semibold transition-[background,transform,opacity] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100', variants[variant], sizes[size], full && 'w-full', className)}
+      className={cn('pool-button inline-flex select-none items-center justify-center font-semibold transition-[background,transform,opacity] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100', variants[variant], sizes[size], full && 'w-full', className)}
     >
       {loading ? <Loader2 className="spin h-4 w-4" /> : icon}
       {children}
@@ -38,7 +38,7 @@ export function Button({ variant = 'primary', size = 'md', full, loading, icon, 
 
 export function LinkButton({ to, variant = 'primary', size = 'md', full, icon, iconRight, className, children }: { to: string; variant?: Variant; size?: keyof typeof sizes; full?: boolean; icon?: ReactNode; iconRight?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <Link to={to} className={cn('inline-flex items-center justify-center font-semibold transition active:scale-[0.98]', variants[variant], sizes[size], full && 'w-full', className)}>
+    <Link to={to} className={cn('pool-button inline-flex items-center justify-center font-semibold transition active:scale-[0.98]', variants[variant], sizes[size], full && 'w-full', className)}>
       {icon}
       {children}
       {iconRight}

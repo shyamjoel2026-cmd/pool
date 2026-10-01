@@ -1,5 +1,6 @@
 import { ArrowRight, Bell, Building2, CalendarClock, ChevronRight, ClipboardPaste, Eye, Hammer, HandCoins, LayoutGrid, List, Map as MapIcon, MapPin, Mic, PackageCheck, ScanLine, Search, ShieldCheck, Sparkles, Truck, Undo2, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Users } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useT } from '../lib/i18n';
@@ -38,27 +39,25 @@ export function Home() {
   const avgSave = completed.length ? Math.round(completed.reduce((a, o) => a + (Math.min(...productOf(s, o.productId).outside.map((q) => q.pricePaise)) * o.qtyBase - o.buyerTotal), 0) / completed.length) : 0;
 
   return (
-    <div className="pb-6">
+    <div className="buyer-home pb-6">
       {/* Header */}
-      <div className="relative overflow-hidden bg-night px-4 pb-6 pt-3 text-white">
-        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#2b4bf2] opacity-40 blur-3xl" />
-        <div className="pointer-events-none absolute -left-20 top-16 h-56 w-56 rounded-full bg-[#0b9e97] opacity-30 blur-3xl" />
+      <div className="buyer-hero relative overflow-hidden bg-surface-2 px-4 pb-6 pt-3 text-ink">
         <div className="relative flex items-center justify-between">
-          <Link to="/buyer/account/addresses" className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/10 py-1.5 pl-2 pr-3 text-[12.5px] font-semibold">
-            <MapPin className="h-4 w-4 text-[#7ff0e6]" />
+          <Link to="/buyer/account/addresses" className="flex min-w-0 items-center gap-1.5 rounded-full bg-surface-3 py-1.5 pl-2 pr-3 text-[12.5px] font-semibold">
+            <MapPin className="h-4 w-4 text-brand" />
             <span className="truncate">{addr.line2.split(',').pop()?.trim()} · {addr.pincode}</span>
           </Link>
           <div className="flex items-center">
-            <Link to="/buyer/assistant" aria-label="Ask POOL" className="grid h-10 w-10 place-items-center rounded-full text-white hover:bg-white/10"><Sparkles className="h-5 w-5" /></Link>
-            <div className="text-white [&_a]:text-white [&_a:hover]:bg-white/10"><BellButton to="/buyer/notifications" /></div>
+            <Link to="/buyer/assistant" aria-label="Ask POOL" className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-surface-3"><Sparkles className="h-5 w-5" /></Link>
+            <div className="text-ink [&_a]:text-ink [&_a:hover]:bg-surface-3"><BellButton to="/buyer/notifications" /></div>
           </div>
         </div>
-        <div className="relative mt-4">
-          <div className="text-[13px] text-white/60">{greet}, {s.me.name.split(' ')[0]}</div>
-          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.12] tracking-[-0.02em]">{tr('Before you buy it,')}<br /><span className="text-[#7ff0e6]">{tr('POOL it.')}</span></h1>
+        <div className="buyer-hero-copy relative mt-4">
+          <div className="text-[13px] text-ink-3">{greet}, {s.me.name.split(' ')[0]}</div>
+          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.12] tracking-[-0.02em]">{tr('Before you buy it,')}<br /><span className="text-brand">{tr('POOL it.')}</span></h1>
         </div>
         {/* Smart bar */}
-        <div className="relative mt-4 rounded-[18px] bg-surface p-1.5 text-ink shadow-[0_18px_40px_-18px_rgba(0,0,0,.6)]">
+        <div className="buyer-smart-bar relative mt-4 rounded-[18px] bg-surface p-1.5 text-ink shadow-[0_18px_40px_-18px_rgba(0,0,0,.6)]">
           <button onClick={() => nav('/buyer/find')} className="flex h-12 w-full items-center gap-2.5 rounded-[13px] px-3 text-left text-[14.5px] text-ink-3">
             <Search className="h-5 w-5 text-ink-2" />
             {tr('Paste a link, search, or ask')}
@@ -69,18 +68,25 @@ export function Home() {
             <button onClick={() => nav('/buyer/find?mode=scan')} className="flex items-center justify-center gap-1.5 rounded-[11px] bg-surface-3 py-2.5 text-[12.5px] font-semibold text-ink"><ScanLine className="h-4 w-4 text-brand" />{tr('Scan')}</button>
           </div>
         </div>
-        <Link to="/buyer/share" className="relative mt-3 flex items-center gap-1.5 text-[12px] text-white/65">
-          <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10.5px] font-bold text-white">NEW</span> {tr('Shopping on another app? Tap Share → POOL.')} <ChevronRight className="h-3.5 w-3.5" />
+        <Link to="/buyer/share" className="relative mt-3 flex items-center gap-1.5 text-[12px] text-ink-2">
+          <span className="rounded-md bg-surface-3 px-1.5 py-0.5 text-[10.5px] font-bold text-ink">NEW</span> {tr('Shopping on another app? Tap Share → POOL.')} <ChevronRight className="h-3.5 w-3.5" />
         </Link>
+        <div className="collective-art" aria-hidden="true">
+          <div className="collective-ring ring-one"/><div className="collective-ring ring-two"/>
+          <div className="collective-product"><ProductArt art="tv" size="100%" rounded={28}/></div>
+          <div className="collective-mini"><ProductArt art="washer" size="100%" rounded={22}/></div>
+          <div className="collective-note"><Users size={18}/><span>{tr('Better together')}</span></div>
+          <span className="collective-spark">✳</span>
+        </div>
       </div>
 
-      <div className="space-y-7 px-4 pt-5">
+      <div className="home-content space-y-7 px-4 pt-5">
         {load.state === 'loading' && <ListSkeleton rows={3} />}
         {load.state === 'error' && <ErrorState onRetry={load.retry} />}
         {load.state === 'ready' && (
           <>
             {steps.length > 0 && (
-              <Section title={tr('Your next step')} sub={steps.length === 1 ? tr('One thing needs you') : tr('{n} things need you', { n: steps.length })}>
+              <Section className="home-next" title={tr('Your next step')} sub={steps.length === 1 ? tr('One thing needs you') : tr('{n} things need you', { n: steps.length })}>
                 <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
                   {steps.map((n) => (
                     <NextStepCard key={n.id} n={n} />
@@ -90,7 +96,7 @@ export function Home() {
             )}
 
             {/* Money at a glance */}
-            <Link to="/buyer/money" className="grid grid-cols-3 divide-x divide-line rounded-[18px] border border-line bg-surface py-3 shadow-[var(--shadow-card)]">
+            <Link to="/buyer/money" className="home-money grid grid-cols-3 divide-x divide-line rounded-[18px] border border-line bg-surface py-3 shadow-[var(--shadow-card)]">
               {[
                 [tr('Held until delivery'), money.heldBookings + money.heldOrders, 'text-ink'],
                 [tr('Refunds coming'), money.refundsInProgress, 'text-wave'],
@@ -139,8 +145,8 @@ export function Home() {
             )}
 
             {/* Pools near you */}
-            <Section title={tr('Pools near you')} sub={tr('Real buyers who paid a booking. Real closing times.')} action={<Link to="/buyer/explore" className="text-[13px] font-semibold text-brand">{tr('See all')}</Link>}>
-              <div className="space-y-3">
+            <Section className="home-pools" title={tr('Pools near you')} sub={tr('Sample pools. Explore a complete buying journey.')} action={<Link to="/buyer/explore" className="text-[13px] font-semibold text-brand">{tr('See all')}</Link>}>
+              <div className="home-pool-grid space-y-3">
                 {open.filter((p) => p.track === 'open').slice(0, 4).map((p) => (
                   <PoolCard key={p.id} p={p} />
                 ))}

@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { HashRouter, MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { BuyerApp } from './buyer/BuyerApp';
 import { DemoBar, PhoneStage } from './demo/Shell';
-import { Landing } from './demo/Landing';
-import { OpsApp } from './ops/OpsApp';
-import { SellerApp } from './seller/SellerApp';
 import { tick, useSim } from './sim/store';
+
+const BuyerApp = lazy(() => import('./buyer/BuyerApp').then(m => ({default:m.BuyerApp})));
+const SellerApp = lazy(() => import('./seller/SellerApp').then(m => ({default:m.SellerApp})));
+const OpsApp = lazy(() => import('./ops/OpsApp').then(m => ({default:m.OpsApp})));
+const Landing = lazy(() => import('./demo/Landing').then(m => ({default:m.Landing})));
 
 function ThemeSync() {
   const theme = useSim().prefs.theme;
@@ -46,7 +47,7 @@ export function App() {
       <ThemeSync />
       <Clock />
       <ScrollTop />
-      <Routes>
+      <Suspense fallback={<div className="route-loading" role="status" aria-label="Loading POOL"><span/><p>POOL</p></div>}><Routes>
         <Route path="/" element={<Landing />} />
         <Route
           path="/buyer/*"
@@ -80,7 +81,7 @@ export function App() {
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      </Routes></Suspense>
     </Router>
   );
 }

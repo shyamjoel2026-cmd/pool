@@ -163,6 +163,12 @@ Current build scope is **India only** (INR / Razorpay test). The original US dem
 8. MCP server: find, join and check a pool from Claude.
 9. **Stretch:** a Telugu WhatsApp voice note that joins a pool (Sarvam + Claude).
 
+### Experience preview boundary and visual direction — 2 Oct 2026
+
+The investor-facing `experience/` app is a separate Vite preview on the Claude branch. It demonstrates the buyer, seller and POOL-team journeys with browser simulation and sample data; it is not the M3 payment or product-identification implementation. The preview must label simulated money and sample data wherever a user could mistake it for a live transaction. It must preserve the India-first, universal-product rules above and must not be copied into `pool/apps/web`.
+
+The visual system now uses warm paper surfaces, charcoal type and restrained olive as the primary palette. Colour is reserved for status, money and the one current action. The choice follows the design review recorded for this session: expressive hierarchy should make the next action obvious, comparison cards must expose the few attributes buyers need, touch targets should remain at least 44px in the app, and non-essential motion must respect reduced-motion preferences. Sources checked: [Google Material expressive design research](https://design.google/library/expressive-material-design-google-research), [Baymard product-list research](https://baymard.com/research-articles/product-listing-information), [W3C WCAG 2.2 target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced), [web.dev reduced motion](https://web.dev/articles/prefers-reduced-motion).
+
 ---
 
 ## 6. Build plan (milestones)

@@ -74,11 +74,11 @@ export function OfferPage() {
   };
 
   return (
-    <div className="pb-36">
+    <div className="offer-page pb-36">
       <AppBar back="/buyer/pools" title={tr('Your personal offer')} sub={`${product.short} · ${pool.no}`} />
-      <div className="space-y-5 px-4 pt-3">
+      <div className="offer-layout space-y-5 px-4 pt-3">
         {/* Decide-by */}
-        <div className="flex items-center justify-between gap-3 rounded-[16px] border border-warn/25 bg-warn-soft px-4 py-3">
+        <div className="offer-deadline flex items-center justify-between gap-3 rounded-[16px] border border-warn/25 bg-warn-soft px-4 py-3">
           <div className="min-w-0">
             <div className="text-[13px] font-bold text-ink">{tr('Decide by')} {fmtWhen(pool.acceptBy!, t)}</div>
             <div className="text-[12px] text-ink-2">{tr('No reply means walk away with a full refund. Never a silent charge.')}</div>
@@ -87,7 +87,7 @@ export function OfferPage() {
         </div>
 
         {/* Price hero */}
-        <div className="overflow-hidden rounded-[22px] bg-night text-white shadow-[var(--shadow-pop)]">
+        <div className="offer-price overflow-hidden rounded-[22px] bg-night text-white shadow-[var(--shadow-pop)]">
           <div className="flex gap-3 p-4 pb-3">
             <ProductArt art={product.art} size={64} rounded={16} />
             <div className="min-w-0 flex-1">
@@ -120,7 +120,7 @@ export function OfferPage() {
         </div>
 
         {cheaperOutside && (
-          <Card tone="warn" className="p-4">
+          <Card tone="warn" className="offer-outside p-4">
             <div className="flex items-center gap-2 text-[15px] font-bold text-ink"><Info className="h-5 w-5 text-warn" />{tr('{src} is cheaper for you', { src: v.outsideSource })}</div>
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{tr('With {card}, it comes to {out} there, {gap} less than this offer. We’d rather tell you. Walking away is free and your booking comes back in full.', { card: v.outsideCard ?? tr('today’s price'), out: inr(v.outsideTotal), gap: inr(-v.saving) })}</p>
             <p className="mt-1.5 text-[12px] text-ink-3">{tr('What this offer still includes: seller verified by POOL, money held until your code, {days}-day replacement window.', { days: prof.returnWindowDays })}</p>
@@ -128,7 +128,7 @@ export function OfferPage() {
         )}
 
         {/* Seller */}
-        <Section title={tr('Who delivers')}>
+        <Section className="offer-seller" title={tr('Who delivers')}>
           <Card to={`/buyer/seller/${v.seller.id}`} className="p-4">
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-brand-soft text-brand"><Store className="h-5 w-5" /></div>
@@ -149,7 +149,7 @@ export function OfferPage() {
         </Section>
 
         {/* Delivery & terms */}
-        <Section title={tr('Delivery and your protections')}>
+        <Section className="offer-protections" title={tr('Delivery and your protections')}>
           <Card className="divide-y divide-line">
             <div className="flex gap-3 px-4 py-3"><Truck className="mt-0.5 h-5 w-5 shrink-0 text-ink-3" /><div><div className="text-[14px] font-semibold text-ink">{prof.label} {tr('by')} {fmtDay(v.deliverBy)}</div><div className="text-[12.5px] text-ink-3">{tr('Late? You get a {amt} credit, paid by the seller.', { amt: inr(prof.lateCreditPaise) })}</div></div></div>
             <div className="flex gap-3 px-4 py-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-ink-3" /><div><div className="text-[14px] font-semibold text-ink">{tr('Money held until your code')}</div><div className="text-[12.5px] text-ink-3">{tr('Check the box first. The seller is paid only after you give your one-time code.')}</div></div></div>
@@ -159,14 +159,14 @@ export function OfferPage() {
         </Section>
 
         {/* Price breakdown */}
-        <Section title={tr('Price breakdown')} action={<button onClick={() => setWhy(true)} className="text-[13px] font-semibold text-brand">{tr('How was this set?')}</button>}>
+        <Section className="offer-breakdown" title={tr('Price breakdown')} action={<button onClick={() => setWhy(true)} className="text-[13px] font-semibold text-brand">{tr('How was this set?')}</button>}>
           <Card className="p-4">
             <GstBreakdown total={v.buyerTotal} gstBps={product.gstBps} interState={v.interState} booking={v.booking} qtyText={qtyLabel(member.qtyBase, uom)} unitPrice={v.buyerPrice} />
           </Card>
           <p className="px-1 text-[12px] text-ink-3">{v.interState ? tr('Seller ships from {st}, so the invoice carries IGST.', { st: v.seller.state }) : tr('Seller is in Telangana, so the invoice carries CGST + SGST.')} {tr('GST invoice in your name, from the seller.')}</p>
         </Section>
 
-        <Section title={tr('Where your money goes')}>
+        <Section className="offer-money-path" title={tr('Where your money goes')}>
           <Card className="p-4">
             <MoneyRibbon steps={[
               { label: tr('Booking'), sub: tr('paid'), amount: v.booking, state: 'done' },
@@ -179,10 +179,10 @@ export function OfferPage() {
       </div>
 
       {/* Equal-weight decision */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+      <div className="offer-decision fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <div className="grid grid-cols-2 gap-2">
           <Button size="lg" variant="outline" className="border-2 border-ink/80" onClick={() => setWalk(true)} icon={<ThumbsDown className="h-4 w-4" />}>{tr('Walk away')}</Button>
-          <Button size="lg" onClick={() => nav(`/buyer/accept/${member.id}`)} icon={<Check className="h-4 w-4" strokeWidth={3} />}>{tr('Accept')}</Button>
+          <Button size="lg" variant="outline" className="border-2 border-ink/80" onClick={() => nav(`/buyer/accept/${member.id}`)} icon={<Check className="h-4 w-4" strokeWidth={3} />}>{tr('Accept')}</Button>
         </div>
         <p className="mt-1.5 text-center text-[11.5px] text-ink-3">{tr('Walk away: {amt} back in full. Accept: choose how to pay next.', { amt: inr(v.booking) })}</p>
       </div>

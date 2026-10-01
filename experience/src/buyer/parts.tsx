@@ -104,7 +104,7 @@ export function PoolCard({ p, compact }: { p: Pool; compact?: boolean }) {
   const mine = p.members.find((m) => m.isMe && !['left', 'pending'].includes(m.status));
   const st = poolStatus(p, t);
   return (
-    <Link to={`/buyer/pool/${p.id}`} className="flex gap-3 rounded-[18px] border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:border-line-2 active:scale-[0.995]">
+    <Link to={`/buyer/pool/${p.id}`} className="pool-product-card flex gap-3 rounded-[18px] border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:border-line-2 active:scale-[0.995]">
       <ProductArt art={product.art} size={compact ? 60 : 76} />
       <div className="min-w-0 flex-1 py-0.5">
         <div className="flex items-center gap-1.5">
@@ -326,7 +326,7 @@ export function nextSteps(s: State, t: number): NextStep[] {
 export function NextStepCard({ n }: { n: NextStep }) {
   const s = useSim();
   const tr2 = useT();
-  const tone = { warn: 'border-warn/30 bg-warn-soft', brand: 'border-brand/20 bg-brand-soft', wave: 'border-wave/25 bg-wave-soft', save: 'border-save/20 bg-save-soft' }[n.tone];
+  const tone = 'border-line bg-surface';
   const prod = s.products.find((p) => p.art === n.art);
   return (
     <Link to={n.to} className={cn('flex w-[290px] shrink-0 snap-start flex-col justify-between rounded-[18px] border p-3.5 transition active:scale-[0.99]', tone)}>

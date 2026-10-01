@@ -1,6 +1,8 @@
 import { BatteryFull, BookOpen, Check, ChevronLeft, ChevronRight, Clock3, FlaskConical, Languages, Monitor, Moon, RotateCcw, Signal, Sun, Wifi, X, Zap } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Compass, Users, Package, Wallet, User, ShieldCheck, Store, Radar, LayoutDashboard, ArrowUpRight } from 'lucide-react';
+import { useT } from '../lib/i18n';
 import { cn } from '../lib/cn';
 import { LANGS } from '../lib/i18n';
 import { fmtDayTime, fmtTime, HOUR, DAY } from '../lib/time';
@@ -31,7 +33,7 @@ export function DemoBar({ role }: { role: Role }) {
         <nav className="mx-auto flex rounded-[12px] bg-white/8 p-1" aria-label="Switch app">
           {ROLES.map((r) => (
             <Link key={r.id} to={r.to} className={cn('rounded-[9px] px-2.5 py-1.5 text-[12.5px] font-semibold transition sm:px-3.5', role === r.id ? 'bg-white text-night' : 'text-white/70 hover:text-white')}>
-              {r.label}
+              <span className="role-label-full">{r.label}</span><span className="role-label-short">{r.id === 'ops' ? 'Team' : r.id === 'buyer' ? 'Buyer' : 'Seller'}</span>
             </Link>
           ))}
         </nav>
@@ -39,7 +41,7 @@ export function DemoBar({ role }: { role: Role }) {
           <BookOpen className="h-4 w-4" /> Walkthrough
         </button>
         <button onClick={() => setControls(true)} className="inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-white/10 px-2.5 text-[12.5px] font-semibold text-white hover:bg-white/15" aria-label="Demo controls">
-          <FlaskConical className="h-4 w-4" /> <span className="hidden sm:inline">Demo controls</span>
+          <FlaskConical className="h-4 w-4" /> <span className="hidden sm:inline">Demo controls</span><span className="text-[9px] sm:hidden">Demo</span>
         </button>
       </header>
       <PortalHost>
@@ -130,6 +132,9 @@ function DemoControls({ open, onClose }: { open: boolean; onClose: () => void })
 /** Phone on the left, the walkthrough on the right (desktop). Full-screen app on phones. */
 export function PhoneStage({ role, children }: { role: Role; children: ReactNode }) {
   const s = useSim();
+  const tr = useT();
+  const { pathname } = useLocation();
+  const [phone, setPhone] = useState(false);
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 900);
   useEffect(() => {
     const on = () => setWide(window.innerWidth >= 900);
@@ -146,8 +151,28 @@ export function PhoneStage({ role, children }: { role: Role; children: ReactNode
       </div>
     );
   }
+  if (!phone) {
+    const links = role === 'buyer'
+      ? [{to:'/buyer',label:tr('Home'),icon:Home},{to:'/buyer/explore',label:tr('Explore'),icon:Compass},{to:'/buyer/pools',label:tr('My pools'),icon:Users},{to:'/buyer/orders',label:tr('Orders'),icon:Package},{to:'/buyer/money',label:tr('Money'),icon:Wallet},{to:'/buyer/locker',label:tr('Warranty Locker'),icon:ShieldCheck},{to:'/buyer/account',label:tr('Account'),icon:User}]
+      : [{to:'/seller',label:'Today',icon:LayoutDashboard},{to:'/seller/demand',label:'Demand',icon:Radar},{to:'/seller/bids',label:'My bids',icon:Store},{to:'/seller/orders',label:'Orders',icon:Package},{to:'/seller/payouts',label:'Payouts',icon:Wallet},{to:'/seller/account',label:'Business',icon:User}];
+    return <div className={`workspace-stage ${s.tour.active?'with-guide':''}`}>
+      <aside className="workspace-rail">
+        <Link to="/" className="workspace-logo"><Mark size={38}/><span>pool<span>.</span></span></Link>
+        <div className="workspace-eyebrow">{role==='buyer'?'YOUR EVERYDAY, TOGETHER':'YOUR BUSINESS, CONNECTED'}</div>
+        <nav aria-label={`${role} workspace`}>{links.map(({to,label,icon:Icon})=><NavLink key={to} end={to===`/${role}`} to={to} className={({isActive})=>isActive?'selected':''}><Icon size={19}/><span>{label}</span><ArrowUpRight size={14}/></NavLink>)}</nav>
+        <div className="rail-promise"><span className="rail-orbit" aria-hidden="true"/><strong>Better, together.</strong><p>{role==='buyer'?'Your price. Your choice. A little more buying power.':'Committed demand. Private bids. Every rupee accounted for.'}</p></div>
+        <button className="device-view-switch" onClick={()=>setPhone(true)}><Monitor size={16}/> Preview phone layout</button>
+        <div className="rail-profile"><span>{role==='buyer'?s.me.name.slice(0,1):'L'}</span><div><strong>{role==='buyer'?s.me.name:'Lakshmi Home Appliances'}</strong><small>Sample {role} profile</small></div></div>
+      </aside>
+      <main className={`workspace-canvas device-screen ${pathname===`/${role}`?'workspace-home':'workspace-detail'}`}>
+        <PortalHost><ToastHost>{children}</ToastHost></PortalHost>
+      </main>
+      {s.tour.active&&<aside className="workspace-guide"><GuidePanel role={role}/></aside>}
+    </div>;
+  }
   return (
-    <div className="flex justify-center gap-8 bg-[radial-gradient(1200px_600px_at_30%_0%,color-mix(in_oklab,var(--brand)_10%,var(--bg)),var(--bg))] px-6 py-6" style={{ minHeight: 'calc(100dvh - 52px)' }}>
+    <div className="relative flex justify-center gap-8 bg-[radial-gradient(1200px_600px_at_30%_0%,color-mix(in_oklab,var(--brand)_10%,var(--bg)),var(--bg))] px-6 py-6" style={{ minHeight: 'calc(100dvh - 52px)' }}>
+      <button className="device-view-switch absolute left-6 top-6" onClick={()=>setPhone(false)}><Monitor size={16}/> Desktop workspace</button>
       <div className="flex shrink-0 flex-col items-center">
         <div className="relative rounded-[54px] bg-[#0b0e16] p-[11px] shadow-[0_40px_80px_-30px_rgba(5,8,18,.6),inset_0_0_0_1.5px_rgba(255,255,255,.08)]" style={{ width: 412, height: 'min(866px, calc(100dvh - 100px))' }}>
           <div className="device-screen relative h-full w-full overflow-hidden rounded-[44px] bg-bg">

@@ -15,11 +15,11 @@ export function ProductArt({ art, size = 64, className, rounded = 16 }: { art: A
   const h = HUE[art];
   return (
     <div
-      className={cn('relative shrink-0 overflow-hidden', className)}
+      className={cn('product-illustration relative shrink-0 overflow-hidden', className)}
       style={{ width: size, height: size, borderRadius: rounded, background: `linear-gradient(150deg, color-mix(in oklab, ${h} 20%, var(--surface)) 0%, color-mix(in oklab, ${h} 9%, var(--surface)) 100%)` }}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full">
+      <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full drop-shadow-[0_10px_5px_rgba(13,20,36,0.15)]">
         <Art art={art} h={h} />
       </svg>
     </div>

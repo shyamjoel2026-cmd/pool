@@ -36,8 +36,8 @@ export function Today() {
   const live = s.pools.filter((p) => (p.state === 'fulfilment' || p.state === 'offers') && p.bids.some((b) => b.sellerId === me.id && b.slabs.length) && s.orders.some((o) => o.poolId === p.id && o.sellerId === me.id));
   const demand = sellerDemandFor(s, me.id).slice(0, 3);
   return (
-    <div className="pb-6">
-      <div className="aurora grain relative overflow-hidden px-4 pb-6 pt-3 text-white">
+    <div className="seller-home pb-6">
+      <div className="seller-hero aurora grain relative overflow-hidden px-4 pb-6 pt-3 text-white">
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold"><BadgeCheck className="h-4 w-4 text-[#7ff0e6]" />{me.name}</div>
           <BellButton to="/seller/notifications" />
@@ -53,7 +53,7 @@ export function Today() {
         </div>
       </div>
       {load.state === 'loading' ? <div className="p-4"><ListSkeleton rows={3} /></div> : load.state === 'error' ? <div className="p-4"><ErrorState onRetry={load.retry} /></div> : (
-        <div className="space-y-6 px-4 pt-4">
+        <div className="seller-home-content space-y-6 px-4 pt-4">
           {/* Deadlines */}
           <Section title="Needs you now">
             <div className="space-y-2">

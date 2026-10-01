@@ -362,7 +362,7 @@ export function JoinFlow() {
         amount={pool.bookingPaise}
         purpose={`Refundable booking · ${product.short} · ${pool.no}`}
         onPay={(m) => payBooking(memberId!, m)}
-        successText={tr("You're in. {n} households have now paid a booking. We'll message you when the pool closes and your offer is ready.", { n: committedCount(pool) + 1 })}
+        successText={tr("You're in. {n} households have now paid a booking. We'll message you when the pool closes and your offer is ready.", { n: committedCount(pool) })}
         onSuccess={() => { setPaying(false); toast(tr("You're in the pool")); nav(`/buyer/pool/${pool.id}`); }}
       />
     </div>
