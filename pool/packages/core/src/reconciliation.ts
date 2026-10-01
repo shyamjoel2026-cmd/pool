@@ -8,6 +8,7 @@ export interface ReconciliationFinding {
  * https://www.postgresql.org/docs/18/transaction-iso.html
  * https://www.postgresql.org/docs/18/functions-aggregate.html
  * https://www.postgresql.org/docs/18/functions-json.html
+ * https://www.postgresql.org/docs/18/functions-window.html
  */
 export async function reconcileLedger(db: Pool) {
   const c = await db.connect();
@@ -29,6 +30,11 @@ export async function reconcileLedger(db: Pool) {
 async function inspect(c: PoolClient): Promise<ReconciliationFinding[]> {
   const findings: ReconciliationFinding[] = [];
   const checks: [string, string][] = [
+    [
+      'SLOT_CAPACITY',
+      `SELECT s.id FROM fulfilment_slots s LEFT JOIN slot_reservations r ON r.slot_id=s.id AND r.active
+       GROUP BY s.id HAVING s.booked<>count(r.id)`,
+    ],
     [
       'ACCOUNT_BALANCE',
       `SELECT a.id FROM pgledger_accounts a LEFT JOIN pgledger_entries e ON e.account_id=a.id

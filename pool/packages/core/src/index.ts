@@ -2,6 +2,7 @@ import type { Pool as PgPool, PoolClient } from 'pg';
 import * as engine from '@pool/engine';
 import { command, post, type Posting } from './store.ts';
 import { claimPayment } from './payments.ts';
+import { releaseInvalidOrderSlots } from './slots.ts';
 export { command } from './store.ts';
 export function poolPostings(events: readonly engine.PoolEvent[]): Posting[] {
   return events.flatMap((e) => {
@@ -156,6 +157,7 @@ export async function projectOrder(c: PoolClient, o: engine.Order) {
       );
   }
   await scheduleReadyWave(c, o.poolId);
+  await releaseInvalidOrderSlots(c, o);
 }
 
 async function scheduleReadyWave(c: PoolClient, poolId: string) {

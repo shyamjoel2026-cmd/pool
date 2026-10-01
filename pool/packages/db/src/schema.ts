@@ -255,3 +255,32 @@ export const workflow_outbox = pgTable('workflow_outbox', {
   data: jsonb('data').notNull(),
   dispatched: boolean('dispatched').notNull().default(false),
 });
+
+export const fulfilment_slots = pgTable('fulfilment_slots', {
+  id: text('id').primaryKey(),
+  currency: text('currency').notNull().default('INR'),
+  seller_id: text('seller_id')
+    .notNull()
+    .references(() => sellers.id),
+  area_key: text('area_key').notNull(),
+  purpose: text('purpose').notNull(),
+  mode: text('mode').notNull(),
+  starts_at: bigint('starts_at', { mode: 'bigint' }).notNull(),
+  ends_at: bigint('ends_at', { mode: 'bigint' }).notNull(),
+  capacity: integer('capacity').notNull(),
+  booked: integer('booked').notNull().default(0),
+});
+export const slot_reservations = pgTable('slot_reservations', {
+  id: text('id').primaryKey(),
+  currency: text('currency').notNull().default('INR'),
+  slot_id: text('slot_id')
+    .notNull()
+    .references(() => fulfilment_slots.id),
+  order_id: text('order_id')
+    .notNull()
+    .references(() => orders.id),
+  purpose: text('purpose').notNull(),
+  active: boolean('active').notNull().default(true),
+  created_at: bigint('created_at', { mode: 'bigint' }).notNull(),
+  released_at: bigint('released_at', { mode: 'bigint' }),
+});

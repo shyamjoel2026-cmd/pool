@@ -5,6 +5,12 @@ import { migrate } from '../../db/src/migrate.ts';
 import { worker, message } from './worker-fixture.ts';
 import * as e from '@pool/engine';
 import { poolCommand, orderCommand, closePersistedWaves, waveClose } from '../src/index.ts';
+import { reconcileLedger } from '../src/reconciliation.ts';
+import {
+  createFulfilmentSlot,
+  reserveFulfilmentSlot,
+  releaseFulfilmentSlot,
+} from '../src/slots.ts';
 import {
   saveSeller,
   submitBid,
@@ -203,6 +209,77 @@ async function setup(options: { multiSeller?: boolean; withWave?: boolean } = {}
   }
   return { id, at, sellerId: id + ':seller:0' };
 }
+
+it('concurrent reservations cannot oversell; cancellation releases capacity exactly once', async () => {
+  const { id, at, sellerId } = await setup();
+  const slotId = id + ':slot';
+  await createFulfilmentSlot(
+    db,
+    {
+      id: slotId,
+      sellerId,
+      areaKey: 'area',
+      purpose: 'collection',
+      mode: 'pickup',
+      startsAt: at + 100,
+      endsAt: at + 1000,
+      capacity: 1,
+    },
+    id + ':slot-create',
+    'ops',
+    at + 3,
+  );
+  const reserve = (i: number) =>
+    reserveFulfilmentSlot(
+      db,
+      slotId,
+      id + ':order:' + i,
+      id + ':reservation:' + i,
+      'buyer' + i,
+      at + 4,
+    );
+  const results = await Promise.allSettled([reserve(0), reserve(1)]);
+  expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+  const winner = results.findIndex((r) => r.status === 'fulfilled');
+  await reserve(winner);
+  const counts = async () =>
+    (
+      await db.query(
+        'SELECT s.booked,(SELECT count(*)::int FROM slot_reservations r WHERE r.slot_id=s.id AND r.active) active FROM fulfilment_slots s WHERE s.id=$1',
+        [slotId],
+      )
+    ).rows[0];
+  expect(await counts()).toEqual({ booked: 1, active: 1 });
+  await orderCommand(db, id + ':order:' + winner, id + ':cancel', {}, (o) =>
+    e.buyerCancels(o!, at + 5),
+  );
+  expect(await counts()).toEqual({ booked: 0, active: 0 });
+  await reserve(1 - winner);
+  await releaseFulfilmentSlot(
+    db,
+    id + ':reservation:' + winner,
+    id + ':release-again',
+    'ops',
+    at + 6,
+  );
+  expect(await counts()).toEqual({ booked: 1, active: 1 });
+  expect(
+    (await db.query('SELECT sum(amount)::text total FROM pgledger_entries')).rows[0].total,
+  ).toBe('0');
+  expect((await reconcileLedger(db)).findings.filter((f) => f.check === 'SLOT_CAPACITY')).toEqual(
+    [],
+  );
+  await db.query('UPDATE fulfilment_slots SET booked=0 WHERE id=$1', [slotId]);
+  try {
+    expect((await reconcileLedger(db)).findings).toContainEqual({
+      check: 'SLOT_CAPACITY',
+      id: slotId,
+    });
+  } finally {
+    await db.query('UPDATE fulfilment_slots SET booked=1 WHERE id=$1', [slotId]);
+  }
+}, 60000);
 
 it('two sellers settle separate pots from accepted terms; retries never mix refunds or double post', async () => {
   const { id, at } = await setup({ multiSeller: true });
