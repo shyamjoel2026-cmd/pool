@@ -8,6 +8,23 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-02 04:20 · Claude Code · Experience builds on the founder's toolchain (pnpm 12)
+- Did:
+  - Rebuilt from a fresh GitHub clone with pnpm 12.8.1, the founder's version. `pnpm install` failed: pnpm 12's `minimumReleaseAge` rejects packages under 24 hours old, and Vite 8.3.2 was published on 1 Oct. Took Codex's fix (Vite 8.3.1), regenerated the lockfile with pnpm 12.8.1 (only Vite changed; the other 152 packages are identical) and pinned `"packageManager": "pnpm@12.8.1"` in `experience/package.json`, as `pool/` does.
+  - `pnpm walkthrough` and `pnpm shots` used a Linux-only Chromium path. They now use `scripts/browser.mjs`: `CHROME_PATH`, else the cloud Chromium, else installed Chrome, else Edge.
+  - `experience/README.md` now has a Windows step-by-step guide (git worktree into `..\idea-experience`), a build-and-compile table with expected output, and troubleshooting.
+- Verified: on a fresh clone of `546b95b` with pnpm 12.8.1:
+  - install leaves the lockfile untouched;
+  - `typecheck` passes;
+  - tests pass 9/9;
+  - `build` and `build:demo` pass;
+  - walkthrough 15/15 with ledger ₹0.00;
+  - 63 routes load with no runtime errors.
+
+  The worktree steps were tested from a clone on `main`: first run, second run ("already exists") and `git pull`. The one-file build (`dist-demo/index.html`) opened from `file://`, went landing → buyer app → phone pool with no errors, and saved state in the browser.
+- Next: the founder runs the README steps on Windows; native-speaker review of Telugu/Hindi.
+- Open issues / blockers: `codex/experience-polish` still conflicts with this branch's styles; its Vite fix is now included here.
+
 ### 2026-10-02 03:40 · Claude Code · Experience redesign: "Deep End" visual system, what India buys most
 - Did:
   - Founder rejected the olive/paper palette on `codex/experience-polish` ("looks like garbage", "2010"). Rebuilt the look of `experience/` on `claude/magical-pascal-1zipb0` instead of recolouring it. Decision: one visual metaphor, **water rises, price falls**: pools fill as households join, the Wave Drop pot is water, prices roll into place.

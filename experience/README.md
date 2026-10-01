@@ -6,17 +6,72 @@ A complete, clickable walk-through of POOL for investors and first customers: th
 
 ## Run it
 
-Needs Node 22.12+ and pnpm.
+You need Git, Node.js 22.12 or newer and pnpm 12. The project pins pnpm 12.8.1, and pnpm switches to it by itself.
 
+### On Windows (step by step)
+
+Open **PowerShell** (Start → type `PowerShell` → Enter) and check the tools:
+
+```powershell
+git --version
+node -v          # v22.12 or newer (v24 is fine)
+pnpm -v          # 12.x
 ```
-cd experience
-pnpm install
-pnpm dev          # http://localhost:5173
-```
+
+If `pnpm` is "not recognized", run `$env:Path += ";$env:APPDATA\npm"` (that is where it is installed on the founder's PC) or install it with `npm install -g pnpm@12.8.1`.
+
+1. Go to the project folder. If the path doesn't exist, try `$HOME\OneDrive\Desktop\idea`.
+   ```powershell
+   cd $HOME\Desktop\idea
+   ```
+2. Get the latest code from GitHub:
+   ```powershell
+   git fetch origin
+   ```
+3. **First time only:** make a separate folder with this branch, so the work in `idea` is not touched:
+   ```powershell
+   git worktree add ..\idea-experience claude/magical-pascal-1zipb0
+   ```
+   **Every later time:** update that folder instead.
+   ```powershell
+   cd ..\idea-experience
+   git pull
+   ```
+4. Go into the app folder and install the libraries. The first install takes about a minute and ends with `Done in …`.
+   ```powershell
+   cd $HOME\Desktop\idea-experience\experience
+   pnpm install
+   ```
+5. Start it. Open the `Local:` address it prints (usually http://localhost:5173) in Chrome. Keep the window open; **Ctrl+C** stops it.
+   ```powershell
+   pnpm dev
+   ```
+
+On your phone: run `pnpm dev --host`, then open the `Network:` address on a phone on the same Wi-Fi. Allow access if Windows Firewall asks.
+
+### Build and compile
+
+Run these in the same `experience` folder:
+
+| Command | What it does | What you should see |
+| --- | --- | --- |
+| `pnpm typecheck` | Compiles all the TypeScript and checks it for errors | The command echo and nothing else |
+| `pnpm test` | Checks the money maths, GST, ledger and translations | `Tests  9 passed (9)` |
+| `pnpm build` | Compiles and makes the production build in `dist\` | `✓ built in …` |
+| `pnpm preview` | Serves the production build | http://localhost:4173 |
+| `pnpm build:demo` | Makes one self-contained file, `dist-demo\index.html` | `✓ built in …`. Double-click the file to open it. |
+| `pnpm walkthrough` | Clicks all 15 investor steps in Chrome or Edge. Needs `pnpm preview` running in a second window. | 15 ✓ lines, ending `difference ₹0.00` |
+
+### If something goes wrong
+
+- **`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`:** you have an older copy. pnpm 12 refuses packages less than 24 hours old, so run `git pull` to get the fixed lockfile (commit `546b95b` or later).
+- **`'..\idea-experience' already exists` in step 3:** the folder is already there. Use the "every later time" commands.
+- **`already checked out at …` in step 3:** the branch is open in another folder. Go to that folder and run `git pull`.
+- **Port 5173 is busy:** Vite uses 5174 instead. Open the address it prints.
+- **You see olive colours:** that is a different preview (Codex's). Stop it with Ctrl+C in its window.
+- **Walkthrough says "No browser found":** install Google Chrome, or set `$env:CHROME_PATH` to a Chromium-based browser.
 
 Other commands:
-- `pnpm typecheck`, `pnpm build`
-- `pnpm build:demo`: a single self-contained HTML file in `dist-demo/`, for sharing.
 - `pnpm shots`: screenshots of every route into `.shots/`. Needs `pnpm preview` running.
 - `#/art`: a design QA sheet with every product render (not linked from the app).
 
