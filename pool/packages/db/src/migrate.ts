@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { connect } from './index.ts';
 import { pathToFileURL } from 'node:url';
+// pgledger + vendored scoville ULID helpers: both copied from this immutable source tree.
+// https://github.com/pgr0ss/pgledger/tree/5e2c1fe2ee7bf471ddca3097e1c1acbb17b562a6/vendor/scoville-pgsql-ulid
+// BSD-3-Clause helper license preserved in vendor/ULID-LICENSE; MIT ledger license in vendor/LICENSE.
 export async function migrate() {
   const { pool } = connect();
   const client = await pool.connect();
