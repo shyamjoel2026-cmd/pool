@@ -6,6 +6,8 @@
     "node": ">=24.12.0"
   },
   "scripts": {
+    "dev": "pnpm --filter @pool/web dev",
+    "build": "pnpm --filter @pool/web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   },
