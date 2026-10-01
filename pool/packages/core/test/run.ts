@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { validateEnv } from '@pool/db';
+import { verifyRestore } from './restore-fixture.ts';
 
 // Each run proves migrations from an empty REAL Docker PostgreSQL database.
 // https://www.postgresql.org/docs/18/sql-createdatabase.html
@@ -28,6 +29,7 @@ try {
     child.once('error', reject);
     child.once('exit', (code) => resolve(code ?? 1));
   });
+  if (process.exitCode === 0) await verifyRestore(url, admin, name);
 } finally {
   // Only the unique database created above is eligible for cleanup; never the configured app database.
   if (created) await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);

@@ -45,6 +45,7 @@ async function setup(
   options: {
     multiSeller?: boolean;
     withWave?: boolean;
+    payAtHandover?: boolean;
     beforeAccept?: (id: string) => Promise<void>;
   } = {},
 ) {
@@ -85,7 +86,7 @@ async function setup(
         createdAt: 1000,
         closesAt: at,
         bookingRule: { kind: 'FIXED', amountMinor: 1000, minMinor: 1000, maxMinor: 1000 },
-        checkoutPlan: 'PREPAY_FULL',
+        checkoutPlan: options.payAtHandover ? 'BALANCE_AT_HANDOVER' : 'PREPAY_FULL',
         hsnCode: '9999',
         gstRateBps: 1800,
         bidRequirements: { deliverBy: at + 10000, acceptableModes: ['pickup'], terms: [] },
@@ -200,22 +201,33 @@ async function setup(
       e.money('INR', 100),
       options.multiSeller ? (i ? 200 : 40) : options.withWave ? 40 : 0,
       at + 1,
-    );
-    await orderCommand(db, orderId, orderId + ':pay', {}, (o) =>
-      e.collectBalance(
-        o!,
-        e.money(
+      options.payAtHandover ? undefined : {
+        amount: e.money(
           'INR',
           offered.offers!.find((offer) => offer.memberId === 'buyer' + i)!.buyerTotal.minor - 1000,
         ),
-        orderId + ':receipt',
-        'UPI',
-        at + 2,
-      ),
+        paymentRef: orderId + ':receipt',
+        method: 'UPI',
+        paidAt: at + 1,
+      },
     );
+    if(options.payAtHandover) {
+      const code=await issueHandoverCode(db,orderId,at+1000,at+2);
+      await expect(handover(db,orderId,code,{},at+3)).rejects.toThrow(/balance/);
+      await orderCommand(db,orderId,orderId+':door-capture',{},o=>e.collectBalance(o!,e.money('INR',offered.offers!.find(offer=>offer.memberId==='buyer'+i)!.buyerTotal.minor-1000),orderId+':receipt','UPI',at+4));
+      expect((await handover(db,orderId,code,{},at+5)).ok).toBe(true);
+    }
   }
   return { id, at, sellerId: id + ':seller:0' };
 }
+
+it('balance-at-handover persists booking credit but refuses the code until real receipt facts arrive',async()=>{
+  const {id}=await setup({payAtHandover:true});
+  const orders=(await db.query('SELECT data FROM orders WHERE pool_id=$1',[id])).rows;
+  expect(orders).toHaveLength(2);
+  expect(orders.every(r=>r.data.status==='HANDED_OVER' && r.data.collectedMinor===r.data.split.buyerTotal.minor)).toBe(true);
+  expect((await db.query('SELECT coalesce(sum(amount),0)::text balance FROM pgledger_entries')).rows[0].balance).toBe('0');
+},60000);
 
 it('seller verification revoked after offers prevents checkout without consuming booking funds', async () => {
   let poolId = '';

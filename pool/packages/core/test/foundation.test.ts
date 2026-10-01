@@ -4,10 +4,40 @@ import { connect } from '@pool/db';
 import { migrate } from '../../db/src/migrate.ts';
 import { command, poolCommand } from '../src/index.ts';
 import { reconcileLedger } from '../src/reconciliation.ts';
+import { readVerifiedHistory } from '../src/history.ts';
 import * as e from '@pool/engine';
 const { pool: db } = connect();
 beforeAll(() => migrate(), 30000);
 afterAll(() => db.end());
+it('invalid numeric state and forged fractional money roll back before persistence', async () => {
+  for (const value of [
+    NaN,
+    Infinity,
+    Number.MAX_SAFE_INTEGER + 1,
+    { currency: 'INR', minor: 0.5 },
+  ]) {
+    const id = randomUUID();
+    await expect(
+      command(db, id, 'invalid', id, {}, () => ({ state: { value }, events: [], postings: [] })),
+    ).rejects.toThrow();
+    expect((await db.query('SELECT id FROM aggregates WHERE id=$1', [id])).rowCount).toBe(0);
+    expect((await db.query('SELECT id FROM idempotency_keys WHERE id=$1', [id])).rowCount).toBe(0);
+  }
+}, 30000);
+it('migration source drift is rejected before schema work and leaves the stored history intact', async () => {
+  const before = (await db.query("SELECT checksum FROM pool_migrations WHERE id='001'")).rows[0]
+    .checksum;
+  await db.query("UPDATE pool_migrations SET checksum='deliberately-corrupt' WHERE id='001'");
+  try {
+    await expect(migrate()).rejects.toThrow(/checksum mismatch/);
+    expect(
+      (await db.query("SELECT checksum FROM pool_migrations WHERE id='001'")).rows[0].checksum,
+    ).toBe('deliberately-corrupt');
+  } finally {
+    await db.query("UPDATE pool_migrations SET checksum=$1 WHERE id='001'", [before]);
+  }
+  await migrate();
+}, 30000);
 function create(id: string) {
   return e.createPool(
     e.INDIA_POLICY,
@@ -30,6 +60,41 @@ function create(id: string) {
     0,
   );
 }
+it('aggregate history retains consecutive immutable revisions and identifies the current state', async () => {
+  const id = randomUUID();
+  await command(db, id, 'audit-test', id + ':0', {}, () => ({
+    state: { value: 0 },
+    events: [],
+    postings: [],
+  }));
+  await command(db, id, 'audit-test', id + ':1', {}, () => ({
+    state: { value: 1 },
+    events: [],
+    postings: [],
+  }));
+  const rows = (
+    await db.query(
+      'SELECT version,data,previous_hash,state_hash FROM aggregate_history WHERE aggregate_id=$1 ORDER BY version',
+      [id],
+    )
+  ).rows;
+  expect(rows.map((r) => r.version)).toEqual(['0', '1']);
+  expect(rows[1].previous_hash).toBe(rows[0].state_hash);
+  expect(rows[1].data).toEqual({ value: 1 });
+  expect(await readVerifiedHistory(db, id)).toMatchObject({
+    version: '1',
+    state: { value: 1 },
+    legacyBaseline: false,
+    revisions: 2,
+  });
+  await expect(
+    db.query('UPDATE aggregate_history SET data=$2 WHERE aggregate_id=$1', [id, {}]),
+  ).rejects.toThrow(/append-only/);
+  await expect(
+    db.query('UPDATE aggregates SET version=version+2 WHERE id=$1', [id]),
+  ).rejects.toThrow(/consecutive/);
+  expect((await reconcileLedger(db)).findings.filter((f) => f.id === id)).toEqual([]);
+}, 30000);
 it('commands reject a projection identity mismatch without leaving an aggregate', async () => {
   const id = randomUUID();
   await expect(poolCommand(db, id, id, {}, () => create(id + ':other'))).rejects.toThrow(

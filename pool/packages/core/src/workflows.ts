@@ -183,7 +183,7 @@ export { DBOS };
 export async function inspectWorkflows(aggregateId: string) {
   return withDb(async (db) => {
     const rows = await db.query(
-      "SELECT id,kind,dispatched,dispatch_blocked,dispatch_error FROM workflow_outbox WHERE data->>'aggregateId'=$1 ORDER BY due_at,id",
+      "SELECT id,kind,dispatched,dispatch_blocked,dispatch_error FROM workflow_outbox WHERE data->>'aggregateId'=$1 UNION ALL SELECT id,kind,true,false,NULL FROM aggregates WHERE kind='workflow-recovery' AND data->>'aggregateId'=$1 ORDER BY id",
       [aggregateId],
     );
     const result: { id: string; kind: string; dispatched: boolean; status: string }[] = [];
@@ -222,14 +222,20 @@ export async function retryFailedWorkflow(
     throw new Error('workflow recovery requires request identity, actor, reason and UTC time');
   const retryId = 'recovery:' + requestId;
   const intent = await withDb((db) =>
-    command<{ source: string; retryId: string; startStep: number }>(
+    command<{ source: string; retryId: string; startStep: number; aggregateId: string }>(
       db,
       retryId,
       'workflow-recovery',
       retryId,
       { workflowId, actor, reason, now },
       async (_, c) => {
-        if (!(await c.query('SELECT id FROM workflow_outbox WHERE id=$1', [workflowId])).rowCount)
+        const source = (
+          await c.query(
+            "SELECT data->>'aggregateId' aggregate_id FROM workflow_outbox WHERE id=$1 UNION ALL SELECT data->>'aggregateId' FROM aggregates WHERE id=$1 AND kind='workflow-recovery'",
+            [workflowId],
+          )
+        ).rows[0];
+        if (!source?.aggregate_id)
           throw new Error('only a persisted POOL outbox workflow can be recovered');
         const status = await DBOS.getWorkflowStatus(workflowId);
         if (status?.status !== 'ERROR') throw new Error('recovery requires a failed workflow');
@@ -237,7 +243,12 @@ export async function retryFailedWorkflow(
           (step) => step.error !== null,
         );
         if (!failed) throw new Error('no recorded failed step; investigation required');
-        const state = { source: workflowId, retryId, startStep: failed.functionID };
+        const state = {
+          source: workflowId,
+          retryId,
+          startStep: failed.functionID,
+          aggregateId: source.aggregate_id as string,
+        };
         return {
           state,
           events: [{ type: 'WORKFLOW_RECOVERY_REQUESTED', ...state, actor, reason, at: now }],
@@ -251,4 +262,20 @@ export async function retryFailedWorkflow(
     ? DBOS.retrieveWorkflow(intent.retryId)
     : await DBOS.forkWorkflow(intent.source, intent.startStep, { newWorkflowID: intent.retryId });
   return handle;
+}
+
+/** Resume a committed recovery intent if the process died before the fork was submitted. */
+export async function dispatchRecoveryIntents() {
+  return withDb(async (db) => {
+    const intents = await db.query(
+      "SELECT data FROM aggregates WHERE kind='workflow-recovery' ORDER BY id",
+    );
+    let submitted = 0;
+    for (const { data } of intents.rows) {
+      if (await DBOS.getWorkflowStatus(data.retryId)) continue;
+      await DBOS.forkWorkflow(data.source, data.startStep, { newWorkflowID: data.retryId });
+      submitted++;
+    }
+    return submitted;
+  });
 }

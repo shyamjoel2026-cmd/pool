@@ -281,8 +281,10 @@ export function acceptCheckout(
   returnCost: e.Money,
   waveHoldMinor: number,
   now: number,
+  capture?: { amount: e.Money; paymentRef: string; method: 'UPI' | 'CARD'; paidAt: number },
 ) {
   let order: e.Order;
+  let captureEvents: readonly e.OrderEvent[] = [];
   return command<e.Pool>(
     db,
     poolId,
@@ -297,6 +299,7 @@ export function acceptCheckout(
       returnCost,
       waveHoldMinor,
       now,
+      capture: capture ?? null,
     },
     async (p, c) => {
       if (!p) throw new Error('pool missing');
@@ -411,7 +414,28 @@ export function acceptCheckout(
         booking.paid,
         now,
       ).order;
+      if (capture) {
+        if (
+          !Number.isSafeInteger(capture.paidAt) ||
+          capture.paidAt > now ||
+          capture.paidAt < p.closesAt
+        )
+          throw new Error('capture timestamp must precede checkout and follow pool close');
+        const paid = e.collectBalance(
+          order,
+          capture.amount,
+          capture.paymentRef,
+          capture.method,
+          now,
+        );
+        order = paid.order;
+        captureEvents = paid.events;
+      }
+      // CODEX_PROMPT A3: PREPAY_FULL balance is due at acceptance, in the same transaction.
+      if (p.checkoutPlan === 'PREPAY_FULL' && order.collectedMinor !== order.split.buyerTotal.minor)
+        throw new Error('PREPAY_FULL acceptance requires the full captured balance');
       const postings = poolPostings(r.events);
+      postings.push(...orderPostings(order, captureEvents));
       postings.push({
         from: poolId + ':accepted:' + memberId,
         to: orderId + ':held',
@@ -427,12 +451,12 @@ export function acceptCheckout(
         'order',
         order,
       ]);
-      await projectOrder(c, order);
-      for (const event of e.recordOrder(order, now).events)
+      for (const event of [...captureEvents, ...e.recordOrder(order, now).events])
         await c.query(
           'INSERT INTO audit_events(id,aggregate_id,event_type,data) VALUES($1,$2,$3,$4)',
           [randomUUID(), orderId, event.type, event],
         );
+      await projectOrder(c, order);
     },
   );
 }

@@ -1,135 +1,31 @@
 'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import { copy, type Language } from './copy';
-
-type Pool = { id: string; title: string; area: string; state: string; closesAt: string; unit: string };
-type View = 'discover' | 'saved' | 'how';
-const STORAGE_KEY = 'pool.shortlist.v1';
-
-function formatClosing(value: string, language: Language, c: ReturnType<typeof getCopy>) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return c.awaiting;
-  return new Intl.DateTimeFormat(language === 'en' ? 'en-IN' : language === 'te' ? 'te-IN' : 'hi-IN', {
-    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata',
-  }).format(date);
-}
-
-function getCopy(language: Language) { return copy[language]; }
-
-export function PoolApp() {
-  const [language, setLanguage] = useState<Language>('en');
-  const c = getCopy(language);
-  const [view, setView] = useState<View>('discover');
-  const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState('');
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [saved, setSaved] = useState<string[]>([]);
-  const [notice, setNotice] = useState('');
-  const [selected, setSelected] = useState<Pool | null>(null);
-
-  useEffect(() => {
-    try { setSaved(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')); } catch { /* empty */ }
-  }, []);
-
-  const loadPools = async (term = submitted) => {
-    setLoading(true); setError(false);
-    try {
-      const response = await fetch(`/api/pools?q=${encodeURIComponent(term)}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error('catalog unavailable');
-      const data = await response.json() as { pools?: Pool[] };
-      setPools(data.pools ?? []);
-    } catch { setError(true); setPools([]); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { void loadPools(''); }, []);
-
-  const saveQuery = () => {
-    const clean = query.trim();
-    if (!clean) { setNotice(c.savePrompt); return; }
-    const next = [clean, ...saved.filter(item => item.toLowerCase() !== clean.toLowerCase())].slice(0, 20);
-    setSaved(next);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); setNotice(c.savedNotice); }
-    catch { setNotice(c.storageError); }
-    window.setTimeout(() => setNotice(''), 2800);
-  };
-
-  const removeSaved = (item: string) => {
-    const next = saved.filter(value => value !== item); setSaved(next);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* keep visible state */ }
-  };
-
-  const search = (term = query) => {
-    const clean = term.trim(); setSubmitted(clean); setView('discover'); void loadPools(clean);
-  };
-
-  const visiblePools = useMemo(() => pools.filter(pool => pool.state !== 'CANCELLED'), [pools]);
-
-  return <>
-    <a className="skip-link" href="#main">{c.skip}</a>
-    <div className="app-shell">
-      <div className="preview-bar"><span className="preview-pill">{c.preview}</span><span>{c.previewNote}</span></div>
-      <header className="site-header">
-        <button className="brand" onClick={() => { setView('discover'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label="POOL home">
-          <span className="brand-mark" aria-hidden="true">P</span><span>POOL</span>
-        </button>
-        <nav className="main-nav" aria-label="Main navigation">
-          <button className={view === 'discover' ? 'nav-link active' : 'nav-link'} onClick={() => setView('discover')}>{c.discover}</button>
-          <button className={view === 'saved' ? 'nav-link active' : 'nav-link'} onClick={() => setView('saved')}>{c.saved}{saved.length > 0 && <span className="nav-count">{saved.length}</span>}</button>
-          <button className={view === 'how' ? 'nav-link active' : 'nav-link'} onClick={() => setView('how')}>{c.how}</button>
-        </nav>
-        <div className="header-tools"><span className="india-chip"><span className="india-dot" />{c.india}</span><label className="language-picker"><span className="sr-only">{c.language}</span><select value={language} onChange={event => setLanguage(event.target.value as Language)} aria-label={c.language}><option value="en">EN</option><option value="te">తె</option><option value="hi">हि</option></select></label></div>
-      </header>
-
-      <main id="main">
-        {view === 'discover' && <>
-          <section className="hero-section" aria-labelledby="hero-title">
-            <div className="hero-copy">
-              <p className="eyebrow">{c.eyebrow}</p>
-              <h1 id="hero-title">{c.headline}<br /><em>{c.headlineAccent}</em></h1>
-              <p className="hero-intro">{c.intro}</p>
-              <form className="search-card" onSubmit={event => { event.preventDefault(); search(); }}>
-                <label htmlFor="product-search">{c.searchLabel}</label>
-                <div className="search-row"><input id="product-search" value={query} onChange={event => setQuery(event.target.value)} placeholder={c.placeholder} autoComplete="off" /><button type="submit" className="primary-button">{c.search}</button></div>
-                <p className="search-hint">{c.searchHint}</p>
-              </form>
-              <div className="hero-points"><span><b>{c.any}</b></span><span><b>{c.your}</b></span><span><b>{c.together}</b></span></div>
-            </div>
-            <div className="hero-art" aria-label={c.illustration} role="img">
-              <div className="sun-disc" /><div className="art-caption"><strong>{c.small1}</strong><span>{c.small2}</span></div>
-              <div className="pool-bag"><div className="bag-handle" /><div className="bag-face"><span className="bag-letter">P</span><span className="bag-word">POOL</span></div><div className="bag-shadow" /></div>
-              <div className="person person-one"><i /><b /><span /></div><div className="person person-two"><i /><b /><span /></div><div className="person person-three"><i /><b /><span /></div>
-              <div className="art-spark spark-one">✦</div><div className="art-spark spark-two">·</div><div className="art-spark spark-three">✦</div>
-            </div>
-          </section>
-          <section className="promise-grid" aria-label="POOL promises"><article><div className="promise-icon orange">✓</div><div><h2>{c.noPressure}</h2><p>{c.noPressureText}</p></div></article><article><div className="promise-icon blue">↺</div><div><h2>{c.refundable}</h2><p>{c.refundableText}</p></div></article><article><div className="promise-icon green">~</div><div><h2>{c.wave}</h2><p>{c.waveText}</p></div></article></section>
-          <section className="pools-section" aria-labelledby="pools-title">
-            <div className="section-heading"><div><p className="eyebrow">{c.liveLabel}</p><h2 id="pools-title">{submitted ? `${c.result} “${submitted}”` : c.pools}</h2><p>{c.poolsIntro}</p></div><div className="section-actions"><button className="text-button" onClick={() => void loadPools()}>{c.refresh}</button>{submitted && <button className="text-button" onClick={() => { setQuery(''); search(''); }}>{c.clear}</button>}</div></div>
-            {loading ? <div className="state-box loading-box"><span className="loader" />{c.loading}</div> : error ? <div className="state-box error-box"><div><strong>{c.unavailable}</strong><p>{c.unavailableText}</p></div><button className="secondary-button" onClick={() => void loadPools()}>{c.retry}</button></div> : visiblePools.length === 0 ? <div className="state-box empty-box"><div className="empty-mark">+</div><div><strong>{submitted ? c.noResults : c.empty}</strong><p>{submitted ? c.noResultsText : c.emptyText}</p></div>{submitted && <button className="secondary-button" onClick={saveQuery}>{c.save}</button>}</div> : <div className="pool-grid">{visiblePools.map(pool => <PoolCard key={pool.id} pool={pool} language={language} c={c} onOpen={() => setSelected(pool)} />)}</div>}
-          </section>
-        </>}
-        {view === 'saved' && <SavedView saved={saved} c={c} onRemove={removeSaved} onSearch={term => { setQuery(term); search(term); }} onBack={() => setView('discover')} />}
-        {view === 'how' && <HowView c={c} />}
-      </main>
-      <footer className="site-footer"><div><span className="footer-brand"><span className="brand-mark" aria-hidden="true">P</span> POOL</span><p>{c.footerNote}</p></div><span>{c.footer}</span></footer>
-    </div>
-    {notice && <div className="toast" role="status">{notice}</div>}
-    {selected && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelected(null); }}><section className="detail-modal" role="dialog" aria-modal="true" aria-labelledby="pool-dialog-title"><button className="modal-close" onClick={() => setSelected(null)} aria-label={c.close}>×</button><span className="status-badge">{c[`state_${selected.state}` as keyof typeof c] ?? c.state_UNKNOWN}</span><h2 id="pool-dialog-title">{selected.title}</h2><p className="modal-area">{selected.area || c.unknown}</p><dl className="detail-facts"><div><dt>{c.closes}</dt><dd>{formatClosing(selected.closesAt, language, c)}</dd></div><div><dt>{c.area}</dt><dd>{selected.area || c.unknown}</dd></div><div><dt>{c.unit}</dt><dd>{selected.unit || c.unknown}</dd></div></dl><div className="modal-note"><strong>{c.unconfirmed}</strong><p>{c.detailsNote}</p></div><p className="modal-footnote">{c.priceNote}</p></section></div>}
-  </>;
-}
-
-function PoolCard({ pool, language, c, onOpen }: { pool: Pool; language: Language; c: ReturnType<typeof getCopy>; onOpen: () => void }) {
-  const label = c[`state_${pool.state}` as keyof typeof c] ?? c.state_UNKNOWN;
-  return <article className="pool-card"><div className="pool-card-top"><span className={`state-dot state-${pool.state.toLowerCase()}`} /> <span>{label}</span><span className="pool-id">{pool.id.slice(0, 8)}</span></div><h3>{pool.title}</h3><p className="pool-location">⌖ {pool.area || c.unknown}</p><div className="pool-card-bottom"><span>{c.closes}<strong>{formatClosing(pool.closesAt, language, c)}</strong></span><button className="card-button" onClick={onOpen}>{c.details}</button></div></article>;
-}
-
-function SavedView({ saved, c, onRemove, onSearch, onBack }: { saved: string[]; c: ReturnType<typeof getCopy>; onRemove: (item: string) => void; onSearch: (item: string) => void; onBack: () => void }) {
-  return <section className="saved-view content-view"><p className="eyebrow">{c.saved}</p><h1>{c.savedTitle}</h1><p className="view-intro">{c.savedIntro}</p>{saved.length === 0 ? <div className="state-box empty-box saved-empty"><div className="empty-mark">♡</div><div><strong>{c.savedEmpty}</strong><p>{c.savedEmptyText}</p></div><button className="secondary-button" onClick={onBack}>{c.back}</button></div> : <div className="saved-list">{saved.map(item => <article className="saved-item" key={item}><div><span className="saved-item-icon">↗</span><div><strong>{item}</strong><small>{c.unconfirmed}</small></div></div><div><button className="text-button" onClick={() => onSearch(item)}>{c.find}</button><button className="remove-button" onClick={() => onRemove(item)}>{c.remove}</button></div></article>)}</div>}</section>;
-}
-
-function HowView({ c }: { c: ReturnType<typeof getCopy> }) {
-  return <section className="how-view content-view"><p className="eyebrow">{c.stepsLabel}</p><h1>{c.stepsTitle}</h1><div className="steps-grid"><article><span>01</span><h2>{c.step1}</h2><p>{c.step1Text}</p></article><article><span>02</span><h2>{c.step2}</h2><p>{c.step2Text}</p></article><article><span>03</span><h2>{c.step3}</h2><p>{c.step3Text}</p></article></div><div className="faq"><p className="eyebrow">{c.faq}</p>{([['q1','a1'], ['q2','a2'], ['q3','a3'], ['q4','a4']] as const).map(([question, answer]) => <details key={question}><summary>{c[question]}</summary><p>{c[answer]}</p></details>)}</div></section>;
+import {useEffect,useState,useRef} from 'react';
+import {initialPresentation,parsePresentation,transition,type Presentation,type Journey,type Action} from '../lib/presentation';
+import {Experience,type Role,type Modal} from './experience-context';
+import {Icon} from './ui';
+import {Buyer} from './buyer';
+import {Workspace} from './workspaces';
+import {Dialogs} from './dialogs';
+const KEY='pool.presentation.v2';
+const navigation:Record<Role,[string,string,string,string,string][]>={buyer:[['discover','grid','Discover','కనుగొనండి','खोजें'],['pools','users','My pools','నా పూల్స్','मेरे पूल'],['orders','box','Orders','ఆర్డర్లు','ऑर्डर'],['wave','wave','Wave Drop','వేవ్ డ్రాప్','वेव ड्रॉप'],['locker','shield','Purchase locker','కొనుగోలు పత్రాలు','खरीद दस्तावेज़'],['saved','heart','Saved','సేవ్ చేసినవి','सेव किए गए']],seller:[['demand','grid','Demand','డిమాండ్','माँग'],['bids','lock','My sealed bids','నా బిడ్లు','मेरी बोलियाँ'],['fulfilment','truck','Fulfilment','డెలివరీ','डिलीवरी'],['payouts','wallet','Payouts','చెల్లింపులు','भुगतान']],ops:[['overview','grid','Overview','అవలోకనం','अवलोकन'],['pricing','settings','Awards & pricing','ధరల నిర్ణయం','आवंटन और कीमत'],['sellers','store','Seller review','విక్రేత సమీక్ష','विक्रेता समीक्षा'],['exceptions','help','Issues & refunds','సమస్యలు','समस्याएँ'],['ledger','wallet','Money & audit','ఖాతాలు','खाता और ऑडिट']]};
+export function PoolApp(){
+ const [state,update]=useState<Presentation>(initialPresentation);const [ready,setReady]=useState(false);const [role,setRole]=useState<Role>('buyer');const [route,setRoute]=useState('discover');const [modal,setModal]=useState<Modal>(null);const [message,setMessage]=useState('');const [search,setSearch]=useState('');const [mobile,setMobile]=useState(false);const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ useEffect(()=>{try{const stored=parsePresentation(localStorage.getItem(KEY));if(stored)update(stored);}catch{}setReady(true);const routeFromHash=()=>{const [r,...v]=location.hash.replace('#/','').split('/');if(['buyer','seller','ops'].includes(r)){setRole(r as Role);setRoute(v.join('/')||navigation[r as Role][0][0]);}};routeFromHash();window.addEventListener('hashchange',routeFromHash);return()=>window.removeEventListener('hashchange',routeFromHash);},[]);
+ useEffect(()=>{if(ready)try{localStorage.setItem(KEY,JSON.stringify(state));}catch{setMessage('Browser storage is unavailable. Changes will last for this visit only.');}document.documentElement.lang=state.language;},[state,ready]);
+ const toast=(s:string)=>{setMessage(s);if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setMessage(''),4800);};
+ const go=(view:string)=>{setRoute(view);location.hash=`/${role}/${view}`;setMobile(false);window.scrollTo({top:0,behavior:'instant'});};
+ const switchRole=(r:Role,view?:string)=>{setRole(r);const v=view??navigation[r][0][0];setRoute(v);location.hash=`/${r}/${v}`;setMobile(false);window.scrollTo({top:0,behavior:'instant'});};
+ const t=(en:string,te?:string,hi?:string)=>state.language==='te'?te??en:state.language==='hi'?hi??en:en;
+ const act=(id:string,action:Action,fields:Partial<Journey>={})=>{try{const p=state.products.find(x=>x.id===id)!;if((action==='bid'||action==='publish')&&!state.sellerApproved)throw Error('Seller review must be approved before bidding or publishing.');const journey=transition(p,state.journeys[id],action,fields);update(s=>({...s,journeys:{...s.journeys,[id]:journey},notices:[`${p.name}: ${journey.events.at(-1)}`,...s.notices].slice(0,30)}));toast(journey.events.at(-1)!);return true;}catch(e){toast(e instanceof Error?e.message:'Action could not be completed.');return false;}};
+ const entries=navigation[role];const title=entries.find(x=>x[0]===route)?.[2]??(route==='help'?'Help & support':route==='settings'?'Your preferences':'Your POOL');
+ const context={state,role,route,setState:update,go,switchRole,modal:setModal,act,toast,t,product:(id:string)=>state.products.find(p=>p.id===id)??state.products[0]};
+ return <Experience.Provider value={context}>
+ <a href="#content" className="skip-link">Skip to content</a>
+ <div className="presentation-bar"><span><i/> {t('Presentation mode','ప్రెజెంటేషన్ మోడ్','प्रस्तुति मोड')} <span className="bar-detail">· {t('Illustrative products & transactions. No money moves.','ఉదాహరణ వస్తువులు, లావాదేవీలు. డబ్బు చెల్లించబడదు.','उदाहरण प्रोडक्ट और लेनदेन। कोई वास्तविक भुगतान नहीं।')}</span></span><button onClick={()=>setModal({kind:'tour'})}>{t('Explore the full journey','పూర్తి ప్రయాణం చూడండి','पूरा सफर देखें')} <Icon name="arrow" size={14}/></button></div>
+ <div className="app-frame"><aside className={`sidebar ${mobile?'mobile-open':''}`}><a className="wordmark" href="#/buyer/discover" onClick={()=>switchRole('buyer')} aria-label="POOL home">p<span className="linked-o">oo</span>l<span className="brand-stop">.</span></a><div className="workspace-label">{t('YOUR WORKSPACE','మీ వర్క్‌స్పేస్','आपका वर्कस्पेस')}</div><label className="role-select"><Icon name={role==='buyer'?'users':role==='seller'?'store':'settings'}/><select aria-label="Presentation workspace" value={role} onChange={e=>switchRole(e.target.value as Role)}><option value="buyer">Buyer experience</option><option value="seller">Seller workspace</option><option value="ops">POOL operations</option></select></label><nav aria-label="Workspace navigation">{entries.map(([path,icon,en,te,hi])=><button key={path} onClick={()=>go(path)} className={`nav-item ${route===path?'active':''}`}><Icon name={icon}/><span>{t(en,te,hi)}</span>{path==='pools'&&Object.values(state.journeys).filter(j=>j.stage!=='open').length>0&&<b>{Object.values(state.journeys).filter(j=>j.stage!=='open').length}</b>}</button>)}</nav><div className="sidebar-bottom"><div className="sidebar-story"><Icon name="wave" size={28}/><strong>{t('Good things happen together.','కలిసి మంచి సాధిద్దాం.','साथ में बेहतर।')}</strong><p>{t('Your price is yours. Extra savings are shared.','మీ ధర మీదే. అదనపు పొదుపు అందరిదీ.','आपकी कीमत तय। अतिरिक्त बचत साझा।')}</p><button onClick={()=>switchRole('buyer','wave')}>Discover Wave Drop <Icon name="chevron" size={14}/></button></div><button className={`nav-item ${route==='help'?'active':''}`} onClick={()=>go('help')}><Icon name="help"/>{t('Help & support','సహాయం','सहायता')}</button><button className="profile-button" onClick={()=>go('settings')}><span className="avatar">{role==='buyer'?'AK':role==='seller'?'S':'P'}</span><span><strong>{role==='buyer'?'Aarav K.':role==='seller'?'Seller A':'POOL team'}</strong><small>Example {role} profile</small></span><Icon name="settings" size={17}/></button></div></aside>
+ <div className="app-main"><header className="topbar"><button className="icon-button mobile-toggle" aria-label="Open navigation" onClick={()=>setMobile(!mobile)}><Icon name="grid"/></button><button className="location" onClick={()=>setModal({kind:'location'})}><Icon name="pin" size={18}/><span><small>{t('Shopping in','షాపింగ్ ప్రాంతం','खरीदारी का इलाका')}</small><strong>{state.area}</strong></span><Icon name="down" size={14}/></button><form className="top-search" onSubmit={e=>{e.preventDefault();go('discover');}}><Icon name="search" size={18}/><input aria-label="Search products" placeholder={t('Search anything you want to pool','మీకు కావాల్సింది వెతకండి','जो खरीदना है खोजें')} value={search} onChange={e=>{setSearch(e.target.value);if(role==='buyer'&&route!=='discover')go('discover');}}/><kbd>⌕</kbd></form><label className="locale"><select aria-label="Language" value={state.language} onChange={e=>update(s=>({...s,language:e.target.value as Presentation['language']}))}><option value="en">English</option><option value="te">తెలుగు</option><option value="hi">हिन्दी</option></select></label><button className="icon-button notification-button" aria-label="Notifications" onClick={()=>setModal({kind:'notifications'})}><Icon name="bell"/>{state.notices.length>0&&<i/>}</button></header>
+ <main id="content" tabIndex={-1}>{role==='buyer'?<Buyer search={search} setSearch={setSearch}/>:<Workspace title={title}/>}</main><footer className="app-footer"><span>POOL · Before you buy it, POOL it.</span><button onClick={()=>setModal({kind:'disclosure'})}>About this presentation</button><span>India · INR</span></footer></div></div>
+ <nav className="mobile-dock" aria-label="Mobile navigation">{entries.slice(0,4).map(([path,icon,en,te,hi])=><button key={path} className={route===path?'active':''} onClick={()=>go(path)}><Icon name={icon}/><span>{t(en,te,hi)}</span></button>)}</nav>
+ {message&&<div className="toast" role="status"><Icon name="bell" size={18}/>{message}<button aria-label="Dismiss notification" onClick={()=>setMessage('')}><Icon name="close" size={16}/></button></div>}
+ <Dialogs value={modal} close={()=>setModal(null)}/></Experience.Provider>;
 }

@@ -592,6 +592,10 @@ function returnOrderCommand(
 ): { order: Order; events: OrderEvent[] } {
   if (o.status !== 'HANDED_OVER')
     throw new OrderError('BAD_STATE', `cannot return from ${o.status}`);
+  if (o.handedOverAt === undefined || !Number.isSafeInteger(now) || now < o.handedOverAt)
+    throw new OrderError('CLOCK', 'return cannot precede handover');
+  if (now >= o.handedOverAt + o.profile.returnWindowDays * 86400000)
+    throw new OrderError('RETURN_WINDOW', 'normal return window ended; reviewed claim required');
   const { order, event } = status(o, 'RETURNED', now);
   const reversals: OrderEvent[] = [
     {
@@ -742,6 +746,9 @@ export function deferHold(o: Order, holdKey: string, until: number, now: number)
   return recordOrder(deferHoldCommand(o, holdKey, until), now);
 }
 export function setOrderIssue(o: Order, openIssue: boolean, now: number) {
-  if (terminal.includes(o.status)) throw new OrderError('STATE', 'terminal order');
+  const pendingService =
+    o.status === 'SETTLED' && o.profile.holds.some((h) => !o.holdsReleased.includes(h.key));
+  if (terminal.includes(o.status) && !pendingService)
+    throw new OrderError('STATE', 'terminal order');
   return recordOrder({ ...o, openIssue }, now);
 }

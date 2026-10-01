@@ -8,6 +8,12 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-01 23:28 · Codex · repository handoff / push preparation
+- Did: removed the unrelated untracked `opencode.json` at the founder's request; retained the POOL web, engine, core, database, migration and audit changes already present in the working tree.
+- Verified: in `pool/`, `pnpm test` passed — engine **12 files / 119 tests**, core **4 files / 28 tests**, db no-test-files exit 0; `pnpm typecheck` passed for apps/web, engine, db and core; `git diff --check` passed. The backup/restore test reported **47 table fingerprints match** and ledger trial balance 0.
+- Next: commit the current POOL changes, then push once a Git remote is configured.
+- Open issues / blockers: the repository has no Git remote configured, so a network push cannot be completed until the founder provides or adds the remote URL. Existing foundation-audit decisions and M3 stop boundary remain unchanged.
+
 ### 2026-10-01 19:36 · Codex · M1/M1.5/M2 ruthless audit continuation
 - Did: added durable workflow recovery with audited fork-at-failed-step, operational workflow inspection, invalid-outbox quarantine and capped retry backoff; added fulfilment slot persistence (migration 006), seller/area/mode/purpose ownership, row-locked capacity reservations, atomic cancellation/return release and reconciliation of stored counters; added migration 007 dispatch diagnostics; fixed a weak money property fixture by generating valid order splits and checking exact conservation; rejected expired bid delivery promises and checkout promises; rechecked seller verification at checkout after offers; updated README/blueprint to say foundation acceptance is reopened and India-only scope.
 - Verified: in `pool/`, `pnpm test` → engine **12 files / 117 tests passed**, core **4 files / 24 tests passed**, db no-test-files exit 0; aggregate exit 0. `pnpm typecheck` → apps/web, engine, db, core all `Done`, exit 0. Real Docker PostgreSQL fresh-database harness exercised migrations 001–007. New tests cover failed workflow recovery/history/deduplication, invalid outbox isolation, concurrent one-capacity reservations, cancellation release exactly once, deliberate slot-counter corruption detection, seller revocation after offer publication, expired delivery promises, and valid money conservation. `git diff --check` passed before the final edits. Commits: `8f3c193`, `91497cb`, `4119b23`, `2f66d24`.

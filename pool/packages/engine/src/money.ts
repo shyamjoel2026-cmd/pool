@@ -20,6 +20,7 @@ function assertSafe(n: number, what: string): void {
 }
 
 export function money(currency: Currency, minor: number): Money {
+  if (currency !== 'INR' && currency !== 'USD') throw new MoneyError('unsupported currency');
   assertSafe(minor, 'money.minor');
   return { currency, minor };
 }
@@ -27,6 +28,8 @@ export function money(currency: Currency, minor: number): Money {
 export const zero = (currency: Currency): Money => money(currency, 0);
 
 export function assertSameCurrency(a: Money, b: Money): void {
+  money(a.currency, a.minor);
+  money(b.currency, b.minor);
   if (a.currency !== b.currency)
     throw new MoneyError(`currency mismatch: ${a.currency} vs ${b.currency}`);
 }

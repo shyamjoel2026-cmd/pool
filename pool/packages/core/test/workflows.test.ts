@@ -14,6 +14,7 @@ import {
   settleWorkflow,
   inspectWorkflows,
   retryFailedWorkflow,
+  dispatchRecoveryIntents,
 } from '../src/workflows.ts';
 import { migrate } from '../../db/src/migrate.ts';
 const { pool: db } = connect();
@@ -73,6 +74,10 @@ it('failed durable work is visible and audited recovery preserves history and de
   expect(((await handle.getResult()) as e.Pool).state).toBe('CLOSED');
   expect(await (await retryFailedWorkflow(...args)).getResult()).toEqual(await handle.getResult());
   expect((await DBOS.getWorkflowStatus(workflowId))?.status).toBe('ERROR');
+  expect((await inspectWorkflows(id)).find((w) => w.id === handle.workflowID)?.status).toBe(
+    'SUCCESS',
+  );
+  expect(await dispatchRecoveryIntents()).toBe(0);
   expect(
     (
       await db.query(

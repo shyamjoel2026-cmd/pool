@@ -67,6 +67,36 @@ function canonical(value: unknown): string {
     );
   return JSON.stringify(value) ?? 'null';
 }
+/** Trusted service callers still cannot persist NaN, infinity, cycles, or fractional money.
+ * JSON otherwise silently converts NaN to null, destroying replay fidelity.
+ */
+function validatePersistable(value: unknown, seen = new Set<object>()): void {
+  if (
+    typeof value === 'number' &&
+    (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value)))
+  )
+    throw new Error('persisted numbers must be finite and integers must be safe');
+  if (typeof value === 'bigint' || typeof value === 'function' || typeof value === 'symbol')
+    throw new Error('unsupported persisted value');
+  if (!value || typeof value !== 'object') return;
+  if (seen.has(value)) throw new Error('cyclic persisted value');
+  if (
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) !== Object.prototype &&
+    Object.getPrototypeOf(value) !== null
+  )
+    throw new Error('persisted values must be plain JSON data');
+  const object = value as Record<string, unknown>;
+  if (
+    'minor' in object &&
+    'currency' in object &&
+    (object.currency !== 'INR' || !Number.isSafeInteger(object.minor))
+  )
+    throw new Error('persisted money must be integer INR paise');
+  seen.add(value);
+  for (const item of Object.values(value)) validatePersistable(item, seen);
+  seen.delete(value);
+}
 /** One DB transaction owns command deduplication, state, audit journal and money transfers.
  * Locks: https://www.postgresql.org/docs/18/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
  * Driver transactions: https://node-postgres.com/features/transactions
@@ -80,6 +110,9 @@ export async function command<T>(
   reduce: (state: T | undefined, client: PoolClient) => Change<T> | Promise<Change<T>>,
   project?: (c: PoolClient, state: T) => Promise<void>,
 ): Promise<T> {
+  if (!id.trim() || !kind.trim() || !key.trim())
+    throw new Error('command identity, kind and key required');
+  validatePersistable(request);
   const client = await db.connect();
   const hash = createHash('sha256').update(canonical({ id, kind, request })).digest('hex');
   try {
@@ -103,6 +136,7 @@ export async function command<T>(
     ]);
     if (loaded.rowCount && loaded.rows[0].kind !== kind) throw new Error('aggregate kind mismatch');
     const change = await reduce(loaded.rows[0]?.data as T | undefined, client);
+    validatePersistable(change);
     for (const event of change.events)
       await client.query(
         'INSERT INTO audit_events(id,aggregate_id,event_type,data) VALUES($1,$2,$3,$4)',

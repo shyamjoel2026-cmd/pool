@@ -1,6 +1,15 @@
 // SQL migrations own indexes, checks and triggers; these declarations match query columns, nullability, defaults and references.
 // Drizzle column API: https://orm.drizzle.team/docs/column-types/pg
-import { pgTable, text, bigint, jsonb, timestamp, integer, boolean } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  bigint,
+  jsonb,
+  timestamp,
+  integer,
+  boolean,
+  primaryKey,
+} from 'drizzle-orm/pg-core';
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
   currency: text('currency').notNull().default('INR'),
@@ -227,6 +236,20 @@ export const aggregates = pgTable('aggregates', {
   data: jsonb('data').notNull().default({}),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+export const aggregate_history = pgTable(
+  'aggregate_history',
+  {
+    aggregate_id: text('aggregate_id').notNull(),
+    version: bigint('version', { mode: 'bigint' }).notNull(),
+    currency: text('currency').notNull().default('INR'),
+    kind: text('kind').notNull(),
+    data: jsonb('data').notNull(),
+    previous_hash: text('previous_hash').notNull(),
+    state_hash: text('state_hash').notNull(),
+    legacy_baseline: boolean('legacy_baseline').notNull().default(false),
+  },
+  (table) => [primaryKey({ columns: [table.aggregate_id, table.version] })],
+);
 export const money_events = pgTable('money_events', {
   id: text('id').primaryKey(),
   currency: text('currency').notNull().default('INR'),

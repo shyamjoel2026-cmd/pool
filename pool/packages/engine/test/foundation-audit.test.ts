@@ -3,6 +3,22 @@ import fc from 'fast-check';
 import * as e from '../src/index.ts';
 
 const day = 86400000;
+it('return eligibility follows the agreed window, not settlement worker timing', () => {
+  const order = handed();
+  expect(() => e.returnOrder(order, 'DEFECTIVE', 99)).toThrow(/precede/);
+  expect(e.returnOrder(order, 'DEFECTIVE', day + 99).order.status).toBe('RETURNED');
+  expect(() => e.returnOrder(order, 'DEFECTIVE', day + 100)).toThrow(/window ended/);
+  expect(() => e.returnOrder(e.settle(order, day + 100).order, 'DEFECTIVE', day + 100)).toThrow();
+});
+it('a later service issue blocks unreleased holds after settlement', () => {
+  const settled = e.settle(handed(), day + 100).order;
+  const blocked = e.setOrderIssue(settled, true, day + 101).order;
+  expect(
+    e.releaseDueHolds(blocked, 6 * day).events.filter((x) => x.type === 'PAYOUT_RELEASE'),
+  ).toHaveLength(0);
+  const cleared = e.setOrderIssue(blocked, false, 6 * day).order;
+  expect(e.releaseDueHolds(cleared, 6 * day).order.holdsReleased).toEqual(['quality']);
+});
 it('new bids and checkout reject an already expired delivery promise', () => {
   expect(() =>
     e.acceptBid(

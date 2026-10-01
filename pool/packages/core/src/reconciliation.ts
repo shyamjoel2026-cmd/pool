@@ -31,6 +31,20 @@ async function inspect(c: PoolClient): Promise<ReconciliationFinding[]> {
   const findings: ReconciliationFinding[] = [];
   const checks: [string, string][] = [
     [
+      'STATE_HISTORY',
+      `SELECT aggregate_id AS id FROM (
+      SELECT h.*,lag(state_hash,1,'') OVER(PARTITION BY aggregate_id ORDER BY version) actual_previous,
+      lag(version) OVER(PARTITION BY aggregate_id ORDER BY version) prior_version FROM aggregate_history h
+      ) h WHERE previous_hash<>actual_previous OR state_hash<>pool_state_hash(aggregate_id,version,kind,data,previous_hash)
+      OR (prior_version IS NOT NULL AND version<>prior_version+1)`,
+    ],
+    [
+      'STATE_HISTORY_HEAD',
+      `SELECT a.id FROM aggregates a LEFT JOIN LATERAL (
+      SELECT version,kind,data FROM aggregate_history WHERE aggregate_id=a.id ORDER BY version DESC LIMIT 1
+      ) h ON true WHERE h.version IS DISTINCT FROM a.version OR h.kind IS DISTINCT FROM a.kind OR h.data IS DISTINCT FROM a.data`,
+    ],
+    [
       'SLOT_CAPACITY',
       `SELECT s.id FROM fulfilment_slots s LEFT JOIN slot_reservations r ON r.slot_id=s.id AND r.active
        GROUP BY s.id HAVING s.booked<>count(r.id)`,

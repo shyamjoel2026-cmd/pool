@@ -345,6 +345,22 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
       closeAt + 1,
     ),
   ).rejects.toThrow(/reviewed pool treatment/);
+  await expect(
+    acceptCheckout(
+      db,
+      id,
+      'm',
+      oid,
+      id + ':unpaid-accept',
+      profile,
+      checkoutTax,
+      4000000,
+      e.money('INR', 10),
+      10,
+      closeAt + 1,
+    ),
+  ).rejects.toThrow(/full captured balance/);
+  expect((await db.query('SELECT id FROM orders WHERE id=$1', [oid])).rowCount).toBe(0);
   p = await acceptCheckout(
     db,
     id,
@@ -364,10 +380,15 @@ it('full pool lifecycle, money postings, retry and append-only audit', async () 
     e.money('INR', 10),
     10,
     closeAt + 1,
+    {
+      amount: e.money('INR', 1000),
+      paymentRef: oid + ':receipt',
+      method: 'UPI',
+      paidAt: closeAt + 1,
+    },
   );
-  order = await orderCommand(db, oid, oid + ':pay', {}, (o) =>
-    e.collectBalance(o!, e.money('INR', 1000), oid + ':receipt', 'UPI', closeAt + 2),
-  );
+  order = (await db.query('SELECT data FROM orders WHERE id=$1', [oid])).rows[0].data;
+  expect(order.collectedMinor).toBe(order.split.buyerTotal.minor);
   const plain = await issueHandoverCode(db, oid, 5000000, closeAt + 2);
   expect(await handover(db, oid, plain === '0000' ? '1111' : '0000', {}, 3999999)).toEqual({
     ok: false,

@@ -1,6 +1,7 @@
 import {
   launchWorkflows,
   dispatchOutbox,
+  dispatchRecoveryIntents,
   DBOS,
   waveWorkflow,
   poolCloseWorkflow,
@@ -15,6 +16,7 @@ if (process.env.POOL_TEST_WORKER !== '1') {
     dispatching = true;
     try {
       const result = await dispatchOutbox();
+      await dispatchRecoveryIntents();
       if (result.blocked || result.deferred)
         console.error(
           `Workflow dispatch: ${result.blocked} invalid jobs blocked, ${result.deferred} submissions deferred; inspect workflow status`,
