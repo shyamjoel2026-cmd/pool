@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@12.8.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p . && vite build",
@@ -28,7 +29,7 @@
     "playwright-core": "1.63.0",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
-    "vite": "8.3.2",
+    "vite": "8.3.1",
     "vite-plugin-singlefile": "2.3.3",
     "vitest": "5.0.3"
   },
