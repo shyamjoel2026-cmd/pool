@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import * as e from '../src/index.ts';
 
 const day = 86400000;
-function handed(): e.Order {
+function handed(sellerMinor = 10000): e.Order {
   const profile: e.FulfilmentProfile = {
     id: 'generic',
     label: 'generic',
@@ -24,8 +24,8 @@ function handed(): e.Order {
     sellerId: 'seller',
     profile,
     split: e.splitOrder(e.INDIA_POLICY, {
-      buyerTotal: e.money('INR', 11000),
-      sellerTotal: e.money('INR', 10000),
+      buyerTotal: e.money('INR', sellerMinor + 1000),
+      sellerTotal: e.money('INR', sellerMinor),
       profile,
       waveHoldMinor: 0,
       indiaTax: {
@@ -39,7 +39,7 @@ function handed(): e.Order {
     }),
     status: 'HANDED_OVER',
     handedOverAt: 100,
-    collectedMinor: 11000,
+    collectedMinor: sellerMinor + 1000,
     promisedBy: 100,
     returnCost: e.money('INR', 100),
     steps: [],
@@ -83,8 +83,8 @@ it('settlement does not destroy later profile proof and deferral capabilities', 
 it('proof blocked by an issue releases exactly once after resolution (property)', () => {
   fc.assert(
     fc.property(fc.integer({ min: 1000, max: 1000000 }), (minor) => {
-      const base = handed();
-      const split = { ...base.split, holds: [{ key: 'quality', amount: e.money('INR', minor) }] };
+      const base = handed(minor);
+      const split = base.split;
       let order = e.completeStep(
         { ...base, split, openIssue: true },
         'verification',
@@ -98,7 +98,19 @@ it('proof blocked by an issue releases exactly once after resolution (property)'
         release.events
           .filter((x) => x.type === 'PAYOUT_RELEASE')
           .reduce((n, x) => n + x.amount.minor, 0),
-      ).toBe(minor);
+      ).toBe(split.holds[0]!.amount.minor);
+      const releasedHold = release.events.reduce(
+        (n, event) => n + (event.type === 'PAYOUT_RELEASE' ? event.amount.minor : 0),
+        0,
+      );
+      expect(
+        split.margin.minor +
+          split.tcs.minor +
+          split.tds.minor +
+          split.releaseOnHandover.minor +
+          split.waveHold.minor +
+          releasedHold,
+      ).toBe(split.buyerTotal.minor);
       expect(
         e.releaseDueHolds(release.order, 301).events.filter((x) => x.type === 'PAYOUT_RELEASE'),
       ).toHaveLength(0);
