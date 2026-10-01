@@ -3,6 +3,44 @@ import fc from 'fast-check';
 import * as e from '../src/index.ts';
 
 const day = 86400000;
+it('new bids and checkout reject an already expired delivery promise', () => {
+  expect(() =>
+    e.acceptBid(
+      {
+        policy: e.INDIA_POLICY,
+        poolClosesAt: 1000,
+        now: 10,
+        uom: e.UOM.piece,
+        maxSlabBpsOfPrice: 1000,
+      },
+      undefined,
+      {
+        id: 'bid',
+        poolId: 'pool',
+        sellerId: 'seller',
+        revision: 1,
+        sellerPrice: e.money('INR', 10000),
+        uom: 'piece',
+        capacityBase: 1,
+        deliverBy: 9,
+        modes: ['pickup'],
+        terms: {},
+        optionsCovered: [],
+        slabs: [],
+        validUntil: 100000000,
+        submittedAt: 10,
+      },
+    ),
+  ).toThrow(/promise/);
+  expect(() =>
+    e.beginCheckout(
+      { ...handed(), status: 'AWAITING_PAYMENT' },
+      'PREPAY_FULL',
+      e.money('INR', 1000),
+      101,
+    ),
+  ).toThrow(/promise/);
+});
 function handed(sellerMinor = 10000): e.Order {
   const profile: e.FulfilmentProfile = {
     id: 'generic',

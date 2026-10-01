@@ -210,7 +210,7 @@ export function awardPersistedPool(
           p.bidRequirements,
           new Map(sellers.rows.map((r) => [r.id, r.data])),
         )
-        .filter((b) => b.validUntil >= now);
+        .filter((b) => b.validUntil >= now && b.deliverBy >= now);
       const result = e.stageAward(
         p,
         e.award(
@@ -318,8 +318,11 @@ export function acceptCheckout(
       const bid = (await c.query('SELECT data FROM bids WHERE id=$1', [offer.bidId])).rows[0]
         ?.data as e.Bid | undefined;
       if (bid) await auditBidReads(c, [bid], 'system:checkout', 'checkout-validation');
-      const seller = (await c.query('SELECT state_code FROM sellers WHERE id=$1', [offer.sellerId]))
-        .rows[0];
+      const seller = (
+        await c.query('SELECT state_code,data FROM sellers WHERE id=$1', [offer.sellerId])
+      ).rows[0];
+      if (seller?.data?.verified !== true)
+        throw new Error('checkout requires a currently verified seller');
       if (
         !bid ||
         bid.poolId !== poolId ||

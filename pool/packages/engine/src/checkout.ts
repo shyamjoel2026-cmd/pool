@@ -11,6 +11,12 @@ export function beginCheckout(
   now: number,
 ) {
   if (
+    !Number.isSafeInteger(now) ||
+    !Number.isSafeInteger(order.promisedBy) ||
+    order.promisedBy < now
+  )
+    throw new OrderError('CHECKOUT', 'delivery promise must not be in the past');
+  if (
     order.status !== 'AWAITING_PAYMENT' ||
     bookingApplied.currency !== order.split.buyerTotal.currency ||
     bookingApplied.minor < 0 ||

@@ -72,6 +72,8 @@ export function acceptBid(ctx: BidContext, previous: Bid | undefined, next: Bid)
   }
   if (!Number.isSafeInteger(next.capacityBase) || next.capacityBase <= 0)
     throw new BidError('CAPACITY', 'capacity must be a positive integer');
+  if (next.deliverBy < ctx.now)
+    throw new BidError('TIME', 'delivery promise is already in the past');
   if (next.modes.length === 0)
     throw new BidError('MODES', 'a bid must offer at least one delivery mode');
   const mustStayValidUntil =

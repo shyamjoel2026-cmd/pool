@@ -151,7 +151,7 @@ Versions are checked at install time and recorded in the repo's `package.json`.
 
 ## 5. Prototype scope — the investor demo
 
-It must work end to end in **both** India (INR / Razorpay test) and US (USD / Stripe test).
+Current build scope is **India only** (INR / Razorpay test). The original US demo remains parked until the founder reopens it.
 
 1. Paste a real product link → product card with evidence per field, or "unconfirmed".
 2. Honest comparison (real sources with a timestamp).
@@ -210,6 +210,6 @@ These are not needed for the demo; they must be done before live money.
 
 ## M1.5 / M2 audit checkpoint — 1 Oct 2026
 
-Task A (A1–A10) and Task B (B1–B7) are implemented and their local checks pass: 110 engine tests, 16 real PostgreSQL/DBOS integration tests, all package typechecks exit 0. This is prototype verification, with tax/compliance assumptions explicitly UNVERIFIED in source and POOL_PROJECT_STATE.md §0. M3 has not started. Current persisted names are assignments (awards), wave_pots (wave_drop_pots), plus units, fulfilment_profiles, price_decisions, offers, order_steps, handover_codes, idempotency_keys, aggregates, money_events, ledger_account_map and workflow_outbox. India-only persistence; existing US engine regression remains.
+**Foundation acceptance reopened at the founder's request.** The earlier 110 engine / 16 integration test checkpoint did not establish complete foundation readiness. Audit and rework are in progress; current exact evidence and unresolved decisions live in POOL_PROJECT_STATE.md §0. Tax/compliance assumptions remain explicitly UNVERIFIED. M3 has not started. Current persisted names are assignments (awards), wave_pots (wave_drop_pots), plus units, fulfilment_profiles, price_decisions, offers, order_steps, handover_codes, idempotency_keys, aggregates, money_events, ledger_account_map and workflow_outbox. India-only persistence; existing US engine regression remains.
 
 Founder confirmed 1 Oct 2026: capacity-split pools have a separate Wave Drop pot per seller. Each seller's slab pot is shared only among that seller's settled buyers. Settlement must use the accepted, persisted slabs and counted quantities for that seller.

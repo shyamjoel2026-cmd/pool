@@ -41,7 +41,13 @@ async function balances(names: string[]) {
   return new Map<string, bigint>(rows.rows.map((r) => [r.name, BigInt(r.balance)]));
 }
 
-async function setup(options: { multiSeller?: boolean; withWave?: boolean } = {}) {
+async function setup(
+  options: {
+    multiSeller?: boolean;
+    withWave?: boolean;
+    beforeAccept?: (id: string) => Promise<void>;
+  } = {},
+) {
   const id = randomUUID(),
     at = 3601000;
   const profile: e.FulfilmentProfile = {
@@ -179,6 +185,7 @@ async function setup(options: { multiSeller?: boolean; withWave?: boolean } = {}
       id + ':price:1',
     );
   const offered = await publishPersistedOffers(db, id, id + ':offers', at);
+  await options.beforeAccept?.(id);
   for (let i = 0; i < memberCount; i++) {
     const orderId = id + ':order:' + i;
     await acceptCheckout(
@@ -209,6 +216,27 @@ async function setup(options: { multiSeller?: boolean; withWave?: boolean } = {}
   }
   return { id, at, sellerId: id + ':seller:0' };
 }
+
+it('seller verification revoked after offers prevents checkout without consuming booking funds', async () => {
+  let poolId = '';
+  await expect(
+    setup({
+      beforeAccept: async (id) => {
+        poolId = id;
+        const sellerId = id + ':seller:0';
+        const seller = (await db.query('SELECT data FROM sellers WHERE id=$1', [sellerId])).rows[0]
+          .data;
+        await saveSeller(db, sellerId, id + ':revoke', { ...seller, verified: false });
+      },
+    }),
+  ).rejects.toThrow(/currently verified/);
+  expect((await db.query('SELECT id FROM orders WHERE pool_id=$1', [poolId])).rowCount).toBe(0);
+  const pool = (await db.query('SELECT data FROM pools WHERE id=$1', [poolId])).rows[0]
+    .data as e.Pool;
+  expect(pool.members.every((m) => m.booking?.disposition === 'HELD')).toBe(true);
+  const booked = await balances([poolId + ':booking:buyer0', poolId + ':booking:buyer1']);
+  expect([...booked.values()].reduce((n, v) => n + v, 0n)).toBe(2000n);
+}, 60000);
 
 it('concurrent reservations cannot oversell; cancellation releases capacity exactly once', async () => {
   const { id, at, sellerId } = await setup();
