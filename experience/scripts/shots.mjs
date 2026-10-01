@@ -1,6 +1,6 @@
 // Visual QA: loads every route in Chromium, records console/page errors, and saves screenshots.
 // Usage: node scripts/shots.mjs [filter] [--dark] — expects `vite preview` on :4173 (or BASE env).
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -81,7 +81,7 @@ const ROUTES = [
 ];
 
 const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' } : undefined;
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', proxy, args: ['--disable-background-networking', '--disable-component-update', '--no-first-run', '--disable-sync'] });
+const browser = await launchBrowser({ proxy, args: ['--disable-background-networking', '--disable-component-update', '--no-first-run', '--disable-sync'] });
 const errors = [];
 // Serve Google Fonts from a local cache so screenshots never wait on the network.
 const FC = `.shots/.fontcache2`;

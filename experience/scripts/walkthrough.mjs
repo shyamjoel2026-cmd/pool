@@ -1,9 +1,9 @@
 // End-to-end check of the 15-step investor walkthrough, driven through the real UI.
 // Usage: node scripts/walkthrough.mjs — expects `vite preview` on :4173 (or BASE env).
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:4173/';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--disable-background-networking'] });
+const browser = await launchBrowser({ args: ['--disable-background-networking'] });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
 await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
 const page = await ctx.newPage();
