@@ -9,9 +9,9 @@
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
 ### 2026-10-01 23:28 · Codex · repository handoff / push preparation
-- Did: removed the unrelated untracked `opencode.json` at the founder's request; retained the POOL web, engine, core, database, migration and audit changes already present in the working tree.
+- Did: removed the unrelated untracked `opencode.json` at the founder's request; retained the POOL web, engine, core, database, migration and audit changes already present in the working tree; committed them as `884d6aa` (`Continue POOL foundation audit and buyer preview`).
 - Verified: in `pool/`, `pnpm test` passed — engine **12 files / 119 tests**, core **4 files / 28 tests**, db no-test-files exit 0; `pnpm typecheck` passed for apps/web, engine, db and core; `git diff --check` passed. The backup/restore test reported **47 table fingerprints match** and ledger trial balance 0.
-- Next: commit the current POOL changes, then push once a Git remote is configured.
+- Next: configure the intended Git remote, then push `main`.
 - Open issues / blockers: the repository has no Git remote configured, so a network push cannot be completed until the founder provides or adds the remote URL. Existing foundation-audit decisions and M3 stop boundary remain unchanged.
 
 ### 2026-10-01 19:36 · Codex · M1/M1.5/M2 ruthless audit continuation
