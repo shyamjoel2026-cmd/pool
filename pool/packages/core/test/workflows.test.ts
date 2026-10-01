@@ -12,6 +12,8 @@ import {
   acceptWorkflow,
   holdWorkflow,
   settleWorkflow,
+  inspectWorkflows,
+  retryFailedWorkflow,
 } from '../src/workflows.ts';
 import { migrate } from '../../db/src/migrate.ts';
 const { pool: db } = connect();
@@ -23,6 +25,53 @@ afterAll(async () => {
   await DBOS.shutdown();
   await db.end();
 });
+it('failed durable work is visible and audited recovery preserves history and deduplicates retries', async () => {
+  const id = randomUUID(),
+    at = Date.now(),
+    workflowId = 'close:' + id + ':' + at + ':';
+  const c = await db.connect();
+  try {
+    await schedule(c, 'close', id, at);
+  } finally {
+    c.release();
+  }
+  await dispatchOutbox(id);
+  await expect(DBOS.retrieveWorkflow(workflowId).getResult()).rejects.toThrow();
+  expect((await inspectWorkflows(id))[0]!.status).toBe('ERROR');
+  await poolCommand(db, id, id + ':create', {}, () => ({ value: p(id, at), events: [] }));
+  const args = [workflowId, id + ':retry', 'ops', 'missing pool restored', at + 1] as const;
+  const handle = await retryFailedWorkflow(...args);
+  expect(((await handle.getResult()) as e.Pool).state).toBe('CLOSED');
+  expect(await (await retryFailedWorkflow(...args)).getResult()).toEqual(await handle.getResult());
+  expect((await DBOS.getWorkflowStatus(workflowId))?.status).toBe('ERROR');
+  expect(
+    (
+      await db.query(
+        "SELECT count(*)::int n FROM audit_events WHERE aggregate_id=$1 AND event_type='WORKFLOW_RECOVERY_REQUESTED'",
+        ['recovery:' + id + ':retry'],
+      )
+    ).rows[0].n,
+  ).toBe(1);
+}, 60000);
+
+it('pricing watchdog closes an OPEN pool before a delayed close timer', async () => {
+  const at = Date.now(),
+    id = randomUUID();
+  const created = { ...p(id, at), pricingDeadline: at + 1 };
+  await poolCommand(db, id, id + ':create', {}, () => ({ value: created, events: [] }));
+  const timed = await (
+    await DBOS.startWorkflow(pricingWorkflow, { workflowID: id + ':watchdog' })(id, at + 1)
+  ).getResult();
+  expect(timed.state).toBe('NO_DEAL');
+  // Pricing may recover before the close timer. The delayed close must remain a no-op.
+  expect(
+    (
+      await (
+        await DBOS.startWorkflow(poolCloseWorkflow, { workflowID: id + ':late-close' })(id, at)
+      ).getResult()
+    ).state,
+  ).toBe('NO_DEAL');
+}, 45000);
 function p(id: string, at: number) {
   return e.createPool(
     e.INDIA_POLICY,

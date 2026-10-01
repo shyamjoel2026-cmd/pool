@@ -1,6 +1,7 @@
 import { DBOS } from '@dbos-inc/dbos-sdk';
 import { connect, validateEnv } from '@pool/db';
 import type { Slab, WaveOrder } from '@pool/engine';
+import { command } from './store.ts';
 import {
   closePool,
   expirePoolPricing,
@@ -145,3 +146,73 @@ export async function dispatchOutbox(aggregateId?: string) {
   });
 }
 export { DBOS };
+
+/** Local operational view: no inputs, outputs, secrets or raw error messages are exposed.
+ * https://docs.dbos.dev/typescript/tutorials/workflow-management
+ */
+export async function inspectWorkflows(aggregateId: string) {
+  return withDb(async (db) => {
+    const rows = await db.query(
+      "SELECT id,kind,dispatched FROM workflow_outbox WHERE data->>'aggregateId'=$1 ORDER BY due_at,id",
+      [aggregateId],
+    );
+    const result: { id: string; kind: string; dispatched: boolean; status: string }[] = [];
+    for (const row of rows.rows) {
+      const status = await DBOS.getWorkflowStatus(row.id);
+      result.push({
+        id: row.id,
+        kind: row.kind,
+        dispatched: row.dispatched,
+        status: status?.status ?? 'NOT_SUBMITTED',
+      });
+    }
+    return result;
+  });
+}
+
+/** Audited recovery forks at the failed step, preserving completed clocks and the
+ * original failed workflow as evidence. Stable retry ID handles crash after fork.
+ * Official API and installed 5.2.11 declarations:
+ * https://docs.dbos.dev/typescript/tutorials/workflow-management
+ */
+export async function retryFailedWorkflow(
+  workflowId: string,
+  requestId: string,
+  actor: string,
+  reason: string,
+  now: number,
+) {
+  if (!requestId.trim() || !actor.trim() || !reason.trim() || !Number.isSafeInteger(now))
+    throw new Error('workflow recovery requires request identity, actor, reason and UTC time');
+  const retryId = 'recovery:' + requestId;
+  const intent = await withDb((db) =>
+    command<{ source: string; retryId: string; startStep: number }>(
+      db,
+      retryId,
+      'workflow-recovery',
+      retryId,
+      { workflowId, actor, reason, now },
+      async (_, c) => {
+        if (!(await c.query('SELECT id FROM workflow_outbox WHERE id=$1', [workflowId])).rowCount)
+          throw new Error('only a persisted POOL outbox workflow can be recovered');
+        const status = await DBOS.getWorkflowStatus(workflowId);
+        if (status?.status !== 'ERROR') throw new Error('recovery requires a failed workflow');
+        const failed = (await DBOS.listWorkflowSteps(workflowId))?.find(
+          (step) => step.error !== null,
+        );
+        if (!failed) throw new Error('no recorded failed step; investigation required');
+        const state = { source: workflowId, retryId, startStep: failed.functionID };
+        return {
+          state,
+          events: [{ type: 'WORKFLOW_RECOVERY_REQUESTED', ...state, actor, reason, at: now }],
+          postings: [],
+        };
+      },
+    ),
+  );
+  const existing = await DBOS.getWorkflowStatus(intent.retryId);
+  const handle = existing
+    ? DBOS.retrieveWorkflow(intent.retryId)
+    : await DBOS.forkWorkflow(intent.source, intent.startStep, { newWorkflowID: intent.retryId });
+  return handle;
+}
