@@ -8,6 +8,12 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-01 23:35 · Codex · GitHub push completed
+- Did: configured `origin` as `https://github.com/shyamjoel2026-cmd/pool.git` and pushed `main` successfully.
+- Verified: local `main` tracks `origin/main`; `git ls-remote origin refs/heads/main` reports `a8e21c3f1adcc8ef5c81a68156986ce337721c9a`; worktree is clean.
+- Next: continue from the pushed `main` branch.
+- Open issues / blockers: none for this push.
+
 ### 2026-10-01 23:28 · Codex · repository handoff / push preparation
 - Did: removed the unrelated untracked `opencode.json` at the founder's request; retained the POOL web, engine, core, database, migration and audit changes already present in the working tree; committed them as `884d6aa` (`Continue POOL foundation audit and buyer preview`).
 - Verified: in `pool/`, `pnpm test` passed — engine **12 files / 119 tests**, core **4 files / 28 tests**, db no-test-files exit 0; `pnpm typecheck` passed for apps/web, engine, db and core; `git diff --check` passed. The backup/restore test reported **47 table fingerprints match** and ledger trial balance 0.
