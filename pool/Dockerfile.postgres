@@ -1,0 +1,8 @@
+# Official image: https://hub.docker.com/_/postgres (digest verified by docker pull).
+FROM postgres:18-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650
+# PGDG package source https://apt.postgresql.org/; versions verified by apt-cache policy.
+# Extension repos: https://github.com/pgvector/pgvector and https://github.com/postgis/postgis
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-18-postgis-3=3.6.4+dfsg-2.pgdg12+1 \
+    postgresql-18-pgvector=0.8.6-1.pgdg12+2 \
+    && rm -rf /var/lib/apt/lists/*
