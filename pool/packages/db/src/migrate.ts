@@ -42,6 +42,15 @@ export async function migrate() {
       );
       await client.query("INSERT INTO pool_migrations(id) VALUES('004')");
     }
+    if (!(await client.query("SELECT id FROM pool_migrations WHERE id='005'")).rowCount) {
+      await client.query(
+        await readFile(
+          new URL('../migrations/005_foundation_constraints.sql', import.meta.url),
+          'utf8',
+        ),
+      );
+      await client.query("INSERT INTO pool_migrations(id) VALUES('005')");
+    }
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
@@ -53,7 +62,7 @@ export async function migrate() {
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
   migrate()
-    .then(() => console.log('Migrations applied: 001, 002, 003, 004'))
+    .then(() => console.log('Migrations applied: 001, 002, 003, 004, 005'))
     .catch(() => {
       console.error(
         'Migration failed; check database availability and migration SQL (credentials redacted)',

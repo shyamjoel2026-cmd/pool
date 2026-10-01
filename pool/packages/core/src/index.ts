@@ -6,6 +6,7 @@ export { command } from './store.ts';
 export function poolPostings(events: readonly engine.PoolEvent[]): Posting[] {
   return events.flatMap((e) => {
     if (!('amount' in e)) return [];
+    if (e.amount.currency !== 'INR') throw new Error('money event currency must be INR');
     const base = { minor: e.amount.minor, key: e.idempotencyKey };
     const booking = e.poolId + ':booking:' + e.memberId;
     if (e.type === 'BOOKING_CAPTURE') return [{ ...base, from: 'external:buyers', to: booking }];
@@ -16,6 +17,7 @@ export function poolPostings(events: readonly engine.PoolEvent[]): Posting[] {
   });
 }
 export async function projectPool(c: PoolClient, p: engine.Pool) {
+  if (p.region !== 'IN') throw new Error('persistence supports India only');
   for (const m of p.members)
     if (m.booking?.paymentRef && m.booking.paid.minor > 0)
       await claimPayment(
@@ -34,7 +36,7 @@ export async function projectPool(c: PoolClient, p: engine.Pool) {
       [p.id + ':' + m.memberId, p.id, String(m.booking?.paid.minor ?? 0), m],
     );
   if (p.state === 'OPEN') await schedule(c, 'close', p.id, p.closesAt);
-  if (p.state === 'PRICING' && p.pricingDeadline !== undefined)
+  if (['OPEN', 'CLOSED', 'PRICING'].includes(p.state) && p.pricingDeadline !== undefined)
     await schedule(c, 'pricing', p.id, p.pricingDeadline);
   if (p.state === 'AWARDED' && p.acceptBy !== undefined)
     await schedule(c, 'accept', p.id, p.acceptBy);
@@ -78,6 +80,7 @@ export function poolCommand(
     request,
     (p) => {
       const r = fn(p);
+      if (r.value.id !== id) throw new Error('pool command identity mismatch');
       return {
         state: r.value,
         events: r.events,
@@ -88,8 +91,10 @@ export function poolCommand(
   );
 }
 export function orderPostings(o: engine.Order, events: readonly engine.OrderEvent[]): Posting[] {
+  if (o.split.buyerTotal.currency !== 'INR') throw new Error('persistence supports INR only');
   return events.flatMap((e) => {
     if (!('amount' in e)) return [];
+    if (e.amount.currency !== 'INR') throw new Error('money event currency must be INR');
     const base = { minor: e.amount.minor, key: e.idempotencyKey };
     const held = o.id + ':held';
     switch (e.type) {
@@ -199,6 +204,7 @@ export function orderCommand(
     request,
     (o) => {
       const r = fn(o);
+      if (r.order.id !== id) throw new Error('order command identity mismatch');
       const postings = orderPostings(r.order, r.events);
       if (o?.status !== 'HANDED_OVER' && r.order.status === 'HANDED_OVER') {
         const split = r.order.split;
@@ -226,7 +232,7 @@ export function closePool(db: PgPool, id: string, at: number) {
 }
 export function expirePoolPricing(db: PgPool, id: string, at: number) {
   return poolCommand(db, id, id + ':pricing-expiry', { at }, (p) =>
-    p?.state === 'PRICING'
+    p && ['OPEN', 'CLOSED', 'PRICING'].includes(p.state)
       ? engine.expirePricing(engine.INDIA_POLICY, p, at)
       : { value: p!, events: [] },
   );
