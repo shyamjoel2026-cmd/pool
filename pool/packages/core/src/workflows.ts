@@ -7,6 +7,8 @@ import {
   expirePoolOffers,
   releaseOrderHolds,
   waveClose,
+  closePersistedWaves,
+  settleOrder,
 } from './index.ts';
 // API verified in installed 5.2.11 declarations and https://docs.dbos.dev/typescript/programming-guide
 async function waitUntil(at: number) {
@@ -59,11 +61,16 @@ export const holdWorkflow = DBOS.registerWorkflow(
   { name: 'hold-release' },
 );
 export const waveWorkflow = DBOS.registerWorkflow(
-  async (id: string, at: number, slabs: readonly Slab[], orders: readonly WaveOrder[]) => {
+  async (id: string, at: number, slabs?: readonly Slab[], orders?: readonly WaveOrder[]) => {
     await waitUntil(at);
+    const executedAt = await DBOS.runStep(async () => Date.now(), { name: 'wave-execution-clock' });
     return DBOS.runStep(
       async () => {
-        const result = await withDb((db) => waveClose(db, id, slabs, orders, at));
+        const result = await withDb((db) =>
+          slabs && orders
+            ? waveClose(db, id, slabs, orders, executedAt)
+            : closePersistedWaves(db, id, executedAt),
+        );
         // Test-only process crash boundary AFTER business transaction commit, BEFORE DBOS records step completion.
         if (process.env.POOL_TEST_CRASH_BOUNDARY === '1') {
           process.send?.({ type: 'committed' });
@@ -75,6 +82,18 @@ export const waveWorkflow = DBOS.registerWorkflow(
     );
   },
   { name: 'wave-close' },
+);
+export const settleWorkflow = DBOS.registerWorkflow(
+  async (id: string, at: number, generation: string) => {
+    await waitUntil(at);
+    const executedAt = await DBOS.runStep(async () => Date.now(), {
+      name: 'settle-execution-clock',
+    });
+    return DBOS.runStep(() => withDb((db) => settleOrder(db, id, executedAt, generation)), {
+      name: 'settle-order',
+    });
+  },
+  { name: 'order-settle' },
 );
 export async function launchWorkflows() {
   DBOS.setConfig({
@@ -113,12 +132,10 @@ export async function dispatchOutbox(aggregateId?: string) {
           await DBOS.startWorkflow(holdWorkflow, options)(id, at, row.id);
           break;
         case 'wave':
-          await DBOS.startWorkflow(waveWorkflow, options)(
-            id,
-            at,
-            row.data.payload.slabs,
-            row.data.payload.orders,
-          );
+          await DBOS.startWorkflow(waveWorkflow, options)(id, at);
+          break;
+        case 'settle':
+          await DBOS.startWorkflow(settleWorkflow, options)(id, at, row.id);
           break;
         default:
           throw new Error('unknown durable workflow kind');

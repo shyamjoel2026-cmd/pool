@@ -11,6 +11,7 @@ import {
   pricingWorkflow,
   acceptWorkflow,
   holdWorkflow,
+  settleWorkflow,
 } from '../src/workflows.ts';
 import { migrate } from '../../db/src/migrate.ts';
 const { pool: db } = connect();
@@ -153,6 +154,7 @@ it('real DBOS durable close, pricing, acceptance and hold timers execute engine 
     holdDeferrals: {},
     openIssue: true,
     collectedMinor: 1100,
+    waveTerms: { sellerId: 's', bidId: 'timer-bid', slabs: [], count: 1 },
   };
   await command(db, oid, 'order', oid + ':seed', {}, () => ({
     state: o,
@@ -190,4 +192,25 @@ it('real DBOS durable close, pricing, acceptance and hold timers execute engine 
     oid + ':hold-verification',
   ]);
   expect(count.rows[0].n).toBe(1);
+  const settleOutbox = (
+    await db.query(
+      "SELECT id FROM workflow_outbox WHERE kind='settle' AND data->>'aggregateId'=$1 ORDER BY id DESC LIMIT 1",
+      [oid],
+    )
+  ).rows[0];
+  expect((await DBOS.retrieveWorkflow<e.Order>(settleOutbox.id).getResult()).status).toBe(
+    'SETTLED',
+  );
+  const waveOutbox = (
+    await db.query("SELECT id FROM workflow_outbox WHERE kind='wave' AND data->>'aggregateId'=$1", [
+      id,
+    ])
+  ).rows[0];
+  expect(waveOutbox).toBeDefined();
+  await dispatchOutbox(id);
+  const wave = await DBOS.retrieveWorkflow<ReturnType<typeof e.closeSellerWaves>>(
+    waveOutbox.id,
+  ).getResult();
+  expect(wave.sellers).toHaveLength(1);
+  expect(wave.pot.minor).toBe(0);
 }, 45000);

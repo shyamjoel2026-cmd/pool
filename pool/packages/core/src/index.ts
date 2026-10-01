@@ -48,6 +48,7 @@ export async function projectPool(c: PoolClient, p: engine.Pool) {
       'INSERT INTO offers(id,pool_id,member_id,buyer_total_minor,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING',
       [p.id + ':' + o.memberId, p.id, p.id + ':' + o.memberId, String(o.buyerTotal.minor), o],
     );
+  await scheduleReadyWave(c, p.id);
 }
 export async function schedule(
   c: PoolClient,
@@ -139,7 +140,46 @@ export async function projectOrder(c: PoolClient, o: engine.Order) {
       (await c.query('SELECT version FROM aggregates WHERE id=$1', [o.id])).rows[0].version,
     );
     for (const h of engine.holdsDue(o)) await schedule(c, 'hold', o.id, h.dueAt, {}, version);
+    if (o.status === 'HANDED_OVER' && o.handedOverAt !== undefined)
+      await schedule(
+        c,
+        'settle',
+        o.id,
+        o.handedOverAt + o.profile.returnWindowDays * 86400000,
+        {},
+        version,
+      );
   }
+  await scheduleReadyWave(c, o.poolId);
+}
+
+async function scheduleReadyWave(c: PoolClient, poolId: string) {
+  const pool = (await c.query("SELECT data FROM aggregates WHERE id=$1 AND kind='pool'", [poolId]))
+    .rows[0]?.data as engine.Pool | undefined;
+  if (!pool || pool.state !== 'AWARDED' || pool.members.some((m) => m.status === 'OFFERED')) return;
+  const orders = (await c.query('SELECT data FROM orders WHERE pool_id=$1', [poolId])).rows.map(
+    (r) => r.data as engine.Order,
+  );
+  if (
+    !orders.length ||
+    orders.some(
+      (o) =>
+        !['SETTLED', 'CANCELLED_BY_SELLER', 'CANCELLED_BY_BUYER', 'RETURNED'].includes(o.status),
+    )
+  )
+    return;
+  const latest = (
+    await c.query(
+      'SELECT data FROM audit_events WHERE aggregate_id=$1 ORDER BY sequence DESC LIMIT 1',
+      [poolId],
+    )
+  ).rows[0]?.data;
+  // Durable execution reads actual time; zero means ready immediately, not an invented domain timestamp.
+  const due = Number.isSafeInteger(latest?.at) ? latest.at : 0;
+  await c.query(
+    'INSERT INTO workflow_outbox(id,kind,due_at,data) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING',
+    ['wave:' + poolId + ':ready', 'wave', String(due), { aggregateId: poolId, payload: {} }],
+  );
 }
 export function orderCommand(
   db: PgPool,
@@ -201,6 +241,12 @@ export function releaseOrderHolds(db: PgPool, id: string, at: number, generation
     engine.releaseDueHolds(o!, at),
   );
 }
+export function settleOrder(db: PgPool, id: string, at: number, generation: string) {
+  return orderCommand(db, id, id + ':settle:' + generation, { at }, (o) => {
+    if (!o) throw new Error('order missing');
+    return engine.canSettle(o, at) ? engine.settle(o, at) : { order: o, events: [] };
+  });
+}
 export function waveClose(
   db: PgPool,
   id: string,
@@ -208,101 +254,122 @@ export function waveClose(
   orders: readonly engine.WaveOrder[],
   at: number,
 ) {
-  return command(
+  return settleWaves(db, id, at, { slabs, orders });
+}
+
+export function closePersistedWaves(db: PgPool, id: string, at: number) {
+  return settleWaves(db, id, at);
+}
+
+/** Settles all seller pots atomically using accepted terms and terminal persisted orders. */
+function settleWaves(
+  db: PgPool,
+  id: string,
+  at: number,
+  expected?: { slabs: readonly engine.Slab[]; orders: readonly engine.WaveOrder[] },
+) {
+  if (!Number.isSafeInteger(at)) throw new Error('integer UTC wave close time required');
+  return command<ReturnType<typeof engine.closeSellerWaves>>(
     db,
     id + ':wave',
     'wave',
     id + ':wave-close',
-    { slabs, orders, at },
-    () => ({
-      state: engine.closeWave('INR', slabs, orders),
-      events: [{ type: 'WAVE_CLOSED', orders, slabs, at }],
-      postings: [],
-    }),
+    // A retry can run later or come from the outbox: its business identity is the pool's accepted seller pots.
+    { policy: 'SEPARATE_SELLER_POTS' },
+    async (_, c) => {
+      const pool = (await c.query('SELECT data FROM pools WHERE id=$1', [id])).rows[0]?.data as
+        engine.Pool | undefined;
+      if (!pool || pool.state !== 'AWARDED' || pool.members.some((m) => m.status === 'OFFERED'))
+        throw new Error('wave waits for every offer decision');
+      const orders = (
+        await c.query('SELECT data FROM orders WHERE pool_id=$1 FOR UPDATE', [id])
+      ).rows.map((r) => r.data as engine.Order);
+      if (!orders.length) throw new Error('wave requires persisted orders');
+      const actual = new Map(orders.map((o) => [o.id, o]));
+      const outcomes: Partial<Record<engine.OrderStatus, engine.WaveOrder['outcome']>> = {
+        SETTLED: 'settled',
+        CANCELLED_BY_SELLER: 'seller_cancelled',
+        CANCELLED_BY_BUYER: 'buyer_cancelled',
+        RETURNED: 'returned',
+      };
+      const waveOrders: engine.SellerWaveOrder[] = [];
+      for (const o of orders) {
+        const outcome = outcomes[o.status];
+        const terms = o.waveTerms;
+        if (!outcome || !terms || terms.sellerId !== o.sellerId)
+          throw new Error('wave requires terminal orders and accepted seller terms');
+        if (
+          !Number.isSafeInteger(terms.count) ||
+          terms.count < 1 ||
+          o.split.waveHold.minor !== engine.holdPerUnit(terms.slabs) * terms.count
+        )
+          throw new Error('accepted wave count/hold mismatch');
+        waveOrders.push({ orderId: o.id, outcome, ...terms });
+        // A successful replacement does not erase the defaulting seller's slab liability to its other buyers.
+        for (let i = 0; i < (o.waveDefaults ?? []).length; i++)
+          waveOrders.push({
+            orderId: o.id + ':default:' + i,
+            outcome: 'seller_cancelled',
+            ...o.waveDefaults![i]!,
+          });
+      }
+      const state = engine.closeSellerWaves('INR', waveOrders);
+      if (expected) {
+        if (
+          state.sellers.length !== 1 ||
+          JSON.stringify(state.sellers[0]!.slabs) !== JSON.stringify(expected.slabs)
+        )
+          throw new Error('requested slabs differ from accepted seller terms');
+        const supplied = new Map(expected.orders.map((o) => [o.orderId, o]));
+        if (supplied.size !== expected.orders.length || supplied.size !== orders.length)
+          throw new Error('wave must contain every persisted pool order exactly once');
+        for (const o of orders)
+          if (
+            supplied.get(o.id)?.count !== o.waveTerms!.count ||
+            supplied.get(o.id)?.outcome !== outcomes[o.status]
+          )
+            throw new Error('wave outcome/count does not match persisted order');
+      }
+      const postings: Posting[] = [];
+      for (const seller of state.sellers) {
+        const potAccount = id + ':wave-held:' + seller.sellerId;
+        for (const item of seller.orders.filter((o) => o.outcome === 'settled'))
+          postings.push({
+            from: item.orderId + ':held',
+            to: potAccount,
+            minor: actual.get(item.orderId)!.split.waveHold.minor,
+            key: id + ':wave-hold:' + item.orderId,
+          });
+        postings.push({
+          from: 'seller:' + seller.sellerId + ':deposit',
+          to: potAccount,
+          minor: seller.sellerPenalty.minor,
+          key: id + ':wave-penalty:' + seller.sellerId,
+        });
+        for (const refund of seller.refunds)
+          postings.push({
+            from: potAccount,
+            to: 'external:buyers',
+            minor: refund.amount.minor,
+            key: id + ':wave-refund:' + refund.orderId,
+          });
+        postings.push({
+          from: potAccount,
+          to: 'external:seller:' + seller.sellerId,
+          minor: seller.releaseToSeller.minor,
+          key: id + ':wave-release:' + seller.sellerId,
+        });
+      }
+      return { state, events: [{ type: 'WAVES_CLOSED', at, state }], postings };
+    },
     async (c, state) => {
-      const rows = await c.query('SELECT data FROM orders WHERE pool_id=$1 FOR UPDATE', [id]);
-      const actual = new Map<string, engine.Order>(rows.rows.map((r) => [r.data.id, r.data]));
-      // Founder decision pending: do not silently invent cross-seller pot/subsidy semantics.
-      if (new Set([...actual.values()].map((o) => o.sellerId)).size > 1)
-        throw new Error('multi-seller Wave Drop settlement requires an explicit pot policy');
-      if (
-        new Set(orders.map((o) => o.orderId)).size !== orders.length ||
-        actual.size !== orders.length
-      )
-        throw new Error('wave must contain every persisted pool order exactly once');
-      const status = {
-        settled: 'SETTLED',
-        seller_cancelled: 'CANCELLED_BY_SELLER',
-        buyer_cancelled: 'CANCELLED_BY_BUYER',
-        returned: 'RETURNED',
-      } as const;
-      for (const item of orders) {
-        const o = actual.get(item.orderId);
-        if (
-          !o ||
-          o.status !== status[item.outcome] ||
-          !Number.isSafeInteger(item.count) ||
-          item.count < 1
-        )
-          throw new Error('wave outcome does not match persisted order');
-        if (
-          item.outcome === 'settled' &&
-          o.split.waveHold.minor !== engine.holdPerUnit(slabs) * item.count
-        )
-          throw new Error('wave count/hold mismatch');
-      }
-      const settled = orders.filter((o) => o.outcome === 'settled'),
-        cancelled = orders.filter((o) => o.outcome === 'seller_cancelled');
-      for (const item of settled)
-        await post(c, {
-          from: item.orderId + ':held',
-          to: id + ':wave-held',
-          minor: actual.get(item.orderId)!.split.waveHold.minor,
-          key: id + ':wave-hold:' + item.orderId,
-        });
-      const penalties = cancelled.length
-        ? engine.allocate(
-            state.sellerPenalty,
-            cancelled.map((o) => o.count),
-          )
-        : [];
-      for (let i = 0; i < cancelled.length; i++) {
-        const item = cancelled[i]!;
-        await post(c, {
-          from: 'external:seller:' + actual.get(item.orderId)!.sellerId,
-          to: id + ':wave-held',
-          minor: penalties[i]!.minor,
-          key: id + ':wave-penalty:' + item.orderId,
-        });
-      }
-      for (const r of state.refunds)
-        await post(c, {
-          from: id + ':wave-held',
-          to: 'external:buyers',
-          minor: r.amount.minor,
-          key: id + ':wave-refund:' + r.orderId,
-        });
-      const releases = settled.length
-        ? engine.allocate(
-            state.releaseToSeller,
-            settled.map((o) => o.count),
-          )
-        : [];
-      for (let i = 0; i < settled.length; i++) {
-        const item = settled[i]!;
-        await post(c, {
-          from: id + ':wave-held',
-          to: 'external:seller:' + actual.get(item.orderId)!.sellerId,
-          minor: releases[i]!.minor,
-          key: id + ':wave-release:' + item.orderId,
-        });
-      }
-      await c.query('INSERT INTO wave_pots(id,pool_id,pot_minor,data) VALUES($1,$2,$3,$4)', [
-        id + ':wave',
-        id,
-        String(state.pot.minor),
-        state,
-      ]);
+      for (const seller of state.sellers)
+        await c.query('INSERT INTO wave_pots(id,pool_id,pot_minor,data) VALUES($1,$2,$3,$4)', [
+          id + ':wave:' + seller.sellerId,
+          id,
+          String(seller.pot.minor),
+          seller,
+        ]);
     },
   );
 }

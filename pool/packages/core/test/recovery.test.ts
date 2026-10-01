@@ -2,8 +2,9 @@ import { beforeAll, afterAll, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { connect } from '@pool/db';
 import { migrate } from '../../db/src/migrate.ts';
+import { worker, message } from './worker-fixture.ts';
 import * as e from '@pool/engine';
-import { poolCommand, orderCommand } from '../src/index.ts';
+import { poolCommand, orderCommand, closePersistedWaves, waveClose } from '../src/index.ts';
 import {
   saveSeller,
   submitBid,
@@ -14,6 +15,7 @@ import {
   acceptCheckout,
   issueHandoverCode,
   handover,
+  cancelPoolAndOrders,
 } from '../src/commerce.ts';
 import {
   fundDefaultAccount,
@@ -25,6 +27,7 @@ const { pool: db } = connect();
 beforeAll(() => migrate(), 30000);
 afterAll(() => db.end());
 async function balances(names: string[]) {
+  // PostgreSQL ANY(array): https://www.postgresql.org/docs/18/functions-comparisons.html
   const rows = await db.query(
     'SELECT name,balance::text FROM pgledger_accounts WHERE name=ANY($1::text[])',
     [names],
@@ -32,7 +35,7 @@ async function balances(names: string[]) {
   return new Map<string, bigint>(rows.rows.map((r) => [r.name, BigInt(r.balance)]));
 }
 
-async function setup() {
+async function setup(options: { multiSeller?: boolean; withWave?: boolean } = {}) {
   const id = randomUUID(),
     at = 3601000;
   const profile: e.FulfilmentProfile = {
@@ -79,7 +82,8 @@ async function setup() {
     ),
   );
   await saveFulfilmentProfile(db, profile, profile.id);
-  for (let i = 0; i < 2; i++) {
+  const memberCount = options.multiSeller ? 3 : 2;
+  for (let i = 0; i < memberCount; i++) {
     const memberId = 'buyer' + i;
     await poolCommand(db, id, id + ':join:' + i, {}, (p) =>
       e.join(
@@ -123,12 +127,18 @@ async function setup() {
         revision: 1,
         sellerPrice: e.money('INR', i ? 12000 : 10000),
         uom: 'piece',
-        capacityBase: i ? 1 : 2,
+        capacityBase: options.multiSeller ? (i ? 2 : 1) : i ? 1 : 2,
         deliverBy: at + 5000,
         modes: ['pickup'],
         terms: {},
         optionsCovered: [],
-        slabs: [],
+        slabs:
+          options.multiSeller || options.withWave
+            ? [
+                { fromUnit: 1, perUnitMinor: options.multiSeller && i ? 100 : 20 },
+                { fromUnit: 2, perUnitMinor: options.multiSeller && i ? 200 : 40 },
+              ]
+            : [],
         returnCostMinor: 100,
         validUntil: at + 100000000,
         submittedAt: 4000,
@@ -150,8 +160,20 @@ async function setup() {
     },
     id + ':price',
   );
-  await publishPersistedOffers(db, id, id + ':offers', at);
-  for (let i = 0; i < 2; i++) {
+  if (options.multiSeller)
+    await savePrice(
+      db,
+      {
+        poolId: id,
+        bidId: id + ':bid:1',
+        buyerPrice: e.money('INR', 13000),
+        decidedBy: 'ops',
+        decidedAt: at,
+      },
+      id + ':price:1',
+    );
+  const offered = await publishPersistedOffers(db, id, id + ':offers', at);
+  for (let i = 0; i < memberCount; i++) {
     const orderId = id + ':order:' + i;
     await acceptCheckout(
       db,
@@ -163,15 +185,125 @@ async function setup() {
       tax,
       at + 5000,
       e.money('INR', 100),
-      0,
+      options.multiSeller ? (i ? 200 : 40) : options.withWave ? 40 : 0,
       at + 1,
     );
     await orderCommand(db, orderId, orderId + ':pay', {}, (o) =>
-      e.collectBalance(o!, e.money('INR', 10000), orderId + ':receipt', 'UPI', at + 2),
+      e.collectBalance(
+        o!,
+        e.money(
+          'INR',
+          offered.offers!.find((offer) => offer.memberId === 'buyer' + i)!.buyerTotal.minor - 1000,
+        ),
+        orderId + ':receipt',
+        'UPI',
+        at + 2,
+      ),
     );
   }
   return { id, at, sellerId: id + ':seller:0' };
 }
+
+it('two sellers settle separate pots from accepted terms; retries never mix refunds or double post', async () => {
+  const { id, at } = await setup({ multiSeller: true });
+  await expect(closePersistedWaves(db, id, at + 3)).rejects.toThrow(/terminal orders/);
+  for (let i = 0; i < 3; i++) {
+    const orderId = id + ':order:' + i;
+    const code = await issueHandoverCode(db, orderId, at + 10000, at + 3);
+    expect((await handover(db, orderId, code, {}, at + 4)).ok).toBe(true);
+    await orderCommand(db, orderId, orderId + ':settle', {}, (o) =>
+      e.settle(o!, at + 4 + 2 * 86400000),
+    );
+  }
+  await expect(
+    waveClose(
+      db,
+      id,
+      [{ fromUnit: 1, perUnitMinor: 1 }],
+      [0, 1, 2].map((i) => ({ orderId: id + ':order:' + i, count: 1, outcome: 'settled' })),
+      at + 5 + 2 * 86400000,
+    ),
+  ).rejects.toThrow(/requested slabs/);
+  const settle = () => closePersistedWaves(db, id, at + 5 + 2 * 86400000);
+  let child = worker(true);
+  try {
+    await message(child, 'ready');
+    const committed = message(child, 'committed');
+    child.send({ kind: 'wave', id, at: 0, workflowId: id + ':crash-workflow' });
+    await committed;
+    const posted = (await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n;
+    const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    child.kill('SIGKILL');
+    await exited;
+    child = worker(false);
+    await message(child, 'ready');
+    const done = message(child, 'done');
+    child.send({ kind: 'wave', id, at: 0, workflowId: id + ':crash-workflow' });
+    await done;
+    expect((await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n).toBe(posted);
+  } finally {
+    child.kill('SIGKILL');
+  }
+  const result = await settle();
+  expect(result.sellers).toHaveLength(2);
+  const first = result.sellers.find((s) => s.sellerId === id + ':seller:0')!;
+  const second = result.sellers.find((s) => s.sellerId === id + ':seller:1')!;
+  expect(first.refunds).toEqual([{ orderId: id + ':order:0', amount: e.money('INR', 20) }]);
+  expect(second.refunds).toEqual(
+    [1, 2].map((i) => ({ orderId: id + ':order:' + i, amount: e.money('INR', 150) })),
+  );
+  expect(first.releaseToSeller.minor).toBe(20);
+  expect(second.releaseToSeller.minor).toBe(100);
+  expect(result.pot.minor).toBe(320);
+  const before = (await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n;
+  expect(await settle()).toEqual(result);
+  expect((await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n).toBe(before);
+  expect(
+    (await db.query('SELECT count(*)::int n FROM wave_pots WHERE pool_id=$1', [id])).rows[0].n,
+  ).toBe(2);
+  for (let i = 0; i < 3; i++)
+    await orderCommand(db, id + ':order:' + i, id + ':holds:' + i, {}, (o) =>
+      e.releaseDueHolds(o!, at + 5 + 2 * 86400000),
+    );
+  const held = await balances([0, 1, 2].map((i) => id + ':order:' + i + ':held'));
+  expect([...held.values()]).toEqual([0n, 0n, 0n]);
+  expect((await db.query('SELECT sum(amount)::text n FROM pgledger_entries')).rows[0].n).toBe('0');
+}, 180000);
+
+it('a replacement retains the defaulting seller liability; wave penalty needs funded deposit and rolls back all pots if absent', async () => {
+  const { id, at, sellerId } = await setup({ withWave: true });
+  const firstCode = await issueHandoverCode(db, id + ':order:0', at + 10000, at + 3);
+  expect((await handover(db, id + ':order:0', firstCode, {}, at + 4)).ok).toBe(true);
+  await fundDefaultAccount(db, { sellerId }, e.money('INR', 2000), id + ':gap-deposit', 'ops');
+  const defaulted = await defaultSeller(db, id, sellerId, 'ops', at + 5);
+  expect(defaulted.affected).toHaveLength(1);
+  expect(defaulted.affected[0]!.waveDefaults?.[0]?.sellerId).toBe(sellerId);
+  const backupCode = await issueHandoverCode(db, id + ':order:1', at + 10000, at + 6);
+  expect((await handover(db, id + ':order:1', backupCode, {}, at + 7)).ok).toBe(true);
+  for (let i = 0; i < 2; i++)
+    await orderCommand(db, id + ':order:' + i, id + ':settle:' + i, {}, (o) =>
+      e.settle(o!, at + 7 + 2 * 86400000),
+    );
+  const settle = () => closePersistedWaves(db, id, at + 8 + 2 * 86400000);
+  const before = (await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n;
+  await expect(settle()).rejects.toThrow(/negative balance/);
+  expect((await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n).toBe(before);
+  expect(
+    (await db.query('SELECT count(*)::int n FROM wave_pots WHERE pool_id=$1', [id])).rows[0].n,
+  ).toBe(0);
+  await fundDefaultAccount(db, { sellerId }, e.money('INR', 40), id + ':wave-deposit', 'ops');
+  const waves = await settle();
+  expect(waves.sellerPenalty.minor).toBe(40);
+  expect(waves.refunds.find((r) => r.orderId === id + ':order:0')!.amount.minor).toBe(60);
+  expect(waves.refunds.find((r) => r.orderId === id + ':order:1')!.amount.minor).toBe(20);
+  expect(waves.pot.minor + waves.releaseToSeller.minor).toBe(
+    waves.heldFromSettled.minor + waves.sellerPenalty.minor,
+  );
+  expect(
+    (await balances([sellerDepositAccount(sellerId)])).get(sellerDepositAccount(sellerId)),
+  ).toBe(0n);
+  expect((await db.query('SELECT sum(amount)::text n FROM pgledger_entries')).rows[0].n).toBe('0');
+}, 90000);
 
 for (const returned of [false, true])
   it(
@@ -272,3 +404,35 @@ for (const returned of [false, true])
     },
     90000,
   );
+
+it('ops cancellation refunds all accepted orders atomically and replay posts nothing', async () => {
+  const { id, at } = await setup();
+  const cancel = () => cancelPoolAndOrders(db, id, id + ':ops-cancel', at + 3);
+  const pool = await cancel();
+  expect(pool.state).toBe('CANCELLED');
+  const rows = await db.query('SELECT data FROM orders WHERE pool_id=$1', [id]);
+  expect(rows.rows.every((r) => r.data.status === 'CANCELLED_BY_BUYER')).toBe(true);
+  expect(
+    [...(await balances([id + ':order:0:held', id + ':order:1:held']))].map(([, n]) => n),
+  ).toEqual([0n, 0n]);
+  const before = (await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n;
+  expect(await cancel()).toEqual(pool);
+  expect((await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n).toBe(before);
+}, 90000);
+
+it('ops cancellation of a delivered pool rolls back refunds already planned for earlier orders', async () => {
+  const { id, at } = await setup();
+  const code = await issueHandoverCode(db, id + ':order:1', at + 10000, at + 3);
+  expect((await handover(db, id + ':order:1', code, {}, at + 4)).ok).toBe(true);
+  const before = (await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n;
+  await expect(cancelPoolAndOrders(db, id, id + ':ops-cancel', at + 5)).rejects.toThrow(
+    /delivered orders/,
+  );
+  expect((await db.query('SELECT count(*)::int n FROM money_events')).rows[0].n).toBe(before);
+  expect((await db.query('SELECT data FROM pools WHERE id=$1', [id])).rows[0].data.state).toBe(
+    'AWARDED',
+  );
+  expect(
+    (await db.query('SELECT data FROM orders WHERE id=$1', [id + ':order:0'])).rows[0].data.status,
+  ).toBe('PAID');
+}, 90000);

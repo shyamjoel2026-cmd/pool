@@ -13,6 +13,7 @@ export interface Change<T> {
 }
 // pgledger API pinned to vendor commit; https://github.com/pgr0ss/pgledger
 async function account(client: PoolClient, name: string) {
+  // hashtextextended: https://raw.githubusercontent.com/postgres/postgres/REL_18_0/src/backend/access/hash/hashfunc.c
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', ['account:' + name]);
   const existing = await client.query('SELECT ledger_id FROM ledger_account_map WHERE id=$1', [
     name,
