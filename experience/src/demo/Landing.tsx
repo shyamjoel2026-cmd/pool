@@ -203,7 +203,7 @@ function LiveStrip({ households, pools, sellers, saving }: { households: number;
         <Stat n={String(households)} l={tr('households pooling now')} />
         <Stat n={String(pools)} l={tr('open pools in Hyderabad')} />
         <Stat n={String(sellers)} l={tr('verified sellers bidding')} />
-        <Stat n={inr(saving)} l={tr('average saving per order')} accent />
+        <Stat n={inr(Math.round(saving / 100) * 100)} l={tr('average saving per order')} accent />
       </div>
       <div className="relative overflow-hidden border-t border-line py-4">
         <div className="marquee flex w-max gap-3">
@@ -269,7 +269,7 @@ function Honesty() {
   return (
     <section className="bg-surface py-24">
       <div className="mx-auto grid max-w-[1180px] items-center gap-12 px-5 lg:grid-cols-2">
-        <SectionHead eyebrow={tr('Radical honesty')} title={tr('Sometimes the best advice is: don’t buy from us.')} sub={tr('Ananya has an HDFC and an SBI card. For this oil pool, Flipkart with her SBI card beats the POOL price. So her offer says exactly that, and walking away costs her nothing. Trust compounds; one bad deal doesn’t.')} />
+        <SectionHead eyebrow={tr('Radical honesty')} title={tr('Sometimes the best advice is: don’t buy from us.')} sub={tr('Ananya has an HDFC and an SBI card. For this oil pool, Flipkart with the SBI card beats the POOL price. So Ananya’s offer says exactly that, and walking away costs nothing. Trust compounds; one bad deal doesn’t.')} />
         <div className="reveal mx-auto w-full max-w-[420px] rounded-[28px] border border-line bg-bg p-5 shadow-[var(--shadow-pop)]">
           <div className="flex items-center gap-3"><ProductArt art={product.art} size={56} /><div><div className="text-[15px] font-bold text-ink">{product.short}</div><div className="text-[12.5px] text-ink-3">{tr('Ananya’s offer · real demo data')}</div></div></div>
           <div className="mt-4 grid grid-cols-2 gap-2">

@@ -253,7 +253,7 @@ export function OrderPage() {
                     {prof.checklist.map((c) => (
                       <label key={c.key} className={cn('flex cursor-pointer items-center gap-3 rounded-[12px] border px-3 py-2.5 text-[13.5px] transition', o.checklist[c.key] ? 'border-save/40 bg-save-soft text-ink' : 'border-line text-ink-2')}>
                         <input type="checkbox" className="h-5 w-5 accent-[var(--save)]" checked={!!o.checklist[c.key]} onChange={(e) => setChecklist(o.id, c.key, e.target.checked)} />
-                        <span className="flex-1">{c.label}{c.key === 'serial_matches' && product.model ? <span className="block text-[11.5px] text-ink-3">{tr('Model')} {product.model}</span> : null}</span>
+                        <span className="flex-1">{tr(c.label)}{c.key === 'serial_matches' && product.model ? <span className="block text-[11.5px] text-ink-3">{tr('Model')} {product.model}</span> : null}</span>
                       </label>
                     ))}
                     <p className="text-[12px] text-ink-3">{tr('Something wrong? Don’t give the code. Refuse the delivery and report it below; your money stays held.')}</p>
@@ -670,8 +670,8 @@ export function InvoicePage() {
             <div><div className="font-semibold text-[#5a6072]">{tr('Place of supply')}</div><div>Telangana (36)</div><div className="mt-1 font-semibold text-[#5a6072]">{tr('Order')}</div><div className="font-mono">{o.no}</div></div>
           </div>
           <table className="mt-3 w-full">
-            <thead><tr className="text-left text-[#5a6072]"><th className="pb-1 font-semibold">{tr('Item')}</th><th className="pb-1 font-semibold">HSN</th><th className="pb-1 text-right font-semibold">{tr('Qty')}</th><th className="pb-1 text-right font-semibold">{tr('Taxable')}</th></tr></thead>
-            <tbody><tr className="align-top"><td className="py-1 pr-2">{product.title}{o.serial ? <div className="font-mono text-[11px] text-[#5a6072]">S/N {o.serial}</div> : null}</td><td className="py-1 font-mono">{product.hsn}</td><td className="py-1 text-right">{qtyLabel(o.qtyBase, uom)}</td><td className="num py-1 text-right">{inr(g.taxable, { exact: true })}</td></tr></tbody>
+            <thead><tr className="text-left text-[#5a6072]"><th className="pb-1 font-semibold">{tr('Item')}</th><th className="pb-1 font-semibold">HSN</th><th className="pb-1 pl-2 text-right font-semibold">{tr('Qty')}</th><th className="pb-1 pl-3 text-right font-semibold">{tr('Taxable')}</th></tr></thead>
+            <tbody><tr className="align-top"><td className="py-1 pr-2">{product.title}{o.serial ? <div className="font-mono text-[11px] text-[#5a6072]">S/N {o.serial}</div> : null}</td><td className="py-1 font-mono">{product.hsn}</td><td className="whitespace-nowrap py-1 pl-2 text-right">{qtyLabel(o.qtyBase, uom)}</td><td className="num whitespace-nowrap py-1 pl-3 text-right">{inr(g.taxable, { exact: true })}</td></tr></tbody>
           </table>
           <div className="mt-3 space-y-1 border-t border-[#e4e7ef] pt-2">
             {inter ? <Line k={`IGST @ ${product.gstBps / 100}%`} v={inr(g.igst, { exact: true })} /> : product.gstBps ? <><Line k={`CGST @ ${product.gstBps / 200}%`} v={inr(g.cgst, { exact: true })} /><Line k={`SGST @ ${product.gstBps / 200}%`} v={inr(g.sgst, { exact: true })} /></> : <Line k="GST" v={tr('Nil-rated')} />}

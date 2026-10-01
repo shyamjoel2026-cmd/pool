@@ -28,12 +28,15 @@ export function isSameDayIST(a: number, b: number) {
   return startOfDayIST(a) === startOfDayIST(b);
 }
 
+const REL: Record<string, [string, string, string]> = { 'en-IN': ['Today', 'Tomorrow', 'Yesterday'], 'te-IN': ['ఈరోజు', 'రేపు', 'నిన్న'], 'hi-IN': ['आज', 'कल', 'बीता कल'] };
+
 /** "Today, 6:00 PM" / "Tomorrow, 9:00 AM" / "Fri 3 Oct, 6:00 PM" */
 export function fmtWhen(ms: number, now: number): string {
   const d = Math.round((startOfDayIST(ms) - startOfDayIST(now)) / DAY);
-  if (d === 0) return `Today, ${fmtTime(ms)}`;
-  if (d === 1) return `Tomorrow, ${fmtTime(ms)}`;
-  if (d === -1) return `Yesterday, ${fmtTime(ms)}`;
+  const w = REL[locale] ?? REL['en-IN'];
+  if (d === 0) return `${w[0]}, ${fmtTime(ms)}`;
+  if (d === 1) return `${w[1]}, ${fmtTime(ms)}`;
+  if (d === -1) return `${w[2]}, ${fmtTime(ms)}`;
   return fmtDayTime(ms);
 }
 

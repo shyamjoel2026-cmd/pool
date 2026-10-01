@@ -3,11 +3,11 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { gstSplit } from '../lib/gst';
-import { useT } from '../lib/i18n';
+import { translate, useT } from '../lib/i18n';
 import { inr } from '../lib/money';
 import { fmtWhen } from '../lib/time';
 import { committedCount, productOf, qtyLabel, uomOf } from '../sim/engine';
-import { setDemo, useNow, useSim } from '../sim/store';
+import { getState, setDemo, useNow, useSim } from '../sim/store';
 import type { Pool, State } from '../sim/types';
 import { Button, Chip, Countdown, KV, SimTag } from '../ui/core';
 import { ProductArt } from '../ui/ProductArt';
@@ -84,16 +84,18 @@ export function OfflineBanner() {
 
 // ---------------------------------------------------------------- Pool card
 export function poolStatus(p: Pool, t: number) {
-  if (p.state === 'open') return { tone: 'brand' as const, text: `Closes ${fmtWhen(p.closesAt, t)}` };
-  if (p.state === 'closed' || p.state === 'pricing') return { tone: 'warn' as const, text: 'Setting your price' };
-  if (p.state === 'offers') return { tone: 'warn' as const, text: 'Offers out' };
-  if (p.state === 'fulfilment') return { tone: 'wave' as const, text: 'Delivering' };
-  if (p.state === 'completed') return { tone: 'save' as const, text: 'Completed' };
-  return { tone: 'neutral' as const, text: 'No deal · refunded' };
+  const L = (k: string, v?: Record<string, string>) => translate(getState().prefs.lang, k, v);
+  if (p.state === 'open') return { tone: 'brand' as const, text: L('Closes {t}', { t: fmtWhen(p.closesAt, t) }) };
+  if (p.state === 'closed' || p.state === 'pricing') return { tone: 'warn' as const, text: L('Setting your price') };
+  if (p.state === 'offers') return { tone: 'warn' as const, text: L('Offers out') };
+  if (p.state === 'fulfilment') return { tone: 'wave' as const, text: L('Delivering') };
+  if (p.state === 'completed') return { tone: 'save' as const, text: L('Completed') };
+  return { tone: 'neutral' as const, text: L('No deal · refunded') };
 }
 
 export function PoolCard({ p, compact }: { p: Pool; compact?: boolean }) {
   const s = useSim();
+  const t2 = useT();
   const t = useNow(30000);
   const product = productOf(s, p.productId);
   const uom = uomOf(product.uom);
@@ -106,23 +108,23 @@ export function PoolCard({ p, compact }: { p: Pool; compact?: boolean }) {
       <ProductArt art={product.art} size={compact ? 60 : 76} />
       <div className="min-w-0 flex-1 py-0.5">
         <div className="flex items-center gap-1.5">
-          {p.track === 'community' && <Chip tone="wave">Community</Chip>}
-          {mine && <Chip tone="save" icon={<Check className="h-3 w-3" strokeWidth={3} />}>You're in</Chip>}
-          {p.recurring && <Chip>Weekly</Chip>}
+          {p.track === 'community' && <Chip tone="wave">{t2('Community')}</Chip>}
+          {mine && <Chip tone="save" icon={<Check className="h-3 w-3" strokeWidth={3} />}>{t2("You're in")}</Chip>}
+          {p.recurring && <Chip>{t2('Weekly')}</Chip>}
         </div>
         <div className="mt-1 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink">{product.short}</div>
         <div className="mt-0.5 text-[12px] text-ink-3">{p.areaLabel}</div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
-          <span className="font-semibold text-ink-2"><span className="num">{n}</span> households</span>
+          <span className="font-semibold text-ink-2"><span className="num">{n}</span> {t2('households')}</span>
           {p.state === 'open' ? (
-            <span className="text-ink-3">closes in <Countdown to={p.closesAt} compact className="text-[12px]" /></span>
+            <span className="text-ink-3">{t2('closes in')} <Countdown to={p.closesAt} compact className="text-[12px]" /></span>
           ) : (
             <Chip tone={st.tone}>{st.text}</Chip>
           )}
         </div>
         {!compact && (
           <div className="mt-1.5 text-[11.5px] text-ink-3">
-            Best outside today <span className="num font-semibold text-ink-2">{inr(best)}</span>/{uom.label} · booking <span className="num">{inr(p.bookingPaise)}</span> refundable
+            {t2('Best outside today')} <span className="num font-semibold text-ink-2">{inr(best)}</span>/{uom.label} · {t2('booking')} <span className="num">{inr(p.bookingPaise)}</span> {t2('refundable')}
           </div>
         )}
       </div>
@@ -175,11 +177,15 @@ export function PaymentSheet({ open, onClose, amount, purpose, allowEmi, onPay, 
   const [err, setErr] = useState('');
   const [ref, setRef] = useState('');
   const [emi, setEmi] = useState(6);
+  // Freeze the amount when the sheet opens: after paying, the order's balance drops to zero but the receipt must still show what was paid.
+  const [shown, setShown] = useState(amount);
   useEffect(() => {
     if (open) {
       setStage('choose');
       setErr('');
+      setShown(amount);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const methods: PayMethod[] = [
     { id: 'upi', label: 'UPI', sub: s.me.upi[0], icon: <Smartphone className="h-5 w-5" /> },
@@ -212,7 +218,7 @@ export function PaymentSheet({ open, onClose, amount, purpose, allowEmi, onPay, 
         <div className="flex items-center justify-between bg-night px-5 py-4 text-white">
           <div>
             <div className="flex items-center gap-1.5 text-[12px] text-white/60"><Lock className="h-3.5 w-3.5" /> POOL checkout · payment company</div>
-            <div className="num mt-1 text-[24px] font-bold">{inr(amount)}</div>
+            <div className="num mt-1 text-[24px] font-bold">{inr(shown)}</div>
             <div className="text-[12px] text-white/60">{purpose}</div>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -236,7 +242,7 @@ export function PaymentSheet({ open, onClose, amount, purpose, allowEmi, onPay, 
               <div className="grid grid-cols-3 gap-2">
                 {[3, 6, 9].map((n) => (
                   <button key={n} onClick={() => setEmi(n)} className={cn('rounded-[12px] border p-2.5 text-center', emi === n ? 'border-brand bg-brand-soft' : 'border-line')}>
-                    <div className="num text-[14px] font-bold text-ink">{inr(Math.ceil(amount / n / 100) * 100)}</div>
+                    <div className="num text-[14px] font-bold text-ink">{inr(Math.ceil(shown / n / 100) * 100)}</div>
                     <div className="text-[11px] text-ink-3">× {n} months{n === 3 ? ' · no-cost' : ''}</div>
                   </button>
                 ))}
@@ -246,14 +252,14 @@ export function PaymentSheet({ open, onClose, amount, purpose, allowEmi, onPay, 
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-save" />
               <span>Your money is held by a licensed payment company, not by POOL or the seller. It is released to the seller only after you give your handover code. Refunds go back to this same method.</span>
             </div>
-            <Button full size="lg" onClick={pay}>Pay {inr(amount)}</Button>
+            <Button full size="lg" onClick={pay}>Pay {inr(shown)}</Button>
           </div>
         )}
         {stage === 'approve' && (
           <div className="flex flex-col items-center px-6 py-10 text-center">
             <Loader2 className="spin h-10 w-10 text-brand" />
             <div className="mt-4 text-[16px] font-bold text-ink">{method === 'upi' ? 'Approve in your UPI app' : 'Confirming with your bank'}</div>
-            <p className="mt-1 text-[13px] text-ink-3">{method === 'upi' ? `A request for ${inr(amount)} was sent to ${s.me.upi[0]}. (Simulated: approving automatically.)` : 'This takes a few seconds. Do not close this screen.'}</p>
+            <p className="mt-1 text-[13px] text-ink-3">{method === 'upi' ? `A request for ${inr(shown)} was sent to ${s.me.upi[0]}. (Simulated: approving automatically.)` : 'This takes a few seconds. Do not close this screen.'}</p>
           </div>
         )}
         {stage === 'done' && (
@@ -297,27 +303,29 @@ export interface NextStep {
 
 export function nextSteps(s: State, t: number): NextStep[] {
   const out: NextStep[] = [];
+  const L = (k: string, v?: Record<string, string | number>) => translate(s.prefs.lang, k, v);
   for (const p of s.pools) {
     const product = productOf(s, p.productId);
     const uom = uomOf(product.uom);
     for (const m of p.members.filter((x) => x.isMe)) {
-      if (m.status === 'offered' && p.acceptBy) out.push({ id: `offer-${m.id}`, tone: 'warn', title: `Decide on your ${product.short} offer`, body: `${qtyLabel(m.qtyBase, uom)} · decide by ${fmtWhen(p.acceptBy, t)}. No reply = full refund.`, to: `/buyer/offer/${m.id}`, cta: 'Review offer', at: p.acceptBy, art: product.art });
-      if (m.status === 'pending' && p.state === 'open') out.push({ id: `pend-${m.id}`, tone: 'brand', title: `Finish joining: ${product.short}`, body: `Pay the ${inr(p.bookingPaise)} refundable booking to count as a committed buyer.`, to: `/buyer/join/${p.id}`, cta: 'Pay booking', art: product.art });
-      if (m.status === 'committed' && (p.state === 'closed' || p.state === 'pricing')) out.push({ id: `price-${m.id}`, tone: 'brand', title: `${product.short}: price coming`, body: `Sellers have bid. Your personal offer arrives by ${fmtWhen(p.pricingDeadline ?? t, t)}.`, to: `/buyer/pool/${p.id}`, cta: 'See status', art: product.art });
+      if (m.status === 'offered' && p.acceptBy) out.push({ id: `offer-${m.id}`, tone: 'warn', title: L('Decide on your {p} offer', { p: product.short }), body: L('{q} · decide by {t}. No reply = full refund.', { q: qtyLabel(m.qtyBase, uom), t: fmtWhen(p.acceptBy, t) }), to: `/buyer/offer/${m.id}`, cta: L('Review offer'), at: p.acceptBy, art: product.art });
+      if (m.status === 'pending' && p.state === 'open') out.push({ id: `pend-${m.id}`, tone: 'brand', title: L('Finish joining: {p}', { p: product.short }), body: L('Pay the {amt} refundable booking to count as a committed buyer.', { amt: inr(p.bookingPaise) }), to: `/buyer/join/${p.id}`, cta: L('Pay booking'), art: product.art });
+      if (m.status === 'committed' && (p.state === 'closed' || p.state === 'pricing')) out.push({ id: `price-${m.id}`, tone: 'brand', title: L('{p}: price coming', { p: product.short }), body: L('Sellers have bid. Your personal offer arrives by {t}.', { t: fmtWhen(p.pricingDeadline ?? t, t) }), to: `/buyer/pool/${p.id}`, cta: L('See status'), art: product.art });
     }
   }
   for (const o of s.orders.filter((x) => x.isMe)) {
     const product = productOf(s, o.productId);
     const dispatched = o.steps.some((x) => x.key === 'dispatched' || x.key === 'ready_for_pickup');
-    if (o.status === 'awaiting_payment') out.push({ id: `pay-${o.id}`, tone: 'warn', title: `Pay for ${product.short}`, body: `${inr(o.balanceDue)} to confirm your accepted offer.`, to: `/buyer/order/${o.id}`, cta: 'Pay now', art: product.art });
-    if (o.status === 'confirmed' && dispatched) out.push({ id: `code-${o.id}`, tone: 'wave', title: o.balanceDue > 0 ? `${product.short} arrives today — pay at the door` : `${product.short} arrives today`, body: o.balanceDue > 0 ? `Pay ${inr(o.balanceDue)} by UPI or card when it arrives, check the box, then give your code.` : 'Check the box, then give your handover code.', to: `/buyer/order/${o.id}`, cta: o.balanceDue > 0 ? 'Pay & get code' : 'Open code', art: product.art });
-    if (o.status === 'settled' && !o.rating) out.push({ id: `rate-${o.id}`, tone: 'save', title: `How was your ${product.short}?`, body: 'Only buyers who completed a purchase can rate a seller.', to: `/buyer/order/${o.id}`, cta: 'Rate', art: product.art });
+    if (o.status === 'awaiting_payment') out.push({ id: `pay-${o.id}`, tone: 'warn', title: L('Pay for {p}', { p: product.short }), body: L('{amt} to confirm your accepted offer.', { amt: inr(o.balanceDue) }), to: `/buyer/order/${o.id}`, cta: L('Pay now'), art: product.art });
+    if (o.status === 'confirmed' && dispatched) out.push({ id: `code-${o.id}`, tone: 'wave', title: o.balanceDue > 0 ? L('{p} arrives today — pay at the door', { p: product.short }) : L('{p} arrives today', { p: product.short }), body: o.balanceDue > 0 ? L('Pay {amt} by UPI or card when it arrives, check the box, then give your code.', { amt: inr(o.balanceDue) }) : L('Check the box, then give your handover code.'), to: `/buyer/order/${o.id}`, cta: o.balanceDue > 0 ? L('Pay & get code') : L('Open code'), art: product.art });
+    if (o.status === 'settled' && !o.rating) out.push({ id: `rate-${o.id}`, tone: 'save', title: L('How was your {p}?', { p: product.short }), body: L('Only buyers who completed a purchase can rate a seller.'), to: `/buyer/order/${o.id}`, cta: L('Rate'), art: product.art });
   }
   return out.sort((a, b) => (a.tone === 'warn' ? 0 : 1) - (b.tone === 'warn' ? 0 : 1) || (a.at ?? 9e15) - (b.at ?? 9e15));
 }
 
 export function NextStepCard({ n }: { n: NextStep }) {
   const s = useSim();
+  const tr2 = useT();
   const tone = { warn: 'border-warn/30 bg-warn-soft', brand: 'border-brand/20 bg-brand-soft', wave: 'border-wave/25 bg-wave-soft', save: 'border-save/20 bg-save-soft' }[n.tone];
   const prod = s.products.find((p) => p.art === n.art);
   return (
@@ -330,7 +338,7 @@ export function NextStepCard({ n }: { n: NextStep }) {
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between">
-        {n.at ? <span className="text-[12px] text-ink-3"><Countdown to={n.at} compact className="text-[12px]" /> left</span> : <span />}
+        {n.at ? <span className="text-[12px] text-ink-3"><Countdown to={n.at} compact className="text-[12px]" /> {tr2('left')}</span> : <span />}
         <span className="rounded-full bg-ink px-3 py-1.5 text-[12.5px] font-semibold text-surface">{n.cta}</span>
       </div>
     </Link>

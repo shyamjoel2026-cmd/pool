@@ -8,7 +8,7 @@ import { BidForm, Bids } from './Bid';
 import { SellerOrders, SellerOrder, Verify, StaffMode } from './Orders';
 import { Payouts, SellerAccount, SellerNotifications } from './Account';
 
-const NO_TABS = [/\/seller\/demand\/[^/]+\/bid/, /\/seller\/order\/[^/]+\/verify/, /\/seller\/staff/];
+const NO_TABS = [/\/seller\/demand\/[^/]+/, /\/seller\/order\/[^/]+\/verify/, /\/seller\/staff/];
 
 export function SellerApp() {
   const { pathname } = useLocation();

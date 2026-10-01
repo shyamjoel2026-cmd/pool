@@ -372,7 +372,7 @@ export function Privacy() {
     <div className="pb-10">
       <AppBar back="/buyer/account" title={tr('Privacy & data')} />
       <div className="space-y-6 px-4 pt-3">
-        <Card tone="brand" className="flex gap-3 p-4"><Lock className="h-5 w-5 shrink-0 text-brand" /><p className="text-[13px] text-ink-2">{tr('Under the Digital Personal Data Protection Act, 2023, you can see, correct, download or erase your data, and withdraw consent at any time.')}</p></Card>
+        <Card tone="brand" className="flex gap-3 p-4"><Lock className="h-5 w-5 shrink-0 text-brand" /><p className="text-[13px] text-ink-2">{tr('Under the Digital Personal Data Protection Act, 2023, you can see, correct or erase your data, and withdraw consent at any time. You can also download a copy.')}</p></Card>
         <Section title={tr('Who sees what')}>
           <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
             {sharing.map((x) => <div key={x.who} className="px-4 py-3"><div className="text-[14px] font-semibold text-ink">{x.who}</div><div className="text-[12.5px] text-ink-2">{x.what}</div><div className="text-[12px] text-ink-3">{x.when}</div></div>)}
@@ -389,7 +389,7 @@ export function Privacy() {
             <Button variant="outline" icon={<Download className="h-4 w-4" />} onClick={() => toast(tr('Your data file will be emailed within 24 hours (simulated)'), 'info')}>{tr('Download')}</Button>
             <Button variant="outline" className="text-danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => setDel(true)}>{tr('Delete account')}</Button>
           </div>
-          <p className="px-1 text-[12px] text-ink-3">{tr('Invoices and payment records are kept for 8 years because tax law requires it, then deleted.')}</p>
+          <p className="px-1 text-[12px] text-ink-3">{tr('Invoices and payment records are kept only as long as tax law requires, then deleted.')}</p>
         </Section>
         <Section title={tr('Grievance Officer')}>
           <Card className="p-4 text-[13px] text-ink-2"><div className="font-semibold text-ink">Meera Krishnan</div><div>grievance@pool.example · {tr('acknowledged within 48 hours, resolved within one month')}</div><SimTag className="mt-2">{tr('Sample contact')}</SimTag></Card>
@@ -476,6 +476,7 @@ const HELP: Array<{ cat: string; q: string; a: string }> = [
 ];
 export function Help() {
   const tr = useT();
+  const toast = useToast();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<number | null>(null);
   const shown = HELP.map((h, i) => ({ ...h, i })).filter((h) => !q || (h.q + h.a).toLowerCase().includes(q.toLowerCase()));
@@ -487,7 +488,7 @@ export function Help() {
         <div className="grid grid-cols-3 gap-2">
           <Link to="/buyer/help/chat" className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-surface p-3 text-center text-[12.5px] font-semibold text-ink"><MessageSquare className="h-5 w-5 text-brand" />{tr('Chat')}</Link>
           <Link to="/buyer/whatsapp" className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-surface p-3 text-center text-[12.5px] font-semibold text-ink"><MessageCircle className="h-5 w-5 text-[#25a244]" />WhatsApp</Link>
-          <a href="#/buyer/help/chat" className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-surface p-3 text-center text-[12.5px] font-semibold text-ink"><Phone className="h-5 w-5 text-wave" />{tr('Call back')}</a>
+          <button onClick={() => toast(tr('Call-back requested. POOL support will call you within 10 minutes (simulated).'), 'info')} className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-surface p-3 text-center text-[12.5px] font-semibold text-ink"><Phone className="h-5 w-5 text-wave" />{tr('Call back')}</button>
         </div>
         <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
           {shown.length === 0 && <div className="p-5 text-center text-[13.5px] text-ink-3">{tr('No answers match. Ask us in chat.')}</div>}

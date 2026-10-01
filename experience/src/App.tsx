@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { HashRouter, MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { BuyerApp } from './buyer/BuyerApp';
 import { DemoBar, PhoneStage } from './demo/Shell';
 import { Landing } from './demo/Landing';
@@ -37,9 +37,12 @@ function ScrollTop() {
   return null;
 }
 
+// The shareable single-file build runs inside a viewer that doesn't allow URL-hash routing, so it navigates in memory.
+const Router = import.meta.env.MODE === 'single' ? MemoryRouter : HashRouter;
+
 export function App() {
   return (
-    <HashRouter>
+    <Router>
       <ThemeSync />
       <Clock />
       <ScrollTop />
@@ -78,6 +81,6 @@ export function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </HashRouter>
+    </Router>
   );
 }

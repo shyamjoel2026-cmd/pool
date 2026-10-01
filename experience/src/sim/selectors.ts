@@ -87,7 +87,8 @@ export function myMoneySummary(s: State, nowMs: number) {
     const out = lineTotal(outsideBest(product, []).plainBest, o.qtyBase, uomOf(product.uom));
     return a + Math.max(0, out - o.buyerTotal) + (o.waveRefundPaise ?? 0);
   }, 0);
-  return { heldBookings, heldOrders, refundsInProgress, waveReceived, savedTotal };
+  // Savings are a summary, shown to the rupee; exact paise stay in each transaction.
+  return { heldBookings, heldOrders, refundsInProgress, waveReceived, savedTotal: Math.round(savedTotal / 100) * 100 };
 }
 
 // ---------- seller payouts ----------

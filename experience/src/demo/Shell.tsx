@@ -274,10 +274,10 @@ function AboutPanel({ role, onStart }: { role: Role; onStart: () => void }) {
         <ul className="mt-3 space-y-2.5 text-[13.5px] leading-relaxed text-ink-2">
           {role === 'buyer' ? (
             <>
-              <li>• Two offers are waiting for a decision. With her SBI card, one of them is cheaper outside POOL, and the app says so.</li>
-              <li>• A mixer grinder is out for delivery. She chose to pay at the door, so the code unlocks after she pays.</li>
-              <li>• She's moving into Lakeview Heights in 15 days and joined the community's move-in pools.</li>
-              <li>• A completed washing-machine wave paid her a Wave Drop.</li>
+              <li>• Two offers are waiting for a decision. With Ananya’s SBI card, one of them is cheaper outside POOL, and the app says so.</li>
+              <li>• A mixer grinder is out for delivery. Ananya chose to pay at the door, so the code unlocks after paying.</li>
+              <li>• Ananya is moving into Lakeview Heights in about two weeks and joined the community's move-in pools.</li>
+              <li>• A completed washing-machine wave paid a Wave Drop back.</li>
             </>
           ) : (
             <>

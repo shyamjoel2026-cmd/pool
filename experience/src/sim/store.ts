@@ -37,6 +37,8 @@ function persist() {
     /* private mode or full: the demo still works in memory */
   }
 }
+// Save a freshly seeded demo right away, so a reload or a shared link sees the same pools, orders and ids.
+persist();
 
 function commit(next: State) {
   state = next;
@@ -925,7 +927,15 @@ export function demoClosePoolNow(poolId: string) {
   const r = mutate((d, t) => {
     const p = poolBy(d, poolId);
     if (!p || p.state !== 'open') return fail('Pool is not open.');
+    // Move the pool's whole timeline, not just its close: promised dates and need-by dates shift with it,
+    // so every bid keeps the same standing it would have had at the real closing time.
+    const shift = p.closesAt - (t - 1000);
     p.closesAt = t - 1000;
+    for (const b of p.bids) {
+      b.deliverBy -= shift;
+      b.validUntil -= shift;
+    }
+    for (const m of p.members) if (m.needBy) m.needBy -= shift;
     audit(d, 'Demo control', 'Pool closed early for the demo', 'In real use a pool closes only at the time its starter chose.', p.id);
     return ok(undefined);
   });
@@ -962,6 +972,39 @@ export function demoCompleteOthers(poolId: string) {
     if (!p) return fail('Not found');
     const prof = profileOf(d, p.profileId);
     let n = 0;
+    // Other buyers still deciding: about one in seven walks away (full refund), the rest accept and pay.
+    if (p.state === 'offers' && p.award) {
+      const product = productOf(d, p.productId);
+      const uom = uomOf(product.uom);
+      let i = 0;
+      for (const m of p.members.filter((x) => !x.isMe && x.status === 'offered')) {
+        i++;
+        if (i % 7 === 3) {
+          m.status = 'walked_away';
+          m.decidedAt = t - 2 * HOUR;
+          m.refundAt = m.decidedAt;
+          continue;
+        }
+        const a = p.award.assignments.find((x) => x.memberId === m.id);
+        const bid = a && p.bids.find((b) => b.id === a.bidId);
+        const price = bid && p.prices[bid.id];
+        if (!bid || !price) continue;
+        const buyerTotal = lineTotal(price.buyerPricePaise, m.qtyBase, uom);
+        m.status = 'accepted';
+        m.decidedAt = t - 3 * HOUR;
+        const o: Order = {
+          id: uid('o'), no: `PO-${Math.floor(100000 + Math.random() * 899999)}`, poolId: p.id, memberId: m.id, buyerName: m.name, buyerPhoneMasked: '+91 9•••• •••' + String(10 + (i % 89)),
+          address: `${m.area}, Hyderabad ${m.pincode}`, pincode: m.pincode, sellerId: bid.sellerId, productId: product.id, qtyBase: m.qtyBase, options: m.options, bidId: bid.id,
+          buyerPricePaise: price.buyerPricePaise, sellerPricePaise: bid.pricePaise, buyerTotal, sellerTotal: lineTotal(bid.pricePaise, m.qtyBase, uom), bookingCredit: m.bookingPaise,
+          plan: 'prepay', paidPaise: buyerTotal, paidAt: t - 3 * HOUR, balanceDue: 0, payMethod: 'UPI', payRef: simRef('pay'), status: 'confirmed', steps: [], promisedBy: bid.deliverBy,
+          code: { value: String(Math.floor(Math.random() * 10 ** prof.codeDigits)).padStart(prof.codeDigits, '0'), digits: prof.codeDigits, expiresAt: bid.deliverBy + DAY, attempts: 0, maxAttempts: 5 },
+          checklist: {}, holdsReleased: [], tickets: [], createdAt: t - 3 * HOUR,
+        };
+        m.orderId = o.id;
+        d.orders.push(o);
+      }
+      p.acceptBy = Math.min(p.acceptBy ?? t, t - 1000);
+    }
     for (const o of d.orders.filter((x) => x.poolId === poolId && !x.isMe)) {
       if (o.status === 'awaiting_payment') {
         o.status = 'confirmed';
@@ -986,7 +1029,7 @@ export function demoCompleteOthers(poolId: string) {
         n++;
       }
     }
-    audit(d, 'Demo control', 'Other buyers’ deliveries completed for the demo', `${n} orders moved to delivered, past their return window`, poolId);
+    audit(d, 'Demo control', 'Other buyers decided and their deliveries completed for the demo', `${n} orders moved to delivered, past their return window`, poolId);
     return ok(n);
   });
   tick();

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, BadgeCheck, Building2, CalendarDays, ChevronRight, Clock, Eye, Gauge, Lock, MapPin, MessageSquare, Package, Radar, Repeat, ShieldCheck, Star, Truck, Users, Waves } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BadgeCheck, Building2, CalendarDays, ChevronRight, Clock, Eye, Gauge, Lock, MapPin, MessageSquare, Package, Radar, Repeat, ShieldCheck, Star, Truck, Users } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { inr } from '../lib/money';
@@ -7,7 +7,7 @@ import { committedCount, committedUnits, latestBids, outsideBest, poolDeliverBy,
 import { sellerDemandFor, sellerPayouts } from '../sim/selectors';
 import { useNow, useSim } from '../sim/store';
 import type { Pool } from '../sim/types';
-import { Button, Card, Chip, Countdown, EmptyState, ErrorState, KV, LinkButton, ListSkeleton, Progress, Section, SimTag } from '../ui/core';
+import { Card, Chip, Countdown, EmptyState, ErrorState, KV, LinkButton, ListSkeleton, Progress, Section, SimTag } from '../ui/core';
 import { ProductArt } from '../ui/ProductArt';
 import { PIN_AREA, SealedVault, WaveMeter } from '../ui/visuals';
 import { AppBar, BellButton, useLoadState } from '../buyer/parts';
@@ -31,7 +31,7 @@ export function Today() {
   const me = sellerOf(s, s.sellerMeId);
   const k = sellerTasks(s, me.id, t);
   const pay = sellerPayouts(s, me.id, t);
-  const hour = Number(new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }).format(t));
+  const hour = Number(new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(t));
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const live = s.pools.filter((p) => (p.state === 'fulfilment' || p.state === 'offers') && p.bids.some((b) => b.sellerId === me.id && b.slabs.length) && s.orders.some((o) => o.poolId === p.id && o.sellerId === me.id));
   const demand = sellerDemandFor(s, me.id).slice(0, 3);
@@ -317,7 +317,6 @@ export function Forward() {
           </Section>
         ))}
         <p className="text-center"><SimTag>Sample buildings and dates</SimTag></p>
-        <Button full variant="outline" icon={<Waves className="h-4 w-4" />} onClick={() => history.back()}>Back</Button>
       </div>
     </div>
   );

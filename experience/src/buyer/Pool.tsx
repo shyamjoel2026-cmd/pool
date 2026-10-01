@@ -5,7 +5,7 @@ import { cn } from '../lib/cn';
 import { INDIA } from '../lib/gst';
 import { useT } from '../lib/i18n';
 import { inr } from '../lib/money';
-import { atIST, DAY, fmtDay, fmtDayTime, fmtWhen, HOUR } from '../lib/time';
+import { atIST, DAY, fmtDay, fmtDayTime, fmtLeft, fmtWhen, HOUR } from '../lib/time';
 import { committedCount, committedUnits, lowest30, outsideBest, potFor, productOf, profileOf, qtyLabel, uomOf, unservedText, waveMeter } from '../sim/engine';
 import { discardPending, joinPool, leavePool, payBooking, startPool, useNow, useSim } from '../sim/store';
 import type { Pool } from '../sim/types';
@@ -276,7 +276,8 @@ export function JoinFlow() {
   if (!pool || !product || !uom) return <><AppBar back="/buyer" title="Join" /><div className="p-4"><EmptyState title="Pool not found" /></div></>;
   if (pool.state !== 'open' || t >= pool.closesAt) return <><AppBar back={`/buyer/pool/${pool.id}`} title={tr('Join pool')} /><div className="p-4"><EmptyState icon={<Lock className="h-6 w-6" />} title={tr('This pool has closed')} body={tr('Start a new pool for this product, or watch it to hear when the next one opens.')} action={<LinkButton to={`/buyer/product/${product.id}`} size="sm">{tr('See product')}</LinkButton>} /></div></>;
   const already = pool.members.find((m) => m.isMe && m.status === 'committed');
-  if (already) return <><AppBar back={`/buyer/pool/${pool.id}`} title={tr('Join pool')} /><div className="p-4"><EmptyState icon={<Check className="h-6 w-6" />} title={tr("You're already in this pool")} action={<LinkButton to={`/buyer/pool/${pool.id}`} size="sm">{tr('Open pool')}</LinkButton>} /></div></>;
+  // While the payment sheet is open, stay on this screen so the buyer sees the success step.
+  if (already && !paying) return <><AppBar back={`/buyer/pool/${pool.id}`} title={tr('Join pool')} /><div className="p-4"><EmptyState icon={<Check className="h-6 w-6" />} title={tr("You're already in this pool")} action={<LinkButton to={`/buyer/pool/${pool.id}`} size="sm">{tr('Open pool')}</LinkButton>} /></div></>;
   const isPickup = !!pool.pickup;
   const needBy = needMode === 'week' ? t + 7 * DAY : needMode === 'date' && needDate ? new Date(needDate + 'T20:00:00+05:30').getTime() : undefined;
   const deliverBy = pool.closesAt + pool.requirements.deliverWithinDays * DAY;
@@ -419,7 +420,7 @@ export function StartFlow() {
         <Section title={`2. ${tr('When it closes')}`} sub={tr('You choose. At least 1 hour so sellers can bid, at most 30 days. Longer pools gather more neighbours.')}>
           <div className="space-y-2">
             {choices.map((c) => (
-              <Radio key={c.id} id={`close-${c.id}`} checked={close === c.id} onSelect={() => setClose(c.id)} title={c.label} sub={c.id !== 'custom' ? tr('{left} from now', { left: `${Math.round((c.at - t) / HOUR)} h` }) : undefined} />
+              <Radio key={c.id} id={`close-${c.id}`} checked={close === c.id} onSelect={() => setClose(c.id)} title={c.label} sub={c.id !== 'custom' ? tr('{left} from now', { left: fmtLeft(c.at, t) }) : undefined} />
             ))}
           </div>
           {close === 'custom' && <Field label={tr('Close at (IST)')} htmlFor="close-at"><input id="close-at" type="datetime-local" className={inputCls} value={custom} onChange={(e) => setCustom(e.target.value)} /></Field>}

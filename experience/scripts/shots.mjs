@@ -1,12 +1,16 @@
 // Visual QA: loads every route in Chromium, records console/page errors, and saves screenshots.
 // Usage: node scripts/shots.mjs [filter] [--dark] — expects `vite preview` on :4173 (or BASE env).
 import { chromium } from 'playwright-core';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const BASE = process.env.BASE ?? 'http://localhost:4173/';
 const OUT = process.env.OUT ?? '.shots';
 const filter = process.argv.find((a, i) => i > 1 && !a.startsWith('--'));
 const dark = process.argv.includes('--dark');
+const errorsOnly = process.argv.includes('--errors');
+const lang = (process.argv.find((a) => a.startsWith('--lang=')) ?? '').slice(7);
 mkdirSync(OUT, { recursive: true });
 
 const phone = { width: 412, height: 915 };
@@ -76,15 +80,33 @@ const ROUTES = [
 const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' } : undefined;
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', proxy, args: ['--disable-background-networking', '--disable-component-update', '--no-first-run', '--disable-sync'] });
 const errors = [];
+// Serve Google Fonts from a local cache so screenshots never wait on the network.
+const FC = `${OUT}/.fontcache`;
+mkdirSync(FC, { recursive: true });
+const cached = (url) => {
+  const f = `${FC}/${createHash('sha1').update(url).digest('hex')}`;
+  if (!existsSync(f)) {
+    try { writeFileSync(f, execFileSync('curl', ['-sSL', '-m', '30', '-A', 'Mozilla/5.0 Chrome/141', url])); } catch { return undefined; }
+  }
+  return readFileSync(f);
+};
+const routeFonts = async (ctx) => ctx.route(/fonts\.(googleapis|gstatic)\.com/, async (route) => {
+  const url = route.request().url();
+  const body = cached(url);
+  if (!body) return route.abort();
+  await route.fulfill({ status: 200, body, headers: { 'content-type': url.includes('googleapis') ? 'text/css' : 'font/woff2', 'access-control-allow-origin': '*' } });
+});
 const mk = (dpr) => browser.newContext({ viewport: phone, deviceScaleFactor: dpr, colorScheme: dark ? 'dark' : 'light', reducedMotion: 'reduce', ignoreHTTPSErrors: true });
 const ctxs = { phone: await mk(2), desk: await mk(1) };
+await routeFonts(ctxs.phone);
+await routeFonts(ctxs.desk);
 let ids = {};
 for (const [name, path0, vp, full] of ROUTES) {
   if (filter && !name.includes(filter)) continue;
   const ctx = vp.width < 600 ? ctxs.phone : ctxs.desk;
   const page = await ctx.newPage();
   await page.setViewportSize(vp);
-  page.on('pageerror', (e) => errors.push(`${name}: PAGEERROR ${e.message}`));
+  page.on('pageerror', (e) => { errors.push(`${name}: PAGEERROR ${e.message}`); console.log(`${name}: PAGEERROR ${e.message}`); });
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('ERR_')) errors.push(`${name}: console ${m.text().slice(0, 300)}`); });
   if (!ids.ORDER_MIXER) {
     await page.goto(BASE + '#/buyer', { waitUntil: 'domcontentloaded' });
@@ -96,10 +118,22 @@ for (const [name, path0, vp, full] of ROUTES) {
     });
   }
   const path = path0.replace(/ORDER_[A-Z]+/g, (k) => ids[k] ?? k);
-  await page.goto(BASE + '#' + path, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: `${OUT}/${name}${dark ? '-dark' : ''}.png`, fullPage: !!full, timeout: 20000 });
+  if (lang) {
+    if (!page.url().startsWith(BASE)) await page.goto(BASE + '#/buyer', { waitUntil: 'domcontentloaded' });
+    await page.evaluate((l) => { const k = Object.keys(localStorage).find((x) => x.startsWith('pool-demo-state')); if (!k) return; const st = JSON.parse(localStorage.getItem(k)); st.prefs.lang = l; localStorage.setItem(k, JSON.stringify(st)); }, lang);
+    await page.goto(BASE + '#' + path, { waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  }
+  if (process.env.TRACE) console.log('->', name);
+  await page.goto(BASE + '#' + path, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => errors.push(`${name}: navigation timeout`));
+  if (errorsOnly) {
+    await page.waitForTimeout(700);
+    await page.close();
+    continue;
+  }
+  await page.waitForFunction(() => document.fonts.check('600 16px "Google Sans"'), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/${name}${dark ? '-dark' : ''}${lang ? '-' + lang : ''}.png`, fullPage: !!full, timeout: 20000 });
   await page.close();
 }
 await browser.close();

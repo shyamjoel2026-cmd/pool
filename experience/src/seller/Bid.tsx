@@ -27,7 +27,9 @@ export function BidForm() {
   const prof = pool ? profileOf(s, pool.profileId) : undefined;
   const reqDays = pool?.requirements.deliverWithinDays ?? 5;
   const [price, setPrice] = useState(existing ? String(existing.pricePaise / 100) : '');
-  const [cap, setCap] = useState(existing?.capacityBase ?? (product?.uom === 'kg' ? 50000 : 20));
+  // Default capacity: enough for everyone committed so far, plus headroom for late joiners.
+  const committedNow = pool ? pool.members.filter((m) => m.status === 'committed').reduce((a, m) => a + m.qtyBase, 0) : 0;
+  const [cap, setCap] = useState(existing?.capacityBase ?? (product?.uom === 'kg' ? Math.max(50000, Math.ceil((committedNow * 1.2) / 10000) * 10000) : Math.max(20, Math.ceil((committedNow + 10) / 5) * 5)));
   const [days, setDays] = useState(existing && pool ? Math.round((existing.deliverBy - pool.closesAt) / DAY) : Math.min(4, reqDays));
   const [modes, setModes] = useState<string[]>(existing?.modes ?? prof?.modes.slice(0, 1) ?? ['home_delivery']);
   const [terms, setTerms] = useState<Bid['terms']>(existing?.terms ?? Object.fromEntries((pool?.requirements.terms ?? []).map((r) => [r.key, r.value])));

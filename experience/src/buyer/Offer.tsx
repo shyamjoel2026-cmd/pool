@@ -226,6 +226,7 @@ export function AcceptFlow() {
   const [addressId, setAddressId] = useState(s.me.addresses.find((a) => a.isDefault)?.id ?? '');
   const [slotId, setSlotId] = useState<string>('');
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   if (!pool || !member) return <><AppBar back="/buyer/pools" title={tr('Accept offer')} /><div className="p-4"><EmptyState title={tr('Offer not found')} /></div></>;
@@ -268,6 +269,7 @@ export function AcceptFlow() {
       return;
     }
     setOrderId(id);
+    setPayOpen(true);
   };
 
   return (
@@ -323,14 +325,14 @@ export function AcceptFlow() {
         <p className="mt-1.5 text-center text-[11.5px] text-ink-3">{tr('Decide by {t}', { t: fmtWhen(pool.acceptBy ?? t, t) })} · <SimTag>{tr('Simulated payment')}</SimTag></p>
       </div>
       <PaymentSheet
-        open={!!orderId && !!pendingOrder && pendingOrder.balanceDue > 0}
-        onClose={() => { toast(tr('Accepted. Pay any time before dispatch from your order.'), 'info'); nav(`/buyer/order/${orderId}`); }}
+        open={payOpen && !!orderId}
+        onClose={() => { setPayOpen(false); toast(tr('Accepted. Pay any time before dispatch from your order.'), 'info'); nav(`/buyer/order/${orderId}`); }}
         amount={pendingOrder?.balanceDue ?? balance}
         purpose={`${product.short} · ${pendingOrder?.no ?? ''}`}
         allowEmi={chosen === 'emi'}
         onPay={(m) => payOrder(orderId!, m)}
         successText={tr('Paid. The payment company holds it until you give your handover code. {s} delivers by {d}.', { s: v?.seller.name ?? '', d: fmtDay(v?.deliverBy ?? t) })}
-        onSuccess={() => nav(`/buyer/order/${orderId}`)}
+        onSuccess={() => { setPayOpen(false); nav(`/buyer/order/${orderId}`); }}
       />
     </div>
   );

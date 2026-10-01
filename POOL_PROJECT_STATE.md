@@ -8,6 +8,41 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-02 02:00 · Claude Code · Experience QA, translations, end-to-end walkthrough
+- Did:
+  - Visual QA of 60 routes (phone and desktop) and fixed what it found:
+    - sticky Join/Accept bars were hidden behind the tab bar;
+    - payment success screens closed before the buyer could see them, on both join and accept;
+    - the tax invoice's columns overlapped;
+    - sample washer deliveries were stamped late, which showed "on time 42%";
+    - greetings used the server clock instead of IST;
+    - audit entries showed raw ids;
+    - landing sections stayed invisible for reduced-motion users;
+    - Google Fonts blocked app start on slow networks;
+    - a fresh demo wasn't saved until the first change, so reloads changed ids.
+  - Fixed two logic bugs found by the end-to-end run:
+    - the demo "close now" shortcut moved the delivery deadline but not the sellers' dates, so every bid became ineligible;
+    - "complete deliveries" ignored buyers still deciding, so the wave could never close.
+  - Made the seller's bid capacity default to the committed quantity plus headroom.
+  - Removed claims I could not verify:
+    - the "1 Jan 2027 e-commerce price rule", which POOL_BLUEPRINT.md marks UNVERIFIED;
+    - an "8 Oct festive offers" date;
+    - "8 years" of tax-record retention;
+    - "download" listed as a DPDP Act right.
+  - Rewrote demo copy so it doesn't assume the gender of sample people.
+  - Translated the buyer app and landing page into Telugu and Hindi: 1,300+ strings, including relative dates.
+  - Published a private preview (single-file build): https://claude.ai/artifact/4wzQXV62MCn9GX5tdHB2HD
+- Verified: in `experience/`:
+  - `pnpm typecheck` passed;
+  - `pnpm test` passed 9/9, including translation coverage and placeholder parity;
+  - `pnpm walkthrough` passed 15/15, with reconciliation at ₹0.00 after the full story;
+  - `pnpm shots` showed no runtime errors on 60 routes.
+- Next:
+  - native-speaker review of the Telugu and Hindi copy;
+  - dark-theme visual pass;
+  - translate the seller app if sellers need it.
+- Open issues / blockers: the same GUESS placeholders as the engine (late credit, return costs). `pool/` was not touched.
+
 ### 2026-10-02 00:48 · Claude Code · Clickable POOL experience (simulated) added in `experience/`
 - Did: built a self-contained, clickable experience at `experience/` (Vite 8 + React 19 + Tailwind 4; package `@pool/experience`, own lockfile). It contains:
   - a landing page;

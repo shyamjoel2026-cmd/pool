@@ -118,6 +118,8 @@ export function Kpi({ label, value, sub, tone, icon }: { label: string; value: R
   );
 }
 
+const istHour = (t: number) => Number(new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(t));
+
 // ---------------------------------------------------------------- Overview
 function Overview() {
   const s = useSim();
@@ -145,14 +147,14 @@ function Overview() {
   }
   return (
     <>
-      <PageHead eyebrow="POOL team console" title={`Good ${new Date(t).getHours() < 12 ? 'morning' : 'day'}, ${s.opsUser.name.split(' ')[0]}`} sub="Everything that needs a person, in deadline order. The engine does the rest." right={<div className="flex items-center gap-2 rounded-[12px] border border-save/30 bg-save-soft px-3 py-2 text-[13px] font-semibold text-save"><Scale className="h-4 w-4" />Ledger difference {inr(L.difference, { exact: true })}</div>} />
+      <PageHead eyebrow="POOL team console" title={`Good ${istHour(t) < 12 ? 'morning' : istHour(t) < 17 ? 'afternoon' : 'evening'}, ${s.opsUser.name.split(' ')[0]}`} sub="Everything that needs a person, in deadline order. The engine does the rest." right={<div className="flex items-center gap-2 rounded-[12px] border border-save/30 bg-save-soft px-3 py-2 text-[13px] font-semibold text-save"><Scale className="h-4 w-4" />Ledger difference {inr(L.difference, { exact: true })}</div>} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         <Kpi label="Open pools" value={k.openPools} sub={`${k.committed} committed households`} />
         <Kpi label="Offers waiting" value={k.offersWaiting} sub="24-hour decide window" tone="warn" />
         <Kpi label="In fulfilment" value={k.inFulfilment} sub={`${k.lateOrders.length} late`} tone={k.lateOrders.length ? 'danger' : 'brand'} />
         <Kpi label="Offers accepted" value={`${Math.round(k.acceptRate * 100)}%`} sub="of decided offers" tone="save" />
         <Kpi label="On time" value={`${Math.round(k.onTime * 100)}%`} sub="delivered by promise" tone="save" />
-        <Kpi label="Avg buyer saving" value={inr(k.avgSaving)} sub="vs plain outside best" tone="save" />
+        <Kpi label="Avg buyer saving" value={inr(Math.round(k.avgSaving / 100) * 100)} sub="vs plain outside best" tone="save" />
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_1fr]">
         <section>

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { cn } from '../lib/cn';
 import { useT } from '../lib/i18n';
 import { inr } from '../lib/money';
-import { fmtDay, fmtWhen } from '../lib/time';
+import { fmtWhen } from '../lib/time';
 import { CATEGORIES } from '../sim/catalog';
 import { committedCount, effectiveOutside, lowest30, outsideBest, productOf } from '../sim/engine';
 import { addRecent, toggleWatch, useNow, useSim } from '../sim/store';
@@ -362,7 +362,7 @@ export function ProductPage() {
               <Sparkline values={product.priceHistory} height={64} />
               <div className="mt-1 flex justify-between text-[10.5px] text-ink-3"><span>30 days ago</span><span>Today</span></div>
             </div>
-            <p className="px-1 text-[11.5px] text-ink-3">{tr('Any “was” price on POOL must be the lowest of the previous 30 days (E-Commerce Amendment Rules, from 1 Jan 2027).')}</p>
+            <p className="px-1 text-[11.5px] text-ink-3">{tr('POOL never shows a made-up “was” price. Every past price here is a real outside price we checked.')}</p>
           </Section>
           <Section title={pools.length ? tr('Pool near you') : tr('No pool near you yet')} sub={pools.length ? tr('Join instead of starting a duplicate.') : tr('Start one and choose when it closes. Sellers then bid privately.')}>
             {pools.map((p) => <PoolCard key={p.id} p={p} />)}
@@ -376,7 +376,7 @@ export function ProductPage() {
           </Section>
           {t < new Date('2026-11-08T00:00:00+05:30').getTime() && ['electronics', 'appliances', 'laptops'].includes(product.category) && (
             <div className="rounded-[14px] border border-line bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-ink-2">
-              <b className="text-ink">{tr('When to buy:')}</b> {tr('festive bank offers run from 8 Oct ({d}). They can beat local dealers on some products. We’ll compare honestly when they are live.', { d: fmtDay(new Date('2026-10-08T00:00:00+05:30').getTime()) })}
+              <b className="text-ink">{tr('When to buy:')}</b> {tr('festive-season sales often bring bank-card offers that can beat local dealers on some products. We compare honestly whenever they’re live, including your own cards.')}
             </div>
           )}
         </div>

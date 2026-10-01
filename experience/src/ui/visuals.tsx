@@ -1,5 +1,6 @@
 import { Lock, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/cn';
+import { useT } from '../lib/i18n';
 import { inr } from '../lib/money';
 
 /** Wave Drop pot as water: the level rises with every completed purchase. Real numbers only. */
@@ -26,14 +27,15 @@ export function WaveMeter({ level, title, value, caption, height = 132, classNam
 
 /** Sealed bids: envelopes arrive, prices stay hidden until close, every view is logged. */
 export function SealedVault({ count, closesText, className, dark }: { count: number; closesText: string; className?: string; dark?: boolean }) {
+  const tr = useT();
   const shown = Math.min(count, 7);
   return (
     <div className={cn('rounded-[18px] p-4', dark ? 'bg-night-2 text-white' : 'border border-line bg-surface', className)}>
       <div className="flex items-center gap-3">
         <div className={cn('grid h-11 w-11 place-items-center rounded-[14px]', dark ? 'bg-white/10' : 'bg-brand-soft text-brand')}><Lock className="h-5 w-5" /></div>
         <div className="min-w-0">
-          <div className="text-[15px] font-bold">{count === 0 ? 'No sealed bids yet' : `${count} sealed ${count === 1 ? 'bid' : 'bids'}`}</div>
-          <div className={cn('text-[12.5px]', dark ? 'text-white/60' : 'text-ink-3')}>Prices hidden from everyone until {closesText}</div>
+          <div className="text-[15px] font-bold">{count === 0 ? tr('No sealed bids yet') : count === 1 ? tr('1 sealed bid') : tr('{n} sealed bids', { n: count })}</div>
+          <div className={cn('text-[12.5px]', dark ? 'text-white/60' : 'text-ink-3')}>{tr('Prices hidden from everyone until {t}', { t: closesText })}</div>
         </div>
       </div>
       {count > 0 && (
@@ -50,7 +52,7 @@ export function SealedVault({ count, closesText, className, dark }: { count: num
         </div>
       )}
       <div className={cn('mt-3 flex items-center gap-1.5 text-[11.5px] font-medium', dark ? 'text-white/55' : 'text-ink-3')}>
-        <ShieldCheck className="h-3.5 w-3.5" /> Sellers never see each other's bids. Every view is logged.
+        <ShieldCheck className="h-3.5 w-3.5" /> {tr('Sellers never see each other’s bids. Every view is logged.')}
       </div>
     </div>
   );
@@ -154,9 +156,9 @@ export function Sparkline({ values, className, height = 40 }: { values: number[]
   const [lx, ly] = pts[lowIdx];
   const [ex, ey] = pts[pts.length - 1];
   return (
-    <svg viewBox={`0 0 ${w} ${height}`} className={cn('block w-full', className)} style={{ height }} aria-hidden="true">
+    <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" className={cn('block w-full', className)} style={{ height }} aria-hidden="true">
       <path d={`${d} L${w} ${height} L0 ${height}Z`} fill="color-mix(in oklab, var(--brand) 10%, transparent)" />
-      <path d={d} fill="none" stroke="var(--brand)" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d={d} fill="none" stroke="var(--brand)" strokeWidth="1.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       <circle cx={lx} cy={ly} r="3" fill="var(--save)" />
       <circle cx={ex} cy={ey} r="3.2" fill="var(--brand)" stroke="var(--surface)" strokeWidth="1.5" />
     </svg>

@@ -30,7 +30,7 @@ export function Home() {
   const weekly = s.pools.find((p) => p.recurring && p.state === 'open');
   const myWeekly = weekly?.members.find((m) => m.isMe && m.status === 'committed');
   const addr = s.me.addresses.find((a) => a.isDefault)!;
-  const hour = Number(new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }).format(t));
+  const hour = Number(new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(t));
   const greet = hour < 12 ? tr('Good morning') : hour < 17 ? tr('Good afternoon') : tr('Good evening');
   const completed = s.orders.filter((o) => o.status === 'settled');
   const delivered = s.orders.filter((o) => o.handedOverAt);

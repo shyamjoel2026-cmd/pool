@@ -6,6 +6,7 @@ import { cn } from '../lib/cn';
 import { inr } from '../lib/money';
 import { countdown } from '../lib/time';
 import { useNow } from '../sim/store';
+import { useT } from '../lib/i18n';
 
 // ---------------------------------------------------------------- Buttons
 type Variant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 'wave' | 'dark' | 'save';
@@ -215,8 +216,9 @@ export function ErrorState({ title = "This didn't load", body = 'Your connection
 // ---------------------------------------------------------------- Time
 export function Countdown({ to, compact, className, warnUnderMs = 6 * 3600_000 }: { to: number; compact?: boolean; className?: string; warnUnderMs?: number }) {
   const t = useNow(1000);
+  const tr = useT();
   const c = countdown(to, t);
-  if (c.past) return <span className={cn('num font-semibold text-ink-3', className)}>closed</span>;
+  if (c.past) return <span className={cn('num font-semibold text-ink-3', className)}>{tr('closed')}</span>;
   const warn = c.total < warnUnderMs;
   const parts = c.d > 0 ? [`${c.d}d`, `${c.h}h`, `${String(c.m).padStart(2, '0')}m`] : c.h > 0 ? [`${c.h}h`, `${String(c.m).padStart(2, '0')}m`, `${String(c.s).padStart(2, '0')}s`] : [`${c.m}m`, `${String(c.s).padStart(2, '0')}s`];
   return <span className={cn('num font-semibold', warn ? 'text-warn' : 'text-ink', className)}>{compact ? parts.slice(0, 2).join(' ') : parts.join(' ')}</span>;

@@ -4,12 +4,12 @@
  */
 import { mulberry32, pick, randInt } from '../lib/rand';
 import { rs } from '../lib/money';
-import { atIST, DAY, HOUR, MIN } from '../lib/time';
+import { atIST, DAY, fmtDayTime, fmtTime, HOUR, MIN } from '../lib/time';
 import { PRODUCTS, PROFILES, SELLERS, UOMS } from './catalog';
 import { closeWave, computeAward, lineTotal, splitOrder, waveCount, holdPerUnit } from './engine';
 import type { AuditEvent, Bid, Community, Member, Notification, Order, Pool, RiskSignal, SellerApplication, State, Ticket } from './types';
 
-export const STATE_VERSION = 7;
+export const STATE_VERSION = 8;
 
 const FIRST = ['Ravi', 'Sowmya', 'Imran', 'Deepika', 'Venkat', 'Farhana', 'Kiran', 'Lavanya', 'Arjun', 'Meena', 'Suresh', 'Ayesha', 'Prakash', 'Swathi', 'Naveen', 'Rekha', 'Abdul', 'Harika', 'Mahesh', 'Divya', 'Srikanth', 'Nikhila', 'Rahul', 'Bhavana', 'Sai', 'Keerthi', 'Anil', 'Shreya', 'Gopal', 'Fatima', 'Vamsi', 'Pooja', 'Rajesh', 'Anusha', 'Karthik', 'Madhavi', 'Yusuf', 'Sneha', 'Teja', 'Ramya', 'Vinod', 'Priyanka', 'Ashok', 'Hima', 'Sandeep', 'Sravani', 'Manoj', 'Uma', 'Chaitanya', 'Neha', 'Zoya', 'Bharath', 'Tanvi', 'Rohit', 'Geetha', 'Salman', 'Mounika', 'Pavan', 'Jyothi', 'Aditya'];
 const INITIALS = 'ABCDGKLMNPRSTVY';
@@ -199,7 +199,12 @@ export function seed(now: number): State {
       pool.prices[bidId] = { bidId, buyerPricePaise: rs(price), decidedBy: 'Aarav Mehta (pricing)', decidedAt: atPrice, note };
     }
     log(atAward + 20 * MIN, 'Aarav Mehta', 'Award confirmed', `${pool.award.assignments.length} households assigned, ${pool.award.unserved.length} unserved`, pool.id);
-    for (const [bidId, price] of Object.entries(prices)) log(atPrice, 'Aarav Mehta', 'Buyer price set', `${bidId}: ₹${price.toLocaleString('en-IN')} per unit`, pool.id);
+    for (const [bidId, price] of Object.entries(prices)) {
+      const b = pool.bids.find((x) => x.id === bidId);
+      const sName = SELLERS.find((x) => x.id === b?.sellerId)?.name ?? (b?.sellerId === 's-krishna' ? 'Sri Krishna Rice Mill' : b?.sellerId ?? bidId);
+      const u = product(pool.productId).uom;
+      log(atPrice, 'Aarav Mehta', 'Buyer price set', `${sName}: ₹${price.toLocaleString('en-IN')} per ${UOMS[u]?.label ?? u}${b ? ` (seller ₹${(b.pricePaise / 100).toLocaleString('en-IN')}, margin ₹${(price - b.pricePaise / 100).toLocaleString('en-IN')})` : ''}`, pool.id);
+    }
   }
 
   // =====================================================================================
@@ -232,7 +237,7 @@ export function seed(now: number): State {
       tv('s-branddesk', 40800, 200, 5, 30, { terms: { installation_included: true, warranty_months: 24, wall_mount: 'included' }, slabs: [{ fromUnit: 25, perUnitPaise: rs(400) }, { fromUnit: 50, perUnitPaise: rs(600) }] }),
     ];
     p.bids[0].accessLog = [{ who: 'Pricing desk', role: 'POOL team', at: T0 - 19 * HOUR, why: 'Pre-close completeness check (prices hidden)' }];
-    log(createdAt, 'Ravi K.', 'Pool started', 'Close time chosen: ' + new Date(closesAt).toISOString(), p.id);
+    log(createdAt, 'Ravi K.', 'Pool started', 'Close time chosen by the starter: ' + fmtDayTime(closesAt), p.id);
     pools.push(p);
   }
 
@@ -266,7 +271,7 @@ export function seed(now: number): State {
     ];
     p.award = computeAward(p, SELLERS, closesAt + 2 * MIN);
     log(closesAt, 'System', 'Pool closed at the chosen time', `${p.members.length} committed households; 5 sealed bids opened`, p.id);
-    notify('buyer', 'pool', closesAt + 3 * MIN, 'Your AC pool has closed', '5 sellers bid privately. The POOL team is setting your price; your offer comes by ' + new Date(p.pricingDeadline!).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) + '.', '/buyer/pool/pool-ac');
+    notify('buyer', 'pool', closesAt + 3 * MIN, 'Your AC pool has closed', '5 sellers bid privately. The POOL team is setting your price; your offer comes by ' + fmtTime(p.pricingDeadline!) + '.', '/buyer/pool/pool-ac');
     notify('ops', 'award', closesAt + 3 * MIN, 'AC pool closed — award needs review', '58 households · 5 bids · 1 low-bid flag. Pricing deadline in 4 h.', '/ops/awards/pool-ac');
     notify('seller', 'award', closesAt + 3 * MIN, 'AC pool closed', 'Your bid of ₹37,200 is in the award review. You will hear the result after POOL publishes offers.', '/seller/bids', false);
     pools.push(p);
@@ -315,7 +320,7 @@ export function seed(now: number): State {
         m.refundAt = m.decidedAt;
       }
     }
-    log(offersAt, 'Aarav Mehta', 'Offers published', `${assigned.size} personal offers; decide by ${new Date(p.acceptBy!).toISOString()}`, p.id);
+    log(offersAt, 'Aarav Mehta', 'Offers published', `${assigned.size} personal offers; decide by ${fmtDayTime(p.acceptBy!)}`, p.id);
     notify('buyer', 'offer', offersAt + MIN, 'Your rice offer is ready', '2 bags of Sona Masoori for ₹3,040 all-in — ₹340 less than your best local price. Decide by tomorrow.', '/buyer/offer/m-me-rice');
     pools.push(p);
     void accepted;
@@ -431,7 +436,8 @@ export function seed(now: number): State {
       m.status = 'accepted';
       m.decidedAt = offersAt + randInt(rr, 10, 600) * MIN;
       k++;
-      const handed = m.isMe ? at(-13, 16, 20) : at(-21 + (k % 6), 12 + (k % 7));
+      // Delivered inside the promise (closes day −25, deliver within 4 days): the late-seller story lives in the cement pool.
+      const handed = m.isMe ? at(-22, 16, 20) : at(-24 + (k % 3), 11 + (k % 7));
       const o = mkOrder(rr, p, m, bid, {
         createdAt: m.decidedAt,
         status: 'settled',

@@ -9,7 +9,7 @@ import { MoneyPage, TxnPage } from './Money';
 import { Account, Profile, Addresses, AddressEdit, Cards, NotifSettings, LanguagePage, Privacy, Notifications, Help, Promise, HowItWorks, RankingRule, Legal, SupportChat, Connectors } from './Account';
 import { Community, Locker, Watching, Assistant, WhatsAppDemo, SellerProfile, ShareDemo } from './Extras';
 
-const NO_TABS = ['/buyer/join', '/buyer/start', '/buyer/accept', '/buyer/find', '/buyer/assistant', '/buyer/whatsapp', '/buyer/help/chat', '/buyer/share'];
+const NO_TABS = ['/buyer/join', '/buyer/start', '/buyer/accept', '/buyer/find', '/buyer/assistant', '/buyer/whatsapp', '/buyer/help/chat', '/buyer/share', '/buyer/product/', '/buyer/pool/', '/buyer/offer/'];
 
 export function BuyerApp() {
   const { pathname } = useLocation();

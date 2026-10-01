@@ -40,12 +40,25 @@ On desktop, the buyer and seller apps show inside a phone frame, with the 15-ste
 - `splitOrder` with TCS, TDS and holds;
 - the Wave Drop slab pot.
 
-State is kept in `localStorage`, under the key `pool-demo-state-v7`.
+State is kept in `localStorage`, under the key `pool-demo-state-v8`.
+
+## Checks
+
+- `pnpm test` runs 9 tests:
+  - money primitives;
+  - GST split;
+  - GSTIN checksum;
+  - order-split conservation;
+  - Wave Drop close;
+  - the ledger tying out to ₹0.00;
+  - Telugu/Hindi coverage of every buyer and landing string, with every `{placeholder}` kept.
+- `pnpm walkthrough` drives all 15 investor steps through the real UI: join, bid, close, hold back the flagged bid, award, price, accept and pay, dispatch, checklist, code, installation, wave close, payouts and reconciliation. It checks the ledger is still ₹0.00 at the end. It needs `pnpm preview` running.
+- `pnpm shots` screenshots every route. `--dark` captures the dark theme; `--lang=te` or `--lang=hi` captures Telugu or Hindi.
 
 ## Known gaps (honest)
 
-- Telugu and Hindi string dictionaries (`src/lib/i18n-dict.ts`) are not filled yet. The switch exists, but most screens stay in English.
-- Tests cover the money primitives, GST split, GSTIN checksum, order-split conservation, Wave Drop close and the ledger tie-out (`pnpm test`, 7 tests). Screens have not had a full visual QA pass yet.
-- Late credit (₹200) and return costs are placeholders, pending a founder decision (same as the engine).
+- Telugu and Hindi are draft translations. They cover the buyer app and landing page, but a native speaker should review them before launch.
+- Product names, units ("piece", "kg"), the seller app and the POOL console stay in English. The seller's delivery staff mode is bilingual.
+- Late credit (₹200) and return costs are placeholders pending a founder decision, the same as in the engine.
 
 The full screen spec is in `SPEC.md`.

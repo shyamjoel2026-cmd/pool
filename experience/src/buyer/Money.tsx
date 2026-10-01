@@ -58,8 +58,8 @@ export function MoneyPage() {
           <div className="relative overflow-hidden rounded-[20px] border border-wave/25 bg-gradient-to-br from-wave-soft via-surface to-brand-soft p-4">
             <div className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.06em] text-wave-ink"><Sparkles className="h-4 w-4" />{tr('Your 2026 with POOL')}</div>
             <div className="mt-2 grid grid-cols-3 gap-2">
-              <div><div className="num text-[22px] font-bold text-ink">{pools}</div><div className="text-[11.5px] text-ink-3">{tr('pools joined')}</div></div>
-              <div><div className="num text-[22px] font-bold text-ink">{completed}</div><div className="text-[11.5px] text-ink-3">{tr('purchases delivered')}</div></div>
+              <div><div className="num text-[22px] font-bold text-ink">{pools}</div><div className="text-[11.5px] text-ink-3">{tr(pools === 1 ? 'pool joined' : 'pools joined')}</div></div>
+              <div><div className="num text-[22px] font-bold text-ink">{completed}</div><div className="text-[11.5px] text-ink-3">{tr(completed === 1 ? 'purchase delivered' : 'purchases delivered')}</div></div>
               <div><div className="num text-[22px] font-bold text-ink">{neighbours}</div><div className="text-[11.5px] text-ink-3">{tr('neighbours pooled with')}</div></div>
             </div>
             <p className="mt-2 text-[12px] text-ink-3">{tr('Counted from your own pools and orders. No estimates.')}</p>

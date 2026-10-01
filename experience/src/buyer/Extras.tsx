@@ -503,7 +503,7 @@ export function WhatsAppDemo() {
         <div className="min-w-0 flex-1"><div className="flex items-center gap-1 text-[15px] font-semibold">POOL <BadgeCheck className="h-4 w-4 fill-[#25d366] text-white" /></div><div className="text-[11.5px] text-white/75">{tr('Business account')}</div></div>
         <Video className="h-5 w-5 opacity-80" /><Phone className="ml-3 h-5 w-5 opacity-80" /><MoreVertical className="ml-2 h-5 w-5 opacity-80" />
       </div>
-      <div className="mx-auto my-2 rounded-[8px] bg-[#fff3c4] px-3 py-1.5 text-center text-[11.5px] text-[#54656f] dark:bg-[#1f2c34] dark:text-[#8696a0]">{tr('{n}’s phone · she doesn’t use apps. Everything works in WhatsApp.', { n: WA_NAME })} <SimTag className="ml-1">{tr('Simulated')}</SimTag></div>
+      <div className="mx-auto my-2 rounded-[8px] bg-[#fff3c4] px-3 py-1.5 text-center text-[11.5px] text-[#54656f] dark:bg-[#1f2c34] dark:text-[#8696a0]">{tr('{n}’s phone, with no apps installed. Everything works in WhatsApp.', { n: WA_NAME })} <SimTag className="ml-1">{tr('Simulated')}</SimTag></div>
       <div className="flex-1 space-y-2 px-3 py-2">
         <Bubble side="in" time={fmtTime(t - 26 * HOUR)}>
           <div className="text-[13.5px]">నమస్కారం! ఈ వారం ఆదివారం మటన్ పూల్ తెరిచి ఉంది. వాయిస్ నోట్‌లో ఎంత కావాలో చెప్పండి.</div>
