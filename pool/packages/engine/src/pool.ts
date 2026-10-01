@@ -699,9 +699,13 @@ function finish(result: Result<Pool>, before: Pool | undefined, now: number): Re
 }
 export function rebuildPool(events: readonly PoolEvent[]): Pool {
   let state: Pool | undefined;
+  const id = events[0]?.poolId;
   for (const event of events) {
-    if (state && event.poolId !== state.id) throw new PoolError('REPLAY', 'mixed aggregate events');
-    if (event.type === 'POOL_SNAPSHOT') state = structuredClone(event.state);
+    if (event.poolId !== id) throw new PoolError('REPLAY', 'mixed aggregate events');
+    if (event.type === 'POOL_SNAPSHOT') {
+      if (event.state.id !== id) throw new PoolError('REPLAY', 'snapshot identity mismatch');
+      state = structuredClone(event.state);
+    }
   }
   if (!state) throw new PoolError('REPLAY', 'missing initial snapshot');
   return state;
@@ -834,8 +838,18 @@ export function publishOffers(
   );
 }
 export function expirePricing(policy: Policy, pool: Pool, now: number): Result<Pool> {
-  if (pool.state !== 'PRICING' || pool.pricingDeadline === undefined || now <= pool.pricingDeadline)
+  if (
+    !['OPEN', 'CLOSED', 'PRICING'].includes(pool.state) ||
+    pool.pricingDeadline === undefined ||
+    now <= pool.pricingDeadline
+  )
     throw new PoolError('STATE', 'pricing not due');
+  // Recover correctly even when close and pricing workers resume out of order.
+  if (pool.state === 'OPEN') {
+    const closed = close(pool, now);
+    const expired = applyAward(policy, closed.value, new Set(), now);
+    return { value: expired.value, events: [...closed.events, ...expired.events] };
+  }
   return applyAward(policy, pool, new Set(), now);
 }
 export function cancelPool(

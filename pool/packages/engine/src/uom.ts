@@ -67,6 +67,10 @@ export class QuantityError extends Error {
 }
 
 export function validateQuantityRule(r: QuantityRule): void {
+  defineUom(r.uom.code, r.uom.baseScale, r.uom.baseLabel);
+  for (const cap of [r.maxPerBuyerBase, r.maxPerHouseholdBase])
+    if (cap !== undefined && (!Number.isSafeInteger(cap) || cap < r.minBase))
+      throw new QuantityError('RULE', 'caps must be safe integers at least the minimum');
   for (const [k, v] of [
     ['minBase', r.minBase],
     ['stepBase', r.stepBase],

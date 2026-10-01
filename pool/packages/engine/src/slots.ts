@@ -21,6 +21,9 @@ export class SlotError extends Error {
 }
 
 export function createSlot(s: Omit<PickupSlot, 'booked'>): PickupSlot {
+  if (!s.id.trim() || !s.areaKey.trim()) throw new SlotError('IDENTITY', 'slot and area required');
+  if (!Number.isSafeInteger(s.startsAt) || !Number.isSafeInteger(s.endsAt))
+    throw new SlotError('BAD_TIME', 'slot times must be integer UTC milliseconds');
   if (s.endsAt <= s.startsAt) throw new SlotError('BAD_TIME', 'slot must end after it starts');
   if (!Number.isSafeInteger(s.capacity) || s.capacity <= 0)
     throw new SlotError('BAD_CAPACITY', 'capacity must be a positive integer');
@@ -28,14 +31,23 @@ export function createSlot(s: Omit<PickupSlot, 'booked'>): PickupSlot {
 }
 
 export function reserveSlot(slot: PickupSlot, now: number): PickupSlot {
+  validateSlot(slot);
+  if (!Number.isSafeInteger(now)) throw new SlotError('BAD_TIME', 'integer UTC clock required');
   if (now >= slot.startsAt) throw new SlotError('STARTED', 'slot has already started');
   if (slot.booked >= slot.capacity) throw new SlotError('FULL', 'slot is full');
   return { ...slot, booked: slot.booked + 1 };
 }
 
 export function releaseSlot(slot: PickupSlot): PickupSlot {
+  validateSlot(slot);
   if (slot.booked <= 0) throw new SlotError('EMPTY', 'nothing to release');
   return { ...slot, booked: slot.booked - 1 };
+}
+
+function validateSlot(slot: PickupSlot): void {
+  createSlot(slot);
+  if (!Number.isSafeInteger(slot.booked) || slot.booked < 0 || slot.booked > slot.capacity)
+    throw new SlotError('BAD_CAPACITY', 'invalid reservation count');
 }
 
 /** Slots in an area that still have room, earliest first. */

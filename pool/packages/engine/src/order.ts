@@ -321,7 +321,9 @@ function completeStepCommand(
   if (!proofRef.trim())
     throw new OrderError('PROOF_MISSING', `step ${stepKey} needs proof (${step.proof})`);
   if (isDone(o, stepKey)) throw new OrderError('ALREADY_DONE', `step ${stepKey} already done`);
-  if (terminal.includes(o.status)) throw new OrderError('BAD_STATE', `order is ${o.status}`);
+  if (terminal.includes(o.status) && o.status !== 'SETTLED')
+    throw new OrderError('BAD_STATE', `order is ${o.status}`);
+  if (!by.trim()) throw new OrderError('PROOF_MISSING', 'proof requires an actor');
   if (!step.afterHandover) {
     if (o.status !== 'PAID')
       throw new OrderError(
@@ -332,7 +334,7 @@ function completeStepCommand(
     const idx = before.findIndex((s) => s.key === stepKey);
     const pending = before.slice(0, idx).find((s) => !isDone(o, s.key));
     if (pending) throw new OrderError('OUT_OF_ORDER', `complete ${pending.key} first`);
-  } else if (o.status !== 'HANDED_OVER') {
+  } else if (!['HANDED_OVER', 'SETTLED'].includes(o.status)) {
     throw new OrderError('BAD_STATE', 'after-handover steps need a handed-over order');
   }
   const record: StepRecord = { key: stepKey, proofRef, by, at: now };
@@ -428,7 +430,7 @@ function handOverCommand(
 function deferHoldCommand(o: Order, holdKey: string, until: number): Order {
   if (
     !Number.isSafeInteger(until) ||
-    o.status !== 'HANDED_OVER' ||
+    !['HANDED_OVER', 'SETTLED'].includes(o.status) ||
     o.holdsReleased.includes(holdKey)
   )
     throw new OrderError('STATE', 'hold cannot be deferred');
@@ -452,8 +454,14 @@ export function holdsDue(o: Order): ReadonlyArray<{ key: string; dueAt: number }
     .filter((h) => !o.holdsReleased.includes(h.key))
     .map((h) => {
       const deferred = o.holdDeferrals[h.key];
-      const dueAt =
-        deferred !== undefined && h.deferredMaxDays !== undefined
+      // Proof can be recorded while an issue blocks payout. Resolution must make
+      // that release eligible immediately instead of waiting for the timeout.
+      const proof = o.steps.find((s) =>
+        o.profile.steps.some((p) => p.key === s.key && p.releasesHold === h.key),
+      );
+      const dueAt = proof
+        ? proof.at
+        : deferred !== undefined && h.deferredMaxDays !== undefined
           ? Math.min(deferred, o.handedOverAt! + h.deferredMaxDays * day)
           : o.handedOverAt! + h.releaseAfterDays * day;
       return { key: h.key, dueAt };
@@ -683,9 +691,13 @@ function journal<T extends { order: Order; events?: OrderEvent[]; event?: OrderE
 }
 export function rebuildOrder(events: readonly OrderEvent[]): Order {
   let state: Order | undefined;
+  const id = events[0]?.orderId;
   for (const event of events) {
-    if (state && event.orderId !== state.id) throw new OrderError('REPLAY', 'mixed order events');
-    if (event.type === 'ORDER_SNAPSHOT') state = structuredClone(event.state);
+    if (event.orderId !== id) throw new OrderError('REPLAY', 'mixed order events');
+    if (event.type === 'ORDER_SNAPSHOT') {
+      if (event.state.id !== id) throw new OrderError('REPLAY', 'snapshot identity mismatch');
+      state = structuredClone(event.state);
+    }
   }
   if (!state) throw new OrderError('REPLAY', 'missing order snapshot');
   return state;
