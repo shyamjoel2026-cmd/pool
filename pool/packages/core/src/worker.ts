@@ -14,7 +14,11 @@ if (process.env.POOL_TEST_WORKER !== '1') {
     if (dispatching) return;
     dispatching = true;
     try {
-      await dispatchOutbox();
+      const result = await dispatchOutbox();
+      if (result.blocked || result.deferred)
+        console.error(
+          `Workflow dispatch: ${result.blocked} invalid jobs blocked, ${result.deferred} submissions deferred; inspect workflow status`,
+        );
     } catch {
       console.error('Workflow dispatch failed; retrying, credentials redacted');
     } finally {

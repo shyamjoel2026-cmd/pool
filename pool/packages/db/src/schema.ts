@@ -254,6 +254,10 @@ export const workflow_outbox = pgTable('workflow_outbox', {
   due_at: bigint('due_at', { mode: 'bigint' }).notNull(),
   data: jsonb('data').notNull(),
   dispatched: boolean('dispatched').notNull().default(false),
+  dispatch_attempts: integer('dispatch_attempts').notNull().default(0),
+  retry_at: bigint('retry_at', { mode: 'bigint' }).notNull().default(0n),
+  dispatch_error: text('dispatch_error'),
+  dispatch_blocked: boolean('dispatch_blocked').notNull().default(false),
 });
 
 export const fulfilment_slots = pgTable('fulfilment_slots', {

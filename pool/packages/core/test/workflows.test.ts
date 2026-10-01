@@ -25,6 +25,35 @@ afterAll(async () => {
   await DBOS.shutdown();
   await db.end();
 });
+it('invalid outbox work is quarantined without blocking a valid later job', async () => {
+  const id = randomUUID(),
+    at = Date.now();
+  await poolCommand(db, id, id + ':create', {}, () => ({ value: p(id, at), events: [] }));
+  const badId = id + ':invalid';
+  await db.query('INSERT INTO workflow_outbox(id,kind,due_at,data) VALUES($1,$2,$3,$4)', [
+    badId,
+    'unknown-kind',
+    String(at - 1),
+    { aggregateId: id },
+  ]);
+  const result = await dispatchOutbox(id);
+  expect(result.blocked).toBe(1);
+  expect(result.submitted).toBeGreaterThanOrEqual(1);
+  expect(
+    ((await DBOS.retrieveWorkflow('close:' + id + ':' + at + ':').getResult()) as e.Pool).state,
+  ).toBe('CLOSED');
+  expect((await inspectWorkflows(id)).find((w) => w.id === badId)?.status).toBe('DISPATCH_BLOCKED');
+  await dispatchOutbox(id);
+  expect(
+    (
+      await db.query(
+        'SELECT dispatch_attempts,dispatch_error,dispatched FROM workflow_outbox WHERE id=$1',
+        [badId],
+      )
+    ).rows[0],
+  ).toEqual({ dispatch_attempts: 1, dispatch_error: 'INVALID_JOB', dispatched: false });
+}, 60000);
+
 it('failed durable work is visible and audited recovery preserves history and deduplicates retries', async () => {
   const id = randomUUID(),
     at = Date.now(),

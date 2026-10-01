@@ -112,37 +112,67 @@ export async function launchWorkflows() {
 export async function dispatchOutbox(aggregateId?: string) {
   return withDb(async (db) => {
     const rows = await db.query(
-      "SELECT id,kind,due_at,data FROM workflow_outbox WHERE NOT dispatched AND ($1::text IS NULL OR data->>'aggregateId'=$1) ORDER BY due_at LIMIT 100",
-      [aggregateId ?? null],
+      "SELECT id,kind,due_at,data,dispatch_attempts FROM workflow_outbox WHERE NOT dispatched AND NOT dispatch_blocked AND retry_at<=$2 AND ($1::text IS NULL OR data->>'aggregateId'=$1) ORDER BY due_at,id LIMIT 100",
+      [aggregateId ?? null, String(Date.now())],
     );
+    const result = { submitted: 0, blocked: 0, deferred: 0 };
     for (const row of rows.rows) {
-      const id = row.data.aggregateId as string,
+      const id = row.data?.aggregateId as string,
         at = Number(row.due_at);
-      const options = { workflowID: row.id };
-      switch (row.kind) {
-        case 'close':
-          await DBOS.startWorkflow(poolCloseWorkflow, options)(id, at);
-          break;
-        case 'pricing':
-          await DBOS.startWorkflow(pricingWorkflow, options)(id, at);
-          break;
-        case 'accept':
-          await DBOS.startWorkflow(acceptWorkflow, options)(id, at);
-          break;
-        case 'hold':
-          await DBOS.startWorkflow(holdWorkflow, options)(id, at, row.id);
-          break;
-        case 'wave':
-          await DBOS.startWorkflow(waveWorkflow, options)(id, at);
-          break;
-        case 'settle':
-          await DBOS.startWorkflow(settleWorkflow, options)(id, at, row.id);
-          break;
-        default:
-          throw new Error('unknown durable workflow kind');
+      if (
+        typeof id !== 'string' ||
+        !id.trim() ||
+        !Number.isSafeInteger(at) ||
+        !['close', 'pricing', 'accept', 'hold', 'wave', 'settle'].includes(row.kind)
+      ) {
+        await db.query(
+          "UPDATE workflow_outbox SET dispatch_blocked=true,dispatch_error='INVALID_JOB',dispatch_attempts=dispatch_attempts+1 WHERE id=$1 AND NOT dispatched",
+          [row.id],
+        );
+        result.blocked++;
+        continue;
       }
-      await db.query('UPDATE workflow_outbox SET dispatched=true WHERE id=$1', [row.id]);
+      const options = { workflowID: row.id };
+      try {
+        switch (row.kind) {
+          case 'close':
+            await DBOS.startWorkflow(poolCloseWorkflow, options)(id, at);
+            break;
+          case 'pricing':
+            await DBOS.startWorkflow(pricingWorkflow, options)(id, at);
+            break;
+          case 'accept':
+            await DBOS.startWorkflow(acceptWorkflow, options)(id, at);
+            break;
+          case 'hold':
+            await DBOS.startWorkflow(holdWorkflow, options)(id, at, row.id);
+            break;
+          case 'wave':
+            await DBOS.startWorkflow(waveWorkflow, options)(id, at);
+            break;
+          case 'settle':
+            await DBOS.startWorkflow(settleWorkflow, options)(id, at, row.id);
+            break;
+          default:
+            throw new Error('unknown durable workflow kind');
+        }
+        await db.query(
+          'UPDATE workflow_outbox SET dispatched=true,dispatch_error=NULL,dispatch_attempts=dispatch_attempts+1 WHERE id=$1 AND NOT dispatched',
+          [row.id],
+        );
+        result.submitted++;
+      } catch {
+        // Keep stable workflow ID: submission may have succeeded before acknowledgement failed.
+        // Capped retry delay moves failed submissions out of the next batch; no raw errors persisted.
+        const delay = Math.min(60000, 1000 * 2 ** Math.min(row.dispatch_attempts, 6));
+        await db.query(
+          "UPDATE workflow_outbox SET retry_at=$2,dispatch_error='SUBMISSION_FAILED',dispatch_attempts=dispatch_attempts+1 WHERE id=$1 AND NOT dispatched",
+          [row.id, String(Date.now() + delay)],
+        );
+        result.deferred++;
+      }
     }
+    return result;
   });
 }
 export { DBOS };
@@ -153,7 +183,7 @@ export { DBOS };
 export async function inspectWorkflows(aggregateId: string) {
   return withDb(async (db) => {
     const rows = await db.query(
-      "SELECT id,kind,dispatched FROM workflow_outbox WHERE data->>'aggregateId'=$1 ORDER BY due_at,id",
+      "SELECT id,kind,dispatched,dispatch_blocked,dispatch_error FROM workflow_outbox WHERE data->>'aggregateId'=$1 ORDER BY due_at,id",
       [aggregateId],
     );
     const result: { id: string; kind: string; dispatched: boolean; status: string }[] = [];
@@ -163,7 +193,13 @@ export async function inspectWorkflows(aggregateId: string) {
         id: row.id,
         kind: row.kind,
         dispatched: row.dispatched,
-        status: status?.status ?? 'NOT_SUBMITTED',
+        status:
+          status?.status ??
+          (row.dispatch_blocked
+            ? 'DISPATCH_BLOCKED'
+            : row.dispatch_error
+              ? 'DISPATCH_RETRY_PENDING'
+              : 'NOT_SUBMITTED'),
       });
     }
     return result;
