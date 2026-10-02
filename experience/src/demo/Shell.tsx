@@ -26,7 +26,7 @@ export function DemoBar({ role }: { role: Role }) {
           <span className="hidden text-[15px] font-bold tracking-[0.06em] sm:inline">POOL</span>
         </Link>
         <span className="hidden items-center gap-1.5 rounded-full border border-dashed border-[#b6a2ff]/60 bg-[#b6a2ff]/10 px-2.5 py-1 text-[11px] font-semibold text-[#cfc2ff] md:inline-flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#b6a2ff]" /> Demo · simulated money, sample data
+          <span className="h-1.5 w-1.5 rounded-full bg-[#b6a2ff]" /> Demo · simulated money, sample data · build {__POOL_BUILD__}
         </span>
         <nav className="mx-auto flex rounded-[12px] bg-white/8 p-1" aria-label="Switch app">
           {ROLES.map((r) => (
@@ -59,6 +59,7 @@ function DemoControls({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="rounded-[14px] bg-sim-soft p-3.5 text-[13px] text-ink-2">
           <SimTag className="mb-1.5">Simulation</SimTag>
           <p>Everything here runs in your browser on sample data. No real money moves and no message is sent. These switches let you see the app's error and edge states.</p>
+          <p className="mt-1.5 text-[12px] text-ink-3">Version: Deep End · build {__POOL_BUILD__}</p>
         </div>
         <div className="space-y-1">
           <div className="eyebrow text-ink-3">Simulated time</div>

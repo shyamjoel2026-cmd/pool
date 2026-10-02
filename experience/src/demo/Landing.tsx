@@ -119,6 +119,7 @@ function Hero({ onTour, households, pools }: { onTour: () => void; households: n
             <span className="flex items-center gap-1.5"><Lock className="h-4 w-4 text-aqua" />{tr('Money held until your code')}</span>
             <span className="flex items-center gap-1.5"><Scale className="h-4 w-4 text-aqua" />{tr('We tell you when Amazon is cheaper')}</span>
           </div>
+          <div className="mt-6 text-[11px] font-medium tracking-[0.04em] text-white/35">Deep End · build {__POOL_BUILD__}</div>
         </div>
         <PoolStage />
       </div>
@@ -698,7 +699,7 @@ function Footer() {
         <FootCol h={tr('Trust')} links={[['/buyer/help/promise', tr('The POOL Promise')], ['/buyer/help/ranking', tr('How sellers are chosen')], ['/buyer/help/legal/refunds', tr('Refund policy')], ['/buyer/help/legal/grievance', tr('Grievance officer')]]} />
         <FootCol h={tr('Legal')} links={[['/buyer/help/legal/terms', tr('Terms')], ['/buyer/help/legal/privacy', tr('Privacy')], ['/buyer/account/privacy', tr('Your data')]]} />
       </div>
-      <div className="border-t border-white/10"><div className="mx-auto flex max-w-[1180px] flex-col gap-2 px-5 py-5 text-[12px] text-white/45 sm:flex-row sm:justify-between"><span>{tr('Demo with sample brands, sellers and people. No real money moves. Prices and offers are illustrative.')}</span><span>© 2026 POOL</span></div></div>
+      <div className="border-t border-white/10"><div className="mx-auto flex max-w-[1180px] flex-col gap-2 px-5 py-5 text-[12px] text-white/45 sm:flex-row sm:justify-between"><span>{tr('Demo with sample brands, sellers and people. No real money moves. Prices and offers are illustrative.')}</span><span>© 2026 POOL · build {__POOL_BUILD__}</span></div></div>
     </footer>
   );
 }
