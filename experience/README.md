@@ -20,32 +20,32 @@ pnpm -v          # 12.x
 
 If `pnpm` is "not recognized", run `$env:Path += ";$env:APPDATA\npm"` (that is where it is installed on the founder's PC) or install it with `npm install -g pnpm@12.8.1`.
 
+0. **Stop every old preview:** press Ctrl+C in each terminal that is running `pnpm dev`. Otherwise an old version can keep answering, and Windows can't replace a folder that's in use.
 1. Go to the project folder. If the path doesn't exist, try `$HOME\OneDrive\Desktop\idea`.
    ```powershell
    cd $HOME\Desktop\idea
    ```
-2. Get the latest code from GitHub:
+2. Get the latest code from GitHub. Note the commit it shows:
    ```powershell
    git fetch origin
+   git log -1 --oneline origin/claude/magical-pascal-1zipb0
    ```
-3. **First time only:** make a separate folder with this branch, so the work in `idea` is not touched:
+3. Make a **fresh folder pinned to exactly that commit**. Your own folder and branch stay untouched, so an old branch can't sneak in:
    ```powershell
-   git worktree add ..\idea-experience claude/magical-pascal-1zipb0
+   if (Test-Path ..\pool-deep-end) { git worktree remove --force ..\pool-deep-end }
+   git worktree add --detach ..\pool-deep-end origin/claude/magical-pascal-1zipb0
    ```
-   **Every later time:** update that folder instead.
-   ```powershell
-   cd ..\idea-experience
-   git pull
-   ```
+   Repeat steps 2 and 3 whenever you want the newest version.
 4. Go into the app folder and install the libraries. The first install takes about a minute and ends with `Done in …`.
    ```powershell
-   cd $HOME\Desktop\idea-experience\experience
+   cd ..\pool-deep-end\experience
    pnpm install
    ```
-5. Start it. Open the `Local:` address it prints (usually http://localhost:5173) in Chrome. Keep the window open; **Ctrl+C** stops it.
+5. Start it on its own port, so an old server can't answer:
    ```powershell
-   pnpm dev
+   pnpm dev --port 5180 --strictPort
    ```
+   Open **http://localhost:5180** in Chrome. Under the two big buttons it says `Deep End · build <commit>`, and that commit should match step 2. Keep the window open; **Ctrl+C** stops it.
 
 On your phone: run `pnpm dev --host`, then open the `Network:` address on a phone on the same Wi-Fi. Allow access if Windows Firewall asks.
 
@@ -64,11 +64,9 @@ Run these in the same `experience` folder:
 
 ### If something goes wrong
 
-- **`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`:** you have an older copy. pnpm 12 refuses packages less than 24 hours old, so run `git pull` to get the fixed lockfile (commit `546b95b` or later).
-- **`'..\idea-experience' already exists` in step 3:** the folder is already there. Use the "every later time" commands.
-- **`already checked out at …` in step 3:** the branch is open in another folder. Go to that folder and run `git pull`.
-- **Port 5173 is busy:** Vite uses 5174 instead. Open the address it prints.
-- **You see olive colours:** that is a different preview (Codex's). Stop it with Ctrl+C in its window.
+- **`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`:** you have an older copy. pnpm 12 refuses packages less than 24 hours old; repeat steps 2–3 to get the fixed lockfile (commit `546b95b` or later).
+- **Localhost shows the old (olive) design:** an old server or an old branch is answering. Follow steps 2–5 exactly, use port 5180, and check that the build stamp matches step 2.
+- **Port 5180 is busy:** pick another number, for example `pnpm dev --port 5181 --strictPort`.
 - **Walkthrough says "No browser found":** install Google Chrome, or set `$env:CHROME_PATH` to a Chromium-based browser.
 
 Other commands:
