@@ -1,7 +1,6 @@
 import type { Paise } from '../lib/money';
 
 export type Lang = 'en' | 'te' | 'hi';
-export type ThemePref = 'system' | 'light' | 'dark';
 
 export type CategoryId = 'electronics' | 'appliances' | 'groceries' | 'meat' | 'books' | 'services' | 'building' | 'laptops' | 'home' | 'mobility' | 'energy' | 'phones';
 
@@ -449,7 +448,6 @@ export interface Buyer {
 
 export interface Prefs {
   lang: Lang;
-  theme: ThemePref;
   notify: Record<string, Array<'app' | 'whatsapp' | 'sms' | 'email'>>;
   dataSaver: boolean;
   /** Optional settings (absent = default). */

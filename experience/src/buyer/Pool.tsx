@@ -188,7 +188,7 @@ export function PoolPage() {
       <Sheet open={share} onClose={() => setShare(false)} title={tr('Invite your neighbours')}>
         <div className="space-y-3">
           <p className="text-[13.5px] text-ink-2">{tr('More real buyers make the pool more attractive to sellers, and every completed purchase grows the Wave Drop for everyone. No referral cash, no spam.')}</p>
-          <div className="rounded-[16px] border border-line bg-[#e7ffdb] p-3 text-[13px] text-[#0b2913] dark:bg-[#123d22] dark:text-[#d7ffd8]">
+          <div className="rounded-[16px] border border-line bg-[#e7ffdb] p-3 text-[13px] text-[#0b2913]">
             <div className="mb-1 flex items-center gap-1.5 text-[11.5px] font-bold text-[#25a244]"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp preview</div>
             {shareText}
           </div>

@@ -1,4 +1,4 @@
-import { BatteryFull, BookOpen, Check, ChevronLeft, ChevronRight, Clock3, FlaskConical, Languages, Monitor, Moon, RotateCcw, Signal, Sun, Wifi, X, Zap } from 'lucide-react';
+import { BatteryFull, BookOpen, Check, ChevronLeft, ChevronRight, Clock3, FlaskConical, Languages, RotateCcw, Signal, Wifi, X, Zap } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
@@ -95,18 +95,11 @@ function DemoControls({ open, onClose }: { open: boolean; onClose: () => void })
           ))}
         </div>
         <div className="space-y-2">
-          <div className="eyebrow text-ink-3">Language and theme</div>
+          <div className="eyebrow text-ink-3">Language</div>
           <div className="grid grid-cols-3 gap-2">
             {LANGS.map((l) => (
               <button key={l.id} onClick={() => setPrefs({ lang: l.id })} className={cn('rounded-[12px] border px-3 py-2.5 text-[14px] font-semibold', s.prefs.lang === l.id ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line text-ink-2')}>
                 {l.native}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {([['system', 'System', Monitor], ['light', 'Light', Sun], ['dark', 'Dark', Moon]] as const).map(([id, label, Icon]) => (
-              <button key={id} onClick={() => setPrefs({ theme: id })} className={cn('flex items-center justify-center gap-1.5 rounded-[12px] border px-3 py-2.5 text-[13.5px] font-semibold', s.prefs.theme === id ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line text-ink-2')}>
-                <Icon className="h-4 w-4" /> {label}
               </button>
             ))}
           </div>

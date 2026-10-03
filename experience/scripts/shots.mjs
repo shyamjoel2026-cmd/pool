@@ -1,5 +1,5 @@
 // Visual QA: loads every route in Chromium, records console/page errors, and saves screenshots.
-// Usage: node scripts/shots.mjs [filter] [--dark] — expects `vite preview` on :4173 (or BASE env).
+// Usage: node scripts/shots.mjs [filter] [--lang=te|hi] — expects `vite preview` on :4173 (or BASE env).
 import { launchBrowser } from './browser.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -8,7 +8,6 @@ import { createHash } from 'node:crypto';
 const BASE = process.env.BASE ?? 'http://localhost:4173/';
 const OUT = process.env.OUT ?? '.shots';
 const filter = process.argv.find((a, i) => i > 1 && !a.startsWith('--'));
-const dark = process.argv.includes('--dark');
 const errorsOnly = process.argv.includes('--errors');
 const lang = (process.argv.find((a) => a.startsWith('--lang=')) ?? '').slice(7);
 mkdirSync(OUT, { recursive: true });
@@ -101,7 +100,7 @@ const routeFonts = async (ctx) => ctx.route(/fonts\.(googleapis|gstatic)\.com/, 
   if (!body) return route.abort();
   await route.fulfill({ status: 200, body, headers: { 'content-type': url.includes('googleapis') ? 'text/css' : 'font/woff2', 'access-control-allow-origin': '*' } });
 });
-const mk = (dpr) => browser.newContext({ viewport: phone, deviceScaleFactor: dpr, colorScheme: dark ? 'dark' : 'light', reducedMotion: 'reduce', ignoreHTTPSErrors: true });
+const mk = (dpr) => browser.newContext({ viewport: phone, deviceScaleFactor: dpr, colorScheme: 'light', reducedMotion: 'reduce', ignoreHTTPSErrors: true });
 const ctxs = { phone: await mk(2), desk: await mk(1) };
 await routeFonts(ctxs.phone);
 await routeFonts(ctxs.desk);
@@ -138,7 +137,7 @@ for (const [name, path0, vp, full] of ROUTES) {
   }
   await page.waitForFunction(() => document.fonts.check('600 16px "Google Sans Flex"'), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(700);
-  await page.screenshot({ path: `${OUT}/${name}${dark ? '-dark' : ''}${lang ? '-' + lang : ''}.png`, fullPage: !!full, timeout: 20000 });
+  await page.screenshot({ path: `${OUT}/${name}${lang ? '-' + lang : ''}.png`, fullPage: !!full, timeout: 20000 });
   await page.close();
 }
 await browser.close();

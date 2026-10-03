@@ -92,7 +92,7 @@ One idea runs through every screen: **water rises, price falls**. Pools fill as 
 On desktop, the buyer and seller apps show inside a phone frame, with the 15-step investor walkthrough beside it. The **Demo** menu in the top bar can:
 - move the clock forward;
 - trigger failure states (payment failure, slow network, offline, load error);
-- switch language and theme;
+- switch language;
 - reset the demo.
 
 `src/sim/engine.ts` mirrors the engine's rules:
@@ -114,7 +114,7 @@ State is kept in `localStorage`, under the key `pool-demo-state-v9`.
   - the ledger tying out to ₹0.00;
   - Telugu/Hindi coverage of every buyer and landing string, with every `{placeholder}` kept.
 - `pnpm walkthrough` drives all 15 investor steps through the real UI: join, bid, close, hold back the flagged bid, award, price, accept and pay, dispatch, checklist, code, installation, wave close, payouts and reconciliation. It checks the ledger is still ₹0.00 at the end. It needs `pnpm preview` running.
-- `pnpm shots` screenshots every route. `--dark` captures the dark theme; `--lang=te` or `--lang=hi` captures Telugu or Hindi.
+- `pnpm shots` screenshots every route. `--lang=te` or `--lang=hi` captures Telugu or Hindi.
 
 ## Known gaps (honest)
 

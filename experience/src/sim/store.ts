@@ -102,7 +102,7 @@ const PROFILE_BY_ART: Record<string, string> = { tv: 'delivery_with_installation
 // =====================================================================================
 export function resetDemo() {
   const fresh = seed(Date.now());
-  fresh.prefs = { ...fresh.prefs, lang: state.prefs.lang, theme: state.prefs.theme };
+  fresh.prefs = { ...fresh.prefs, lang: state.prefs.lang };
   commit(fresh);
 }
 export function setPrefs(p: Partial<State['prefs']>) {

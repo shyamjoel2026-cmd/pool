@@ -10,15 +10,11 @@ const SellerApp = lazy(() => import('./seller/SellerApp').then((m) => ({ default
 const OpsApp = lazy(() => import('./ops/OpsApp').then((m) => ({ default: m.OpsApp })));
 const ArtSheet = lazy(() => import('./demo/ArtSheet').then((m) => ({ default: m.ArtSheet })));
 
-function ThemeSync() {
-  const theme = useSim().prefs.theme;
+function LangSync() {
   const lang = useSim().prefs.lang;
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'system') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', theme);
-    root.lang = lang === 'te' ? 'te' : lang === 'hi' ? 'hi' : 'en';
-  }, [theme, lang]);
+    document.documentElement.lang = lang === 'te' ? 'te' : lang === 'hi' ? 'hi' : 'en';
+  }, [lang]);
   return null;
 }
 
@@ -46,7 +42,7 @@ const Router = import.meta.env.MODE === 'single' ? MemoryRouter : HashRouter;
 export function App() {
   return (
     <Router>
-      <ThemeSync />
+      <LangSync />
       <Clock />
       <ScrollTop />
       <Suspense fallback={<div className="route-loading" role="status" aria-label="Loading POOL">POOL</div>}>

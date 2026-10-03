@@ -8,6 +8,22 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-03 · Claude Code · Experience: light mode only (founder request)
+- Did:
+  - Removed dark mode from `experience/`: the dark token blocks in `styles.css`, all 27 Tailwind `dark:` classes, the theme sync in `App.tsx`, the "Appearance" switch in the buyer Account screen, the theme buttons in Demo controls, the `theme` preference in state, and `shots --dark`.
+  - Added `color-scheme: only light` and `<meta name="color-scheme" content="only light">`, so browsers don't auto-darken the page.
+  - The navy hero and header bands are part of the light design and stay.
+  - Earlier on 2 Oct: the build stamp is shown in the app, and the README steps now use a pinned fresh folder (`..\pool-deep-end`) on port 5180, because the founder's localhost had served the old olive version from `codex/experience-polish`.
+- Verified:
+  - with the browser set to dark mode, the buyer, pool, seller and console screens render light;
+  - typecheck passes;
+  - tests 9/9;
+  - build passes;
+  - walkthrough 15/15 with ledger ₹0.00;
+  - no runtime errors on any route.
+- Next: founder review; native-speaker review of Telugu/Hindi.
+- Open issues / blockers: none new.
+
 ### 2026-10-02 04:20 · Claude Code · Experience builds on the founder's toolchain (pnpm 12)
 - Did:
   - Rebuilt from a fresh GitHub clone with pnpm 12.8.1, the founder's version. `pnpm install` failed: pnpm 12's `minimumReleaseAge` rejects packages under 24 hours old, and Vite 8.3.2 was published on 1 Oct. Took Codex's fix (Vite 8.3.1), regenerated the lockfile with pnpm 12.8.1 (only Vite changed; the other 152 packages are identical) and pinned `"packageManager": "pnpm@12.8.1"` in `experience/package.json`, as `pool/` does.

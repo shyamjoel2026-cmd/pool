@@ -884,7 +884,7 @@ export function seed(now: number): State {
     ],
     recent: ['p-tv', 'p-fridge', 'p-laptop'],
     chats: { assistant: [], whatsapp: [] },
-    prefs: { lang: 'en', theme: 'system', notify: { offers: ['app', 'whatsapp'], delivery: ['app', 'whatsapp', 'sms'], refunds: ['app', 'whatsapp', 'email'], pools: ['app'], wave: ['app', 'whatsapp'] }, dataSaver: false },
+    prefs: { lang: 'en', notify: { offers: ['app', 'whatsapp'], delivery: ['app', 'whatsapp', 'sms'], refunds: ['app', 'whatsapp', 'email'], pools: ['app'], wave: ['app', 'whatsapp'] }, dataSaver: false },
     demo: { failNextPayment: false, slowNetwork: false, offline: false, failNextLoad: false },
     tour: { active: false, step: 0 },
     sellerDrafts: {},

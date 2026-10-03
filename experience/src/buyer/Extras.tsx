@@ -496,14 +496,14 @@ export function WhatsAppDemo() {
   };
   const count = pool ? committedCount(pool) : 0;
   return (
-    <div className="flex min-h-full flex-col bg-[#efeae2] dark:bg-[#0b141a]">
-      <div className="sticky top-0 z-30 flex items-center gap-2 bg-[#008069] px-2 py-2 text-white dark:bg-[#1f2c34]">
+    <div className="flex min-h-full flex-col bg-[#efeae2]">
+      <div className="sticky top-0 z-30 flex items-center gap-2 bg-[#008069] px-2 py-2 text-white">
         <button aria-label={tr('Back')} onClick={() => nav('/buyer/help')} className="grid h-9 w-9 place-items-center rounded-full"><ChevronRight className="h-5 w-5 rotate-180" /></button>
         <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-[13px] font-black text-[#2b4bf2]">P</div>
         <div className="min-w-0 flex-1"><div className="flex items-center gap-1 text-[15px] font-semibold">POOL <BadgeCheck className="h-4 w-4 fill-[#25d366] text-white" /></div><div className="text-[11.5px] text-white/75">{tr('Business account')}</div></div>
         <Video className="h-5 w-5 opacity-80" /><Phone className="ml-3 h-5 w-5 opacity-80" /><MoreVertical className="ml-2 h-5 w-5 opacity-80" />
       </div>
-      <div className="mx-auto my-2 rounded-[8px] bg-[#fff3c4] px-3 py-1.5 text-center text-[11.5px] text-[#54656f] dark:bg-[#1f2c34] dark:text-[#8696a0]">{tr('{n}’s phone, with no apps installed. Everything works in WhatsApp.', { n: WA_NAME })} <SimTag className="ml-1">{tr('Simulated')}</SimTag></div>
+      <div className="mx-auto my-2 rounded-[8px] bg-[#fff3c4] px-3 py-1.5 text-center text-[11.5px] text-[#54656f]">{tr('{n}’s phone, with no apps installed. Everything works in WhatsApp.', { n: WA_NAME })} <SimTag className="ml-1">{tr('Simulated')}</SimTag></div>
       <div className="flex-1 space-y-2 px-3 py-2">
         <Bubble side="in" time={fmtTime(t - 26 * HOUR)}>
           <div className="text-[13.5px]">నమస్కారం! ఈ వారం ఆదివారం మటన్ పూల్ తెరిచి ఉంది. వాయిస్ నోట్‌లో ఎంత కావాలో చెప్పండి.</div>
@@ -516,14 +516,14 @@ export function WhatsAppDemo() {
         )}
         {step >= 2 && (
           <Bubble side="in" time={fmtTime(t)}>
-            <div className="mb-1.5 rounded-[6px] border-l-4 border-[#06cf9c] bg-[#f0f2f5] px-2 py-1 text-[12px] text-[#54656f] dark:bg-[#1d282f] dark:text-[#8696a0]">🎤 “రెండు కిలోల మటన్, కర్రీ కట్, ఆదివారం కావాలి”</div>
+            <div className="mb-1.5 rounded-[6px] border-l-4 border-[#06cf9c] bg-[#f0f2f5] px-2 py-1 text-[12px] text-[#54656f]">🎤 “రెండు కిలోల మటన్, కర్రీ కట్, ఆదివారం కావాలి”</div>
             <div className="text-[13.5px]">సరే! ఆదివారం మటన్ పూల్: 2 కిలోలు, కర్రీ కట్. బుకింగ్ ₹100 (పూర్తిగా వాపసు వస్తుంది). ధర శుక్రవారం రాత్రి 8 తర్వాత పంపిస్తాం.</div>
             {gloss && <Gloss>Got it: Sunday mutton pool, 2 kg curry cut. Booking ₹100, fully refundable. We’ll send your price after 8 PM Friday.</Gloss>}
             {open ? (
               step === 2 && (
-                <div className="mt-2 grid grid-cols-1 gap-1 border-t border-[#e9edef] pt-1.5 dark:border-[#2a3942]">
-                  <button onClick={pay} className="py-1.5 text-center text-[14px] font-semibold text-[#008069] dark:text-[#00a884]">₹100 UPI తో కట్టండి</button>
-                  <button onClick={() => setStep(0)} className="py-1.5 text-center text-[14px] font-semibold text-[#008069] dark:text-[#00a884]">మార్చండి</button>
+                <div className="mt-2 grid grid-cols-1 gap-1 border-t border-[#e9edef] pt-1.5">
+                  <button onClick={pay} className="py-1.5 text-center text-[14px] font-semibold text-[#008069]">₹100 UPI తో కట్టండి</button>
+                  <button onClick={() => setStep(0)} className="py-1.5 text-center text-[14px] font-semibold text-[#008069]">మార్చండి</button>
                 </div>
               )
             ) : <div className="mt-2 text-[12.5px] text-[#d14b4b]">{tr('This week’s pool has closed. The next one opens on Saturday.')}</div>}
@@ -535,7 +535,7 @@ export function WhatsAppDemo() {
             <Bubble side="in" time={fmtTime(joined?.bookingPaidAt ?? t)}>
               <div className="text-[13.5px]">✅ మీరు పూల్‌లో ఉన్నారు! ₹100 అందింది.</div>
               {gloss && <Gloss>You’re in! ₹100 received.</Gloss>}
-              <div className="mt-1.5 rounded-[8px] bg-[#f0f2f5] p-2 text-[12px] text-[#3b4a54] dark:bg-[#1d282f] dark:text-[#d1d7db]">{tr('Sunday mutton · Kondapur · 2 kg curry cut')}<br />{tr('{n} households in this week’s pool', { n: count })}<br />{tr('Reply STOP before Friday 8 PM to leave with a full refund')}</div>
+              <div className="mt-1.5 rounded-[8px] bg-[#f0f2f5] p-2 text-[12px] text-[#3b4a54]">{tr('Sunday mutton · Kondapur · 2 kg curry cut')}<br />{tr('{n} households in this week’s pool', { n: count })}<br />{tr('Reply STOP before Friday 8 PM to leave with a full refund')}</div>
             </Bubble>
             <div className="mx-auto max-w-[300px] rounded-[10px] bg-surface/90 p-3 text-center text-[12px] text-ink-2 shadow-sm">{tr('This booking now counts in the same pool as app users: one household, real money, refundable. Sellers see one more committed buyer.')} <Link to="/buyer/pool/pool-mutton" className="font-semibold text-brand">{tr('See the pool')}</Link></div>
           </>
@@ -543,8 +543,8 @@ export function WhatsAppDemo() {
         {err && <div className="mx-auto max-w-[300px] rounded-[10px] bg-danger-soft p-3 text-center text-[12.5px] text-danger">{err}</div>}
         <div ref={end} />
       </div>
-      <div className="sticky bottom-0 flex items-center gap-2 bg-[#efeae2] px-2 py-2 dark:bg-[#0b141a]" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
-        <div className="flex h-11 flex-1 items-center rounded-full bg-white px-4 text-[14px] text-[#8696a0] dark:bg-[#1f2c34]">{step === 0 ? tr('Hold the mic to record') : tr('Message')}</div>
+      <div className="sticky bottom-0 flex items-center gap-2 bg-[#efeae2] px-2 py-2" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+        <div className="flex h-11 flex-1 items-center rounded-full bg-white px-4 text-[14px] text-[#8696a0]">{step === 0 ? tr('Hold the mic to record') : tr('Message')}</div>
         <button onClick={step === 0 ? sendVoice : undefined} disabled={step !== 0} aria-label={tr('Send voice note')} className={cn('grid h-11 w-11 place-items-center rounded-full bg-[#00a884] text-white', step === 0 && 'pulse-ring')}><Mic className="h-5 w-5" /></button>
       </div>
       <div className="flex items-center justify-center gap-2 bg-surface px-3 py-2 text-[12px] text-ink-2">
@@ -555,13 +555,13 @@ export function WhatsAppDemo() {
 }
 const Bubble = ({ side, time, children }: { side: 'in' | 'out'; time: string; children: React.ReactNode }) => (
   <div className={cn('flex', side === 'out' ? 'justify-end' : 'justify-start')}>
-    <div className={cn('max-w-[85%] rounded-[10px] px-2.5 pb-1 pt-1.5 text-[#111b21] shadow-sm dark:text-[#e9edef]', side === 'out' ? 'rounded-tr-[2px] bg-[#d9fdd3] dark:bg-[#005c4b]' : 'rounded-tl-[2px] bg-white dark:bg-[#1f2c34]')}>
+    <div className={cn('max-w-[85%] rounded-[10px] px-2.5 pb-1 pt-1.5 text-[#111b21] shadow-sm', side === 'out' ? 'rounded-tr-[2px] bg-[#d9fdd3]' : 'rounded-tl-[2px] bg-white')}>
       {children}
-      <div className="mt-0.5 flex items-center justify-end gap-1 text-[10.5px] text-[#667781] dark:text-[#8696a0]">{time}{side === 'out' && <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />}</div>
+      <div className="mt-0.5 flex items-center justify-end gap-1 text-[10.5px] text-[#667781]">{time}{side === 'out' && <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />}</div>
     </div>
   </div>
 );
-const Gloss = ({ children }: { children: React.ReactNode }) => <div className="mt-1 border-t border-dashed border-[#d1d7db] pt-1 text-[11.5px] italic text-[#667781] dark:border-[#2a3942] dark:text-[#8696a0]">{children}</div>;
+const Gloss = ({ children }: { children: React.ReactNode }) => <div className="mt-1 border-t border-dashed border-[#d1d7db] pt-1 text-[11.5px] italic text-[#667781]">{children}</div>;
 
 // =====================================================================================
 // Public seller scorecard
@@ -634,18 +634,18 @@ export function ShareDemo() {
   const nav = useNavigate();
   const [sheet, setSheet] = useState(false);
   return (
-    <div className="flex min-h-full flex-col bg-[#f3f3f3] dark:bg-[#121212]">
+    <div className="flex min-h-full flex-col bg-[#f3f3f3]">
       <div className="flex items-center gap-2 bg-[#131921] px-3 py-3 text-white">
         <button aria-label={tr('Back')} onClick={() => nav('/buyer')} className="grid h-8 w-8 place-items-center"><X className="h-5 w-5" /></button>
         <div className="flex h-9 flex-1 items-center gap-2 rounded-[8px] bg-white px-3 text-[13px] text-[#555]"><Search className="h-4 w-4" />frostline 253 l fridge</div>
       </div>
       <div className="px-3 py-1 text-center text-[11px] text-ink-3">{tr('Another shopping app (illustration)')} · <SimTag>{tr('Simulated')}</SimTag></div>
-      <div className="flex-1 space-y-3 bg-white p-4 dark:bg-[#1b1b1b]">
-        <div className="grid h-56 place-items-center rounded-[12px] bg-[#f7f7f7] dark:bg-[#232323]"><ProductArtFridge /></div>
-        <div className="text-[15px] text-[#0f1111] dark:text-[#eee]">FrostLine 253 L 3 Star Frost Free Double Door Refrigerator (FL253, Steel Grey)</div>
-        <div className="text-[24px] font-medium text-[#0f1111] dark:text-[#eee]">₹26,490</div>
+      <div className="flex-1 space-y-3 bg-white p-4">
+        <div className="grid h-56 place-items-center rounded-[12px] bg-[#f7f7f7]"><ProductArtFridge /></div>
+        <div className="text-[15px] text-[#0f1111]">FrostLine 253 L 3 Star Frost Free Double Door Refrigerator (FL253, Steel Grey)</div>
+        <div className="text-[24px] font-medium text-[#0f1111]">₹26,490</div>
         <div className="text-[12.5px] text-[#565959]">{tr('Delivery in 3 days · Installation extra')}</div>
-        <button onClick={() => setSheet(true)} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d5d9d9] py-2.5 text-[14px] text-[#0f1111] dark:text-[#eee]"><Share2 className="h-4 w-4" />{tr('Share')}</button>
+        <button onClick={() => setSheet(true)} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d5d9d9] py-2.5 text-[14px] text-[#0f1111]"><Share2 className="h-4 w-4" />{tr('Share')}</button>
         <div className="rounded-[12px] border border-dashed border-brand/40 bg-brand-soft p-3 text-[12.5px] text-ink-2">{tr('Tap Share, then POOL. POOL reads only the link you share; it never opens or scrapes the store’s page.')}</div>
       </div>
       <Sheet open={sheet} onClose={() => setSheet(false)} title={tr('Share')}>

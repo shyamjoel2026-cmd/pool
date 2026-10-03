@@ -55,7 +55,6 @@ export function Account() {
           <Row icon={<CreditCard className="h-5 w-5" />} title={tr('Cards & UPI')} sub={tr('Also used to find your card offers outside')} to="/buyer/account/cards" />
           <Row icon={<Bell className="h-5 w-5" />} title={tr('Notifications')} sub={tr('App, WhatsApp, SMS, email')} to="/buyer/account/notifications" />
           <Row icon={<Languages className="h-5 w-5" />} title={tr('Language')} right={<span className="text-[13px] text-ink-3">{lang.native}</span>} to="/buyer/account/language" />
-          <Row icon={<Moon className="h-5 w-5" />} title={tr('Appearance')} right={<ThemeSwitch />} />
           <Row icon={<Lock className="h-5 w-5" />} title={tr('Privacy & data')} sub={tr('What is shared, with whom, and when')} to="/buyer/account/privacy" />
           <Row icon={<Bot className="h-5 w-5" />} title={tr('Connected apps & AI assistants')} to="/buyer/account/connectors" />
         </Group>
@@ -91,17 +90,6 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
       <div className="px-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">{title}</div>
       <div className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface">{children}</div>
     </section>
-  );
-}
-
-function ThemeSwitch() {
-  const s = useSim();
-  return (
-    <div className="flex gap-1 rounded-[10px] bg-surface-3 p-0.5">
-      {(['system', 'light', 'dark'] as const).map((th) => (
-        <button key={th} onClick={() => setPrefs({ theme: th })} className={cn('rounded-[8px] px-2 py-1 text-[11.5px] font-semibold capitalize', s.prefs.theme === th ? 'bg-surface text-ink shadow-sm' : 'text-ink-3')}>{th === 'system' ? 'Auto' : th}</button>
-      ))}
-    </div>
   );
 }
 
