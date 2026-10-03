@@ -1,0 +1,88 @@
+import { lazy, Suspense, useEffect } from 'react';
+import { HashRouter, MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { DemoBar, PhoneStage } from './demo/Shell';
+import { tick, useSim } from './sim/store';
+
+// Each door loads on its own, so the landing page paints first on a slow phone.
+const Landing = lazy(() => import('./demo/Landing').then((m) => ({ default: m.Landing })));
+const BuyerApp = lazy(() => import('./buyer/BuyerApp').then((m) => ({ default: m.BuyerApp })));
+const SellerApp = lazy(() => import('./seller/SellerApp').then((m) => ({ default: m.SellerApp })));
+const OpsApp = lazy(() => import('./ops/OpsApp').then((m) => ({ default: m.OpsApp })));
+const ArtSheet = lazy(() => import('./demo/ArtSheet').then((m) => ({ default: m.ArtSheet })));
+
+function LangSync() {
+  const lang = useSim().prefs.lang;
+  useEffect(() => {
+    document.documentElement.lang = lang === 'te' ? 'te' : lang === 'hi' ? 'hi' : 'en';
+  }, [lang]);
+  return null;
+}
+
+function Clock() {
+  useEffect(() => {
+    tick();
+    const i = setInterval(tick, 5000);
+    return () => clearInterval(i);
+  }, []);
+  return null;
+}
+
+function ScrollTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.querySelectorAll('[data-scroll-root]').forEach((el) => el.scrollTo({ top: 0 }));
+    window.scrollTo({ top: 0 });
+  }, [pathname]);
+  return null;
+}
+
+// The shareable single-file build runs inside a viewer that doesn't allow URL-hash routing, so it navigates in memory.
+const Router = import.meta.env.MODE === 'single' ? MemoryRouter : HashRouter;
+
+export function App() {
+  return (
+    <Router>
+      <LangSync />
+      <Clock />
+      <ScrollTop />
+      <Suspense fallback={<div className="route-loading" role="status" aria-label="Loading POOL">POOL</div>}>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/art" element={<ArtSheet />} />
+        <Route
+          path="/buyer/*"
+          element={
+            <>
+              <DemoBar role="buyer" />
+              <PhoneStage role="buyer">
+                <BuyerApp />
+              </PhoneStage>
+            </>
+          }
+        />
+        <Route
+          path="/seller/*"
+          element={
+            <>
+              <DemoBar role="seller" />
+              <PhoneStage role="seller">
+                <SellerApp />
+              </PhoneStage>
+            </>
+          }
+        />
+        <Route
+          path="/ops/*"
+          element={
+            <>
+              <DemoBar role="ops" />
+              <OpsApp />
+            </>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      </Suspense>
+    </Router>
+  );
+}

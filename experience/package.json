@@ -1,0 +1,40 @@
+{
+  "name": "@pool/experience",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p . && vite build",
+    "build:demo": "vite build --mode single --outDir dist-demo",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "shots": "node scripts/shots.mjs",
+    "walkthrough": "node scripts/walkthrough.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.49.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router-dom": "7.18.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "playwright-core": "1.63.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vite-plugin-singlefile": "2.3.3",
+    "vitest": "5.0.3"
+  },
+  "description": "POOL clickable experience: buyer, seller and POOL team apps on a simulated engine. Not the product; no real money or messages.",
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

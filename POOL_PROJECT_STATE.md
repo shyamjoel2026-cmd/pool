@@ -8,6 +8,107 @@
 
 ## 0. Handoff log (newest first; every agent adds an entry at the end of a session; see AGENTS.md §2)
 
+### 2026-10-03 · Claude Code · Experience: light mode only (founder request)
+- Did:
+  - Removed dark mode from `experience/`: the dark token blocks in `styles.css`, all 27 Tailwind `dark:` classes, the theme sync in `App.tsx`, the "Appearance" switch in the buyer Account screen, the theme buttons in Demo controls, the `theme` preference in state, and `shots --dark`.
+  - Added `color-scheme: only light` and `<meta name="color-scheme" content="only light">`, so browsers don't auto-darken the page.
+  - The navy hero and header bands are part of the light design and stay.
+  - Earlier on 2 Oct: the build stamp is shown in the app, and the README steps now use a pinned fresh folder (`..\pool-deep-end`) on port 5180, because the founder's localhost had served the old olive version from `codex/experience-polish`.
+- Verified:
+  - with the browser set to dark mode, the buyer, pool, seller and console screens render light;
+  - typecheck passes;
+  - tests 9/9;
+  - build passes;
+  - walkthrough 15/15 with ledger ₹0.00;
+  - no runtime errors on any route.
+- Next: founder review; native-speaker review of Telugu/Hindi.
+- Open issues / blockers: none new.
+
+### 2026-10-02 04:20 · Claude Code · Experience builds on the founder's toolchain (pnpm 12)
+- Did:
+  - Rebuilt from a fresh GitHub clone with pnpm 12.8.1, the founder's version. `pnpm install` failed: pnpm 12's `minimumReleaseAge` rejects packages under 24 hours old, and Vite 8.3.2 was published on 1 Oct. Took Codex's fix (Vite 8.3.1), regenerated the lockfile with pnpm 12.8.1 (only Vite changed; the other 152 packages are identical) and pinned `"packageManager": "pnpm@12.8.1"` in `experience/package.json`, as `pool/` does.
+  - `pnpm walkthrough` and `pnpm shots` used a Linux-only Chromium path. They now use `scripts/browser.mjs`: `CHROME_PATH`, else the cloud Chromium, else installed Chrome, else Edge.
+  - `experience/README.md` now has a Windows step-by-step guide (git worktree into `..\idea-experience`), a build-and-compile table with expected output, and troubleshooting.
+- Verified: on a fresh clone of `546b95b` with pnpm 12.8.1:
+  - install leaves the lockfile untouched;
+  - `typecheck` passes;
+  - tests pass 9/9;
+  - `build` and `build:demo` pass;
+  - walkthrough 15/15 with ledger ₹0.00;
+  - 63 routes load with no runtime errors.
+
+  The worktree steps were tested from a clone on `main`: first run, second run ("already exists") and `git pull`. The one-file build (`dist-demo/index.html`) opened from `file://`, went landing → buyer app → phone pool with no errors, and saved state in the browser.
+- Next: the founder runs the README steps on Windows; native-speaker review of Telugu/Hindi.
+- Open issues / blockers: `codex/experience-polish` still conflicts with this branch's styles; its Vite fix is now included here.
+
+### 2026-10-02 03:40 · Claude Code · Experience redesign: "Deep End" visual system, what India buys most
+- Did:
+  - Founder rejected the olive/paper palette on `codex/experience-polish` ("looks like garbage", "2010"). Rebuilt the look of `experience/` on `claude/magical-pascal-1zipb0` instead of recolouring it. Decision: one visual metaphor, **water rises, price falls**: pools fill as households join, the Wave Drop pot is water, prices roll into place.
+  - Type: Google Sans Flex (variable width/optical size) for UI and wide display headlines, Instrument Serif italic for the one emotional word, Anek Telugu / Anek Devanagari for Indian scripts. All verified on Google Fonts.
+  - Colour: electric pool blue `#1f57ff` for actions, aqua for live pools and money coming back, marigold for savings, green only for money states. Contrast checked with code (body grey raised to 4.7:1; old one was 3.7:1).
+  - Shape and motion: pill buttons, 24/16 radii, floating liquid-glass tab bars and action bars, rolling digits, water and drop/ripple animations (all off under reduced motion).
+  - New logo mark (a pool filling, one drop falling in) and favicon.
+  - Product art: replaced flat icons with lit 3D-style SVG renders for all 20 products (`src/ui/ProductArt.tsx`, QA sheet at `#/art`).
+  - Content: the landing page and buyer home now lead with what India buys most. Evidence: phones ~30% and phones + appliances 60–65% of online festive GMV 2025 (Redseer via Storyboard18; Counterpoint festive report). Added sample products and open pools: Orbit Nova 5G phone (HSN 8517 13, 18%), Raftaar E3 electric scooter (HSN 8711 60, 5%), 3 kW installed rooftop solar (8.9% overall GST: 70% goods at 5%, 30% services at 18%, rule since 22 Sep 2025). Rates checked against PIB / ClearTax / TaxHeal.
+  - Landing rebuilt: live pool hero (water level, drops, sealed bids, best outside price), "What India buys most" bento of live pools, six-step journey with real UI pieces, honesty case, Wave Drop as a rising pot, city map, three-script India section, doors, promise, investor maths from the live ledger.
+  - Buyer app: new home (deep-water header, "Pooling near you now" carousel), product-coloured heroes on pool and product pages, offer price hero with rolling digits. Accept and Walk away are now the same style (ported from Codex; POOL never nudges).
+  - Ported from Codex: booking-success count fix (it double-counted the new household) and lazy-loaded routes. Codex's olive palette and its POOL_BLUEPRINT.md paragraph were not taken.
+  - 59 new Telugu/Hindi strings (drafts, need native review). State key is now `pool-demo-state-v9`.
+- Verified: in `experience/`: `pnpm typecheck` passed; `pnpm test` 9/9; `pnpm build` and `pnpm build:demo` passed; `pnpm walkthrough` 15/15 with reconciliation ₹0.00; all 63 routes loaded with no runtime errors; screenshots reviewed at 1440 and 390–412 px, light and dark, English, Telugu and Hindi.
+- Next: founder review of the new look; native-speaker review of Telugu/Hindi; decide whether `codex/experience-polish` should be closed (it conflicts with this branch's styles).
+- Open issues / blockers: the seller app and POOL console got the new system through shared components, not a screen-by-screen redesign. The late credit (₹200) and return costs are still GUESS placeholders, same as the engine.
+
+### 2026-10-02 02:00 · Claude Code · Experience QA, translations, end-to-end walkthrough
+- Did:
+  - Visual QA of 60 routes (phone and desktop) and fixed what it found:
+    - sticky Join/Accept bars were hidden behind the tab bar;
+    - payment success screens closed before the buyer could see them, on both join and accept;
+    - the tax invoice's columns overlapped;
+    - sample washer deliveries were stamped late, which showed "on time 42%";
+    - greetings used the server clock instead of IST;
+    - audit entries showed raw ids;
+    - landing sections stayed invisible for reduced-motion users;
+    - Google Fonts blocked app start on slow networks;
+    - a fresh demo wasn't saved until the first change, so reloads changed ids.
+  - Fixed two logic bugs found by the end-to-end run:
+    - the demo "close now" shortcut moved the delivery deadline but not the sellers' dates, so every bid became ineligible;
+    - "complete deliveries" ignored buyers still deciding, so the wave could never close.
+  - Made the seller's bid capacity default to the committed quantity plus headroom.
+  - Removed claims I could not verify:
+    - the "1 Jan 2027 e-commerce price rule", which POOL_BLUEPRINT.md marks UNVERIFIED;
+    - an "8 Oct festive offers" date;
+    - "8 years" of tax-record retention;
+    - "download" listed as a DPDP Act right.
+  - Rewrote demo copy so it doesn't assume the gender of sample people.
+  - Translated the buyer app and landing page into Telugu and Hindi: 1,300+ strings, including relative dates.
+  - Published a private preview (single-file build): https://claude.ai/artifact/4wzQXV62MCn9GX5tdHB2HD
+- Verified: in `experience/`:
+  - `pnpm typecheck` passed;
+  - `pnpm test` passed 9/9, including translation coverage and placeholder parity;
+  - `pnpm walkthrough` passed 15/15, with reconciliation at ₹0.00 after the full story;
+  - `pnpm shots` showed no runtime errors on 60 routes.
+- Next:
+  - native-speaker review of the Telugu and Hindi copy;
+  - a full dark-theme pass (spot-checked so far: buyer home, offer, seller today, reconciliation; one fix made);
+  - translate the seller app if sellers need it.
+- Open issues / blockers: the same GUESS placeholders as the engine (late credit, return costs). `pool/` was not touched.
+
+### 2026-10-02 00:48 · Claude Code · Clickable POOL experience (simulated) added in `experience/`
+- Did: built a self-contained, clickable experience at `experience/` (Vite 8 + React 19 + Tailwind 4; package `@pool/experience`, own lockfile). It contains:
+  - a landing page;
+  - a buyer app (about 40 screens): find by link, scan or assistant; join or start a pool, with the starter choosing the close time; refundable booking; personal offer with accept or walk-away and the honest "outside is cheaper for you" case; pay now, by EMI or at the door, never cash; checklist then handover code; issues; GST invoice; Wave Drop; money and refunds; account, privacy and help; community move-in pools; Warranty Locker; WhatsApp voice-note join;
+  - a seller app (13 screens): demand; sealed lower-only bid with Wave Drop slabs and payout preview; orders with proof; code verification; payouts and holds; staff mode; forward demand;
+  - a POOL team console: awards, buyer pricing, exceptions and refunds, reconciliation, KYB review, risk, audit and rules;
+  - a 15-step investor walkthrough.
+  It sits outside `pool/` on purpose: everything is simulated in the browser (no backend, no real money or messages) and labelled "Simulated", so it must not live in the product monorepo (AGENTS.md: no mocked data paths in the product). Rules mirror `pool/packages/engine`: integer paise, half-up rounding, largest-remainder allocation, ranking and eligibility, the 15%-below-median flag, join-order award with backups, `splitOrder` (TCS 0.5%, TDS 0.1%, installation hold 10%, Wave hold), the Wave Drop slab pot, CGST/SGST vs IGST, and the GSTIN checksum. Spec: `experience/SPEC.md`.
+- Verified: in `experience/`, `pnpm typecheck` passed, `pnpm build` passed, and `pnpm test` passed 7 tests: money primitives, GST split, GSTIN checksum, order-split conservation, Wave Drop close invariants, and the seeded ledger tying out to ₹0.00. `pool/` was not touched.
+- Next:
+  - visual QA of every screen (phone and desktop, light and dark) via `pnpm shots`;
+  - an end-to-end click-through of the walkthrough;
+  - fill the Telugu and Hindi dictionaries (`src/lib/i18n-dict.ts`);
+  - publish a single-file preview (`pnpm build:demo`).
+- Open issues / blockers: the Telugu and Hindi strings are mostly not translated yet. Late credit (₹200) and return costs are the same GUESS placeholders as the engine. Sample brands, sellers and people only.
+
 ### 2026-10-01 23:35 · Codex · GitHub push completed
 - Did: configured `origin` as `https://github.com/shyamjoel2026-cmd/pool.git` and pushed `main` successfully.
 - Verified: local `main` tracks `origin/main`; `git ls-remote origin refs/heads/main` reports `a8e21c3f1adcc8ef5c81a68156986ce337721c9a`; worktree is clean.
